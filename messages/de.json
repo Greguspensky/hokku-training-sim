@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "Lädt...",
+    "save": "Speichern",
+    "cancel": "Abbrechen", 
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "welcome": "Willkommen"
+  },
+  "navigation": {
+    "signOut": "Abmelden",
+    "dashboard": "Dashboard",
+    "profile": "Profil"
+  },
+  "auth": {
+    "title": "Hokku Training Simulator",
+    "signUp": "Registrieren",
+    "signIn": "Anmelden",
+    "createAccount": "Konto erstellen",
+    "creatingAccount": "Konto wird erstellt...", 
+    "signingIn": "Anmeldung läuft...",
+    "fullName": "Vollständiger Name",
+    "emailAddress": "E-Mail-Adresse",
+    "password": "Passwort",
+    "placeholders": {
+      "fullName": "Geben Sie Ihren vollständigen Namen ein",
+      "email": "sie@unternehmen.com",
+      "password": "Mindestens 6 Zeichen"
+    }
+  },
+  "dashboard": {
+    "welcome": "Willkommen zum Hokku Training Simulator",
+    "subtitle": "Ihre Rollenspiel-Trainingsplattform für Frontline-Industrien",
+    "rolePlay": {
+      "title": "Rollenspiel-Training",
+      "description": "Üben Sie Kundeninteraktionen mit KI-gestützten Szenarien"
+    },
+    "performance": {
+      "title": "Leistungsanalyse",
+      "description": "Erhalten Sie detailliertes Feedback und Bewertungen Ihrer Leistung"
+    }
+  }
+}

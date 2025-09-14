@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "Caricamento...",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "create": "Crea",
+    "welcome": "Benvenuto"
+  },
+  "navigation": {
+    "signOut": "Esci",
+    "dashboard": "Dashboard",
+    "profile": "Profilo"
+  },
+  "auth": {
+    "title": "Simulatore di Formazione Hokku",
+    "signUp": "Registrati",
+    "signIn": "Accedi",
+    "createAccount": "Crea account",
+    "creatingAccount": "Creazione account...",
+    "signingIn": "Accesso in corso...",
+    "fullName": "Nome completo",
+    "emailAddress": "Indirizzo email",
+    "password": "Password",
+    "placeholders": {
+      "fullName": "Inserisci il tuo nome completo",
+      "email": "tuo@azienda.com",
+      "password": "Minimo 6 caratteri"
+    }
+  },
+  "dashboard": {
+    "welcome": "Benvenuto nel Simulatore di Formazione Hokku",
+    "subtitle": "La tua piattaforma di formazione role-play per le industrie di prima linea",
+    "rolePlay": {
+      "title": "Formazione Role-Play",
+      "description": "Pratica le interazioni con i clienti con scenari potenziati dall'IA"
+    },
+    "performance": {
+      "title": "Analisi delle Prestazioni",
+      "description": "Ricevi feedback dettagliato e punteggi sulle tue prestazioni"
+    }
+  }
+}

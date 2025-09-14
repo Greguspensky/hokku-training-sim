@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "welcome": "Bienvenido"
+  },
+  "navigation": {
+    "signOut": "Cerrar sesión",
+    "dashboard": "Panel de control",
+    "profile": "Perfil"
+  },
+  "auth": {
+    "title": "Simulador de Entrenamiento Hokku",
+    "signUp": "Registrarse",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "creatingAccount": "Creando cuenta...",
+    "signingIn": "Iniciando sesión...",
+    "fullName": "Nombre completo",
+    "emailAddress": "Dirección de correo",
+    "password": "Contraseña",
+    "placeholders": {
+      "fullName": "Ingrese su nombre completo",
+      "email": "su@empresa.com",
+      "password": "Mínimo 6 caracteres"
+    }
+  },
+  "dashboard": {
+    "welcome": "Bienvenido al Simulador de Entrenamiento Hokku",
+    "subtitle": "Su plataforma de entrenamiento de role-play para industrias de primera línea",
+    "rolePlay": {
+      "title": "Entrenamiento de Role-Play",
+      "description": "Practique interacciones con clientes con escenarios impulsados por IA"
+    },
+    "performance": {
+      "title": "Análisis de Rendimiento",
+      "description": "Obtenga comentarios detallados y puntuación de su rendimiento"
+    }
+  }
+}

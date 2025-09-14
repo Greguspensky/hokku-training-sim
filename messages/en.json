@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "welcome": "Welcome"
+  },
+  "navigation": {
+    "signOut": "Sign Out",
+    "dashboard": "Dashboard",
+    "profile": "Profile"
+  },
+  "auth": {
+    "title": "Hokku Training Simulator",
+    "signUp": "Sign Up",
+    "signIn": "Sign In",
+    "createAccount": "Create Account",
+    "creatingAccount": "Creating Account...",
+    "signingIn": "Signing In...",
+    "fullName": "Full Name",
+    "emailAddress": "Email Address",
+    "password": "Password",
+    "placeholders": {
+      "fullName": "Enter your full name",
+      "email": "you@company.com",
+      "password": "Minimum 6 characters"
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome to Hokku Training Simulator",
+    "subtitle": "Your role-play training platform for frontline industries",
+    "rolePlay": {
+      "title": "Role-Play Training",
+      "description": "Practice customer interactions with AI-powered scenarios"
+    },
+    "performance": {
+      "title": "Performance Analysis", 
+      "description": "Get detailed feedback and scoring on your performance"
+    }
+  }
+}
