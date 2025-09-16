@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
       client_behavior: body.client_behavior,
       expected_response: body.expected_response,
       difficulty: body.difficulty || 'beginner',
-      estimated_duration_minutes: body.estimated_duration_minutes || 30
+      estimated_duration_minutes: body.estimated_duration_minutes || 30,
+      milestones: body.milestones || []
     };
 
     // Validate required fields based on scenario type

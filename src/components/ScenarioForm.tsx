@@ -14,6 +14,7 @@ interface ScenarioFormData {
   expected_response: string
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   estimated_duration_minutes: number
+  milestones: string[]
 }
 
 interface ScenarioFormProps {
@@ -34,11 +35,30 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     client_behavior: '',
     expected_response: '',
     difficulty: 'beginner',
-    estimated_duration_minutes: 30
+    estimated_duration_minutes: 30,
+    milestones: []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availableTemplates, setAvailableTemplates] = useState(SCENARIO_TEMPLATES)
+  const [newMilestone, setNewMilestone] = useState('')
+
+  const addMilestone = () => {
+    if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        milestones: [...prev.milestones, newMilestone.trim()]
+      }))
+      setNewMilestone('')
+    }
+  }
+
+  const removeMilestone = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      milestones: prev.milestones.filter((_, i) => i !== index)
+    }))
+  }
 
   const handleInputChange = (field: keyof ScenarioFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -297,6 +317,56 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+            </div>
+            
+            {/* Milestones Section - Only for Service Practice */}
+            <div className="space-y-4">
+              <h4 className="text-md font-medium text-gray-900">Milestones</h4>
+              <p className="text-sm text-gray-600">
+                Add specific objectives that employees can achieve for bonus points during role-play.
+              </p>
+              
+              {/* Add new milestone */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMilestone}
+                  onChange={(e) => setNewMilestone(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., Ask for Google review"
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addMilestone())}
+                />
+                <button
+                  type="button"
+                  onClick={addMilestone}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Add
+                </button>
+              </div>
+              
+              {/* Milestones list */}
+              {formData.milestones.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Current Milestones:</p>
+                  {formData.milestones.map((milestone, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md">
+                      <span className="text-sm text-gray-700">• {milestone}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeMilestone(index)}
+                        className="text-red-600 hover:text-red-700 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {formData.milestones.length === 0 && (
+                <p className="text-sm text-gray-500 italic">No milestones added yet.</p>
+              )}
             </div>
           </div>
         )}

@@ -72,6 +72,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.log('Updating scenario ID:', resolvedParams.id);
     console.log('Update data:', body);
     
+    // Prepare update data, ensuring milestones is included
+    const updateData = {
+      title: body.title,
+      description: body.description,
+      client_behavior: body.client_behavior,
+      expected_response: body.expected_response,
+      difficulty: body.difficulty,
+      estimated_duration_minutes: body.estimated_duration_minutes,
+      milestones: body.milestones || []
+    };
+    
     // Validate required fields based on scenario type
     if (body.scenario_type === 'service_practice') {
       if (!body.title || !body.description || !body.client_behavior || !body.expected_response) {
@@ -82,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const scenario = await scenarioService.updateScenario(resolvedParams.id, body);
+    const scenario = await scenarioService.updateScenario(resolvedParams.id, updateData);
 
     return NextResponse.json({
       success: true,

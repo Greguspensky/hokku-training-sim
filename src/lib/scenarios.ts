@@ -84,6 +84,7 @@ export interface Scenario {
   expected_response: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes: number;
+  milestones: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -107,6 +108,7 @@ export interface CreateScenarioData {
   expected_response: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes?: number;
+  milestones?: string[];
 }
 
 export interface UpdateScenarioData {
@@ -116,6 +118,7 @@ export interface UpdateScenarioData {
   expected_response?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes?: number;
+  milestones?: string[];
   is_active?: boolean;
 }
 
@@ -183,7 +186,8 @@ class ScenarioService {
       client_behavior,
       expected_response,
       difficulty = 'beginner',
-      estimated_duration_minutes = 30
+      estimated_duration_minutes = 30,
+      milestones = []
     } = data;
 
     // Provide defaults for theory scenarios
@@ -195,7 +199,8 @@ class ScenarioService {
         description: description || 'Knowledge-based Q&A session',
         template_type: 'general_flow', // Default template for theory
         client_behavior: client_behavior || 'N/A - Theory based',
-        expected_response: expected_response || 'N/A - Theory based'
+        expected_response: expected_response || 'N/A - Theory based',
+        milestones: [] // Theory scenarios don't have milestones
       };
     }
 
@@ -214,6 +219,7 @@ class ScenarioService {
             expected_response: scenarioData.expected_response,
             difficulty: scenarioData.difficulty,
             estimated_duration_minutes: scenarioData.estimated_duration_minutes,
+            milestones: scenarioData.milestones,
             is_active: true
           }
         ])
@@ -239,6 +245,7 @@ class ScenarioService {
         expected_response: scenarioData.expected_response,
         difficulty: scenarioData.difficulty,
         estimated_duration_minutes: scenarioData.estimated_duration_minutes,
+        milestones: scenarioData.milestones || [],
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

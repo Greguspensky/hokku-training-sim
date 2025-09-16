@@ -228,6 +228,19 @@ export default function ManagerDashboard() {
                               <span className="text-sm font-medium text-gray-700">Expected Response:</span>
                               <p className="text-sm text-gray-600 mt-1">{scenario.expected_response}</p>
                             </div>
+                            {scenario.milestones && scenario.milestones.length > 0 && (
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">Milestones:</span>
+                                <div className="mt-1 space-y-1">
+                                  {scenario.milestones.map((milestone, index) => (
+                                    <div key={index} className="flex items-center text-sm text-gray-600">
+                                      <span className="w-2 h-2 bg-green-400 rounded-full mr-2 flex-shrink-0"></span>
+                                      <span>{milestone}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                         
