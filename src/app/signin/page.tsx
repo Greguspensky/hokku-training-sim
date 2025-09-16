@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { signIn } from '@/lib/auth'
 
 export default function SignIn() {
-  const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -19,52 +18,32 @@ export default function SignIn() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.email || !formData.password) {
       setError('Email and password are required')
       return
     }
 
+    console.log('🔄 SIGNIN: Starting simple signin...')
     setIsSubmitting(true)
     setError(null)
 
     try {
-      // For demo purposes, simulate API call and redirect
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Demo login - create mock user
-      const userData = {
-        id: `user-${Date.now()}`,
-        name: 'Demo Manager',
-        email: formData.email,
-        role: 'manager',
-        companyName: 'Demo Company',
-        companyId: 'demo-company-1'
+      const result = await signIn(formData.email, formData.password)
+
+      if (result.success) {
+        console.log('🔄 SIGNIN: Success! Supabase will handle redirect.')
+        // AuthContext will handle the redirect automatically
+      } else {
+        console.error('🔄 SIGNIN: Failed:', result.error)
+        setError(result.error || 'Invalid email or password')
       }
-      
-      localStorage.setItem('currentUser', JSON.stringify(userData))
-      
-      // Always redirect to manager for demo
-      router.push('/manager')
-    } catch (error) {
-      setError('Invalid email or password')
+    } catch (error: any) {
+      console.error('🔄 SIGNIN: Exception:', error)
+      setError('An error occurred during sign in')
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const handleDemoLogin = () => {
-    const userData = {
-      id: 'demo-manager',
-      name: 'Demo Manager',
-      email: 'demo@hokku.com',
-      role: 'manager',
-      companyName: 'Demo Company',
-      companyId: 'demo-company-1'
-    }
-    
-    localStorage.setItem('currentUser', JSON.stringify(userData))
-    router.push('/manager')
   }
 
   return (
@@ -143,26 +122,9 @@ export default function SignIn() {
           </form>
 
           <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Demo Mode</span>
-              </div>
-            </div>
-            
-            <div className="mt-4">
-              <button
-                onClick={handleDemoLogin}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Quick Demo Login
-              </button>
-            </div>
-            
-            <p className="mt-2 text-xs text-gray-500 text-center">
-              Click "Quick Demo Login" to try the system without credentials
+            <p className="text-center text-sm text-gray-600">
+              Use your Supabase credentials to sign in.<br/>
+              Don't have an account? <a href="/signup" className="text-blue-600 hover:text-blue-500">Sign up</a>
             </p>
           </div>
         </div>

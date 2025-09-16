@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Sign-in</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Supabase Authentication</h1>
+
+    <div>
+        <input type="email" id="email" placeholder="Email" value="greg@greg45.com">
+        <input type="password" id="password" placeholder="Password" value="">
+        <button onclick="testSignIn()">Test Sign In</button>
+    </div>
+
+    <div>
+        <button onclick="checkSession()">Check Current Session</button>
+        <button onclick="clearCookies()">Clear Cookies</button>
+    </div>
+
+    <pre id="result"></pre>
+
+    <script>
+        const supabaseUrl = 'https://tscjbpdorbxmbxcqyiri.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzY2picGRvcmJ4bWJ4Y3F5aXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNjQ2NjAsImV4cCI6MjA3Mjg0MDY2MH0.pjf_GMWVjuWibwSUGv3E2nuZ-asJ1q1nLU3T9xu0B-I'
+
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+
+        function log(message, data = '') {
+            const resultDiv = document.getElementById('result')
+            const timestamp = new Date().toISOString()
+            resultDiv.innerHTML += `[${timestamp}] ${message}\n${data ? JSON.stringify(data, null, 2) + '\n' : ''}\n`
+            console.log(message, data)
+        }
+
+        async function testSignIn() {
+            const email = document.getElementById('email').value
+            const password = document.getElementById('password').value
+
+            log('Starting sign-in test...')
+            document.getElementById('result').innerHTML = ''
+
+            try {
+                log('Calling signInWithPassword...')
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                })
+
+                if (error) {
+                    log('Sign-in error:', error)
+                    return
+                }
+
+                log('Sign-in success:', {
+                    user: data.user?.id,
+                    session: !!data.session,
+                    accessToken: data.session?.access_token ? 'present' : 'missing'
+                })
+
+                // Check cookies
+                log('Browser cookies:', document.cookie)
+
+                // Check session
+                const { data: sessionData } = await supabase.auth.getSession()
+                log('Current session:', {
+                    hasSession: !!sessionData.session,
+                    userId: sessionData.session?.user?.id
+                })
+
+            } catch (err) {
+                log('Exception during sign-in:', err)
+            }
+        }
+
+        async function checkSession() {
+            const { data } = await supabase.auth.getSession()
+            log('Current session check:', {
+                hasSession: !!data.session,
+                userId: data.session?.user?.id,
+                cookies: document.cookie
+            })
+        }
+
+        function clearCookies() {
+            const cookies = document.cookie.split(";");
+            for (let cookie of cookies) {
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+            log('Cookies cleared')
+        }
+    </script>
+</body>
+</html>

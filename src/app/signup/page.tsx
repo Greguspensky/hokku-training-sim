@@ -2,15 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { signUp } from '@/lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function SignUp() {
   const router = useRouter()
+  const { setUser } = useAuth()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    companyName: '',
     role: 'manager' as 'manager' | 'employee'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,26 +45,14 @@ export default function SignUp() {
     setError(null)
 
     try {
-      // For demo purposes, simulate API call and redirect
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Store demo user data in localStorage
-      const userData = {
-        id: `user-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        companyName: formData.companyName,
-        companyId: `company-${Date.now()}`
-      }
-      
-      localStorage.setItem('currentUser', JSON.stringify(userData))
-      
-      // Redirect based on role
-      if (formData.role === 'manager') {
-        router.push('/manager')
+      const result = await signUp(formData.email, formData.password, formData.name, formData.role)
+
+      if (result.success && result.user) {
+        // The user needs to check their email for confirmation
+        // For now, we'll just show a success message
+        router.push('/signin?message=Account created successfully. Please sign in.')
       } else {
-        router.push('/employee')
+        setError(result.error || 'Failed to create account. Please try again.')
       }
     } catch (error) {
       setError('Failed to create account. Please try again.')
@@ -125,19 +115,6 @@ export default function SignUp() {
               />
             </div>
 
-            <div>
-              <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-                Company Name
-              </label>
-              <input
-                id="companyName"
-                type="text"
-                value={formData.companyName}
-                onChange={(e) => handleInputChange('companyName', e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Your Company Inc."
-              />
-            </div>
 
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700">
@@ -206,16 +183,9 @@ export default function SignUp() {
           </form>
 
           <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Demo Mode</span>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-gray-500 text-center">
-              This is a demo version. No actual account will be created.
+            <p className="text-center text-sm text-gray-600">
+              By creating an account, you agree to use Supabase authentication.<br/>
+              Your account will be created in the database.
             </p>
           </div>
         </div>

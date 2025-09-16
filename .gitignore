@@ -64,6 +64,7 @@ yarn-error.log*
 # Database
 *.sqlite
 *.db
+/backups/
 
 # Temporary files
 *.tmp

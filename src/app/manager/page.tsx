@@ -1,13 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import TrackList from '@/components/TrackList'
 import TrackForm from '@/components/TrackForm'
 import ScenarioForm from '@/components/ScenarioForm'
 import EditScenarioForm from '@/components/EditScenarioForm'
+import UserHeader from '@/components/UserHeader'
+import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario } from '@/lib/scenarios'
+import { employeeService } from '@/lib/employees'
 
 export default function ManagerDashboard() {
+  const router = useRouter()
+  const { user } = useAuth()
   const [tracks, setTracks] = useState<Track[]>([])
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null)
@@ -16,9 +22,11 @@ export default function ManagerDashboard() {
   const [showEditScenarioForm, setShowEditScenarioForm] = useState(false)
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null)
   const [loading, setLoading] = useState(true)
+  const [roleChecking, setRoleChecking] = useState(true)
+  const [isEmployee, setIsEmployee] = useState(false)
 
-  // Demo company ID - in real app this would come from auth
-  const companyId = 'demo-company-1'
+  // Get company ID from authenticated user
+  const companyId = user?.company_id || 'demo-company-1'
 
   const loadTracks = async () => {
     try {
@@ -47,9 +55,34 @@ export default function ManagerDashboard() {
     }
   }
 
+  // Check user role on mount
   useEffect(() => {
-    loadTracks()
-  }, [])
+    const checkUserRole = () => {
+      if (user?.email) {
+        // Simple role detection based on email pattern
+        const isEmp = user.email.includes('emp')
+        setIsEmployee(isEmp)
+        if (isEmp) {
+          console.log('Manager page: Employee detected by email, redirecting to /employee')
+          router.push('/employee')
+          return
+        }
+      }
+      setRoleChecking(false)
+    }
+
+    if (user) {
+      checkUserRole()
+    } else if (!user) {
+      setRoleChecking(false)
+    }
+  }, [user, router])
+
+  useEffect(() => {
+    if (!roleChecking && !isEmployee) {
+      loadTracks()
+    }
+  }, [roleChecking, isEmployee])
 
   useEffect(() => {
     if (selectedTrack) {
@@ -93,7 +126,7 @@ export default function ManagerDashboard() {
     setScenarios([])
   }
 
-  if (loading) {
+  if (loading || roleChecking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -104,44 +137,98 @@ export default function ManagerDashboard() {
     )
   }
 
+  // If employee was detected, don't render anything (redirect in progress)
+  if (isEmployee) {
+    return null
+  }
+
+  // Check if user is authenticated and authorized
+  if (!user) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/signin'
+    }
+    return null
+  }
+
+  // Temporarily allow all authenticated users to access manager dashboard
+  // TODO: Add proper role checking once user profiles are set up
+  if (false) { // user.role !== 'manager'
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+          <p className="text-gray-600 mb-4">This page is only accessible to managers.</p>
+          <a
+            href="/employee"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Go to Employee Dashboard
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+        {/* User Header */}
+        <UserHeader
+          title="Training Manager"
+          subtitle={selectedTrack ? `Managing scenarios for: ${selectedTrack.name}` : 'Manage your training tracks and scenarios'}
+        />
+
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-3 mb-8">
+          {selectedTrack && (
+            <>
+              <button
+                onClick={() => setShowScenarioForm(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                Add Scenario
+              </button>
+              <button
+                onClick={handleBackToTracks}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                Back to Tracks
+              </button>
+            </>
+          )}
+          {!selectedTrack && (
+            <button
+              onClick={() => setShowTrackForm(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Create Track
+            </button>
+          )}
+        </div>
+
+        {/* Navigation Tabs */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Training Manager</h1>
-              <p className="text-gray-600 mt-2">
-                {selectedTrack ? `Managing scenarios for: ${selectedTrack.name}` : 'Manage your training tracks and scenarios'}
-              </p>
-            </div>
-            <div className="flex space-x-3">
-              {selectedTrack && (
-                <>
-                  <button
-                    onClick={() => setShowScenarioForm(true)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                  >
-                    Add Scenario
-                  </button>
-                  <button
-                    onClick={handleBackToTracks}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                  >
-                    Back to Tracks
-                  </button>
-                </>
-              )}
-              {!selectedTrack && (
-                <button
-                  onClick={() => setShowTrackForm(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Create Track
-                </button>
-              )}
-            </div>
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => {}}
+                className="border-blue-500 text-blue-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+              >
+                Training
+              </button>
+              <button
+                onClick={() => router.push('/manager/knowledge-base')}
+                className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+              >
+                Knowledge Base
+              </button>
+              <button
+                onClick={() => router.push('/manager/employees')}
+                className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+              >
+                Employees
+              </button>
+            </nav>
           </div>
         </div>
 
