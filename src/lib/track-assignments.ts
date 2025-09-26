@@ -170,12 +170,11 @@ class TrackAssignmentService {
         .from('track_assignments')
         .insert([
           {
-            employee_id,
+            user_id: employee_id,  // Changed from employee_id to user_id for production
             track_id,
             assigned_by,
-            notes,
-            status: 'assigned',
-            progress_percentage: 0
+            // Removed notes and progress_percentage as they don't exist in production
+            status: 'assigned'
           }
         ])
         .select()
@@ -247,33 +246,47 @@ class TrackAssignmentService {
    */
   async getEmployeeAssignments(employeeId: string): Promise<AssignmentWithDetails[]> {
     try {
+      // First get assignments (using correct production schema)
       const { data: assignments, error } = await supabaseAdmin
         .from('track_assignments')
-        .select(`
-          *,
-          tracks!inner(
-            id, name, description, target_audience, company_id
-          )
-        `)
-        .eq('employee_id', employeeId)
-        .eq('is_active', true)
+        .select('*')
+        .eq('user_id', employeeId)  // Changed from employee_id to user_id
+        // Removed .eq('is_active', true) as this column doesn't exist in production
         .order('assigned_at', { ascending: false })
 
       if (error) throw error
 
-      // Get scenario progress for each assignment
+      if (!assignments || assignments.length === 0) {
+        return []
+      }
+
+      // Manually get track details for each assignment (since joins don't work)
       const assignmentsWithProgress = await Promise.all(
-        (assignments || []).map(async (assignment) => {
+        assignments.map(async (assignment) => {
+          // Get track details manually
+          const { data: track, error: trackError } = await supabaseAdmin
+            .from('tracks')
+            .select('id, name, description, target_audience, company_id')
+            .eq('id', assignment.track_id)
+            .single()
+
+          if (trackError) {
+            console.error('Error fetching track for assignment:', assignment.id, trackError)
+            return null
+          }
+
           const scenarioProgress = await this.getAssignmentScenarioProgress(assignment.id)
           return {
             ...assignment,
-            track: assignment.tracks,
+            track,
+            employee: { id: employeeId, name: 'Employee' } as Employee,
             scenario_progress: scenarioProgress
           } as AssignmentWithDetails
         })
       )
 
-      return assignmentsWithProgress
+      // Filter out any null results
+      return assignmentsWithProgress.filter(assignment => assignment !== null) as AssignmentWithDetails[]
     } catch (error: any) {
       console.log('🚧 Demo mode: Getting employee assignments for:', employeeId)
 
@@ -615,9 +628,9 @@ class TrackAssignmentService {
       const { data, error } = await supabaseAdmin
         .from('track_assignments')
         .select('id')
-        .eq('employee_id', employeeId)
+        .eq('user_id', employeeId)  // Changed from employee_id to user_id
         .eq('track_id', trackId)
-        .eq('is_active', true)
+        // Removed .eq('is_active', true) as this column doesn't exist in production
         .single()
 
       if (error && error.code !== 'PGRST116') {
