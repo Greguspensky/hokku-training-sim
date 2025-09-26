@@ -245,8 +245,10 @@ class TrackAssignmentService {
    * Get assignments for an employee
    */
   async getEmployeeAssignments(employeeId: string): Promise<AssignmentWithDetails[]> {
+    console.log('🔍 getEmployeeAssignments called with employeeId:', employeeId)
     try {
       // First get assignments (using correct production schema)
+      console.log('🔍 Querying track_assignments with user_id:', employeeId)
       const { data: assignments, error } = await supabaseAdmin
         .from('track_assignments')
         .select('*')
@@ -254,6 +256,7 @@ class TrackAssignmentService {
         // Removed .eq('is_active', true) as this column doesn't exist in production
         .order('assigned_at', { ascending: false })
 
+      console.log('🔍 Query result - assignments:', assignments?.length || 0, 'error:', error?.message || 'none')
       if (error) throw error
 
       if (!assignments || assignments.length === 0) {
@@ -288,7 +291,10 @@ class TrackAssignmentService {
       // Filter out any null results
       return assignmentsWithProgress.filter(assignment => assignment !== null) as AssignmentWithDetails[]
     } catch (error: any) {
-      console.log('🚧 Demo mode: Getting employee assignments for:', employeeId)
+      console.error('❌ Production getEmployeeAssignments error:', error)
+      console.error('   Error message:', error.message)
+      console.error('   Error code:', error.code)
+      console.log('🚧 Demo mode fallback: Getting employee assignments for:', employeeId)
 
       // 🚨 FIX: Load from file first to get current state
       const currentAssignments = loadDemoAssignments()
