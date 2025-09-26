@@ -17,7 +17,7 @@ INSERT INTO public.users (
   'manager@hokku.com',
   'Training Manager',
   'manager',
-  'demo-company-1',
+  '01f773e2-1027-490e-8d36-279136700bbf',
   NOW(),
   NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -41,7 +41,7 @@ INSERT INTO public.users (
   'employee@hokku.com',
   'Demo Employee',
   'employee',
-  'demo-company-1',
+  '01f773e2-1027-490e-8d36-279136700bbf',
   NOW(),
   NOW()
 ) ON CONFLICT (id) DO UPDATE SET

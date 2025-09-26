@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
-import { Track, Scenario } from './scenarios'
+import { supabaseAdmin } from './supabase'
+import { Track, Scenario, scenarioService } from './scenarios'
 import { Employee } from './employees'
 
 export type AssignmentStatus = 'assigned' | 'in_progress' | 'completed' | 'cancelled'
@@ -71,13 +71,83 @@ export interface AssignmentWithDetails extends TrackAssignment {
   scenario_progress: (ScenarioProgress & { scenario: Scenario })[]
 }
 
-// Demo storage for development
-const demoAssignments: TrackAssignment[] = globalThis.__demoTrackAssignmentsStore || []
-const demoScenarioProgress: ScenarioProgress[] = globalThis.__demoScenarioProgressStore || []
+// Demo storage for development with persistence
+import fs from 'fs'
+import path from 'path'
 
-// Persist demo data across hot reloads
-globalThis.__demoTrackAssignmentsStore = demoAssignments
-globalThis.__demoScenarioProgressStore = demoScenarioProgress
+const DEMO_DATA_DIR = path.join(process.cwd(), '.demo-data')
+const ASSIGNMENTS_FILE = path.join(DEMO_DATA_DIR, 'track-assignments.json')
+const PROGRESS_FILE = path.join(DEMO_DATA_DIR, 'scenario-progress.json')
+
+// Ensure demo data directory exists
+if (typeof window === 'undefined') { // Server-side only
+  if (!fs.existsSync(DEMO_DATA_DIR)) {
+    fs.mkdirSync(DEMO_DATA_DIR, { recursive: true })
+  }
+}
+
+// Load demo assignments from file
+function loadDemoAssignments(): TrackAssignment[] {
+  if (typeof window !== 'undefined') return [] // Client-side fallback
+
+  try {
+    if (fs.existsSync(ASSIGNMENTS_FILE)) {
+      const data = fs.readFileSync(ASSIGNMENTS_FILE, 'utf8')
+      const parsed = JSON.parse(data)
+      console.log('🔍 DEBUG: Loaded assignments from file:', parsed.length, 'assignments')
+      console.log('🔍 DEBUG: Assignment IDs loaded:', parsed.map((a: any) => a.id))
+      return parsed
+    } else {
+      console.log('🔍 DEBUG: No assignments file exists, starting with empty array')
+    }
+  } catch (error) {
+    console.error('Error loading demo assignments:', error)
+  }
+  return []
+}
+
+// Save demo assignments to file
+function saveDemoAssignments(assignments: TrackAssignment[]) {
+  if (typeof window !== 'undefined') return // Client-side fallback
+
+  try {
+    console.log('🔍 DEBUG: Saving assignments to file:', assignments.length, 'assignments')
+    console.log('🔍 DEBUG: Assignment IDs being saved:', assignments.map(a => a.id))
+    fs.writeFileSync(ASSIGNMENTS_FILE, JSON.stringify(assignments, null, 2))
+    console.log('🔍 DEBUG: Successfully saved assignments to file')
+  } catch (error) {
+    console.error('Error saving demo assignments:', error)
+  }
+}
+
+// Load demo scenario progress from file
+function loadDemoScenarioProgress(): ScenarioProgress[] {
+  if (typeof window !== 'undefined') return [] // Client-side fallback
+
+  try {
+    if (fs.existsSync(PROGRESS_FILE)) {
+      const data = fs.readFileSync(PROGRESS_FILE, 'utf8')
+      return JSON.parse(data)
+    }
+  } catch (error) {
+    console.error('Error loading demo scenario progress:', error)
+  }
+  return []
+}
+
+// Save demo scenario progress to file
+function saveDemoScenarioProgress(progress: ScenarioProgress[]) {
+  if (typeof window !== 'undefined') return // Client-side fallback
+
+  try {
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2))
+  } catch (error) {
+    console.error('Error saving demo scenario progress:', error)
+  }
+}
+
+const demoAssignments: TrackAssignment[] = loadDemoAssignments()
+const demoScenarioProgress: ScenarioProgress[] = loadDemoScenarioProgress()
 
 class TrackAssignmentService {
   private generateId(): string {
@@ -96,7 +166,7 @@ class TrackAssignmentService {
     } = data
 
     try {
-      const { data: assignment, error } = await supabase
+      const { data: assignment, error } = await supabaseAdmin
         .from('track_assignments')
         .insert([
           {
@@ -134,6 +204,7 @@ class TrackAssignmentService {
       }
 
       demoAssignments.push(demoAssignment)
+      saveDemoAssignments(demoAssignments)
 
       // Initialize scenario progress for all scenarios in the track
       await this.initializeScenarioProgress(demoAssignment.id, track_id)
@@ -147,14 +218,8 @@ class TrackAssignmentService {
    */
   private async initializeScenarioProgress(assignmentId: string, trackId: string): Promise<void> {
     try {
-      // Get all scenarios in the track
-      const { data: scenarios, error } = await supabase
-        .from('scenarios')
-        .select('id')
-        .eq('track_id', trackId)
-        .eq('is_active', true)
-
-      if (error) throw error
+      // Get all scenarios in the track using scenarioService which has demo fallback
+      const scenarios = await scenarioService.getScenariosByTrack(trackId)
 
       if (scenarios && scenarios.length > 0) {
         const progressData = scenarios.map(scenario => ({
@@ -165,7 +230,7 @@ class TrackAssignmentService {
           time_spent_minutes: 0
         }))
 
-        const { error: insertError } = await supabase
+        const { error: insertError } = await supabaseAdmin
           .from('scenario_progress')
           .insert(progressData)
 
@@ -182,7 +247,7 @@ class TrackAssignmentService {
    */
   async getEmployeeAssignments(employeeId: string): Promise<AssignmentWithDetails[]> {
     try {
-      const { data: assignments, error } = await supabase
+      const { data: assignments, error } = await supabaseAdmin
         .from('track_assignments')
         .select(`
           *,
@@ -212,23 +277,67 @@ class TrackAssignmentService {
     } catch (error: any) {
       console.log('🚧 Demo mode: Getting employee assignments for:', employeeId)
 
-      const employeeAssignments = demoAssignments.filter(a =>
+      // 🚨 FIX: Load from file first to get current state
+      const currentAssignments = loadDemoAssignments()
+      console.log('🔍 DEBUG: LOADED FROM FILE for employee - Array length:', currentAssignments.length)
+      console.log('🔍 DEBUG: LOADED FROM FILE - All assignment IDs:', currentAssignments.map(a => a.id))
+
+      // 🔍 COMPREHENSIVE DEBUG LOGGING
+      console.log('🔍 DEBUG: In-memory demoAssignments array:', JSON.stringify(demoAssignments, null, 2))
+      console.log('🔍 DEBUG: Assignment active status:', currentAssignments.map(a => ({ id: a.id, active: a.is_active, employee: a.employee_id })))
+
+      const employeeAssignments = currentAssignments.filter(a =>
         a.employee_id === employeeId && a.is_active
       )
 
-      // Mock track data for demo assignments
-      return employeeAssignments.map(assignment => ({
-        ...assignment,
-        employee: { id: employeeId, name: 'Demo Employee' } as Employee,
-        track: {
-          id: assignment.track_id,
-          name: 'Demo Track',
-          description: 'Demo training track',
-          target_audience: 'new_hire' as const,
-          company_id: 'demo-company-1'
-        } as Track,
-        scenario_progress: []
-      })) as AssignmentWithDetails[]
+      console.log(`📋 Found ${employeeAssignments.length} active demo assignments for employee ${employeeId}`)
+      console.log(`📊 Total demo assignments in storage: ${demoAssignments.length}`)
+      console.log('🔍 DEBUG: Filtered assignments for this employee:', employeeAssignments.map(a => ({ id: a.id, trackId: a.track_id })))
+
+      // Get demo tracks from scenarioService
+      const assignmentsWithDetails = await Promise.all(
+        employeeAssignments.map(async (assignment) => {
+          // Try to get actual track details from demo storage first
+          let track: Track | null = null
+
+          // Check if this is one of the demo tracks we created
+          if (globalThis.__demoTracksStore) {
+            track = globalThis.__demoTracksStore.find((t: Track) => t.id === assignment.track_id) || null
+          }
+
+          // If not found in demo storage, try to get from scenarioService
+          if (!track) {
+            try {
+              track = await scenarioService.getTrack(assignment.track_id)
+            } catch (error) {
+              console.log('Could not fetch track details for:', assignment.track_id)
+            }
+          }
+
+          // Final fallback track details
+          if (!track) {
+            track = {
+              id: assignment.track_id,
+              name: 'Demo Track',
+              description: 'Demo training track',
+              target_audience: 'new_hire' as const,
+              company_id: 'demo-company-123',
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          }
+
+          return {
+            ...assignment,
+            employee: { id: employeeId, name: 'Demo Employee' } as Employee,
+            track,
+            scenario_progress: []
+          } as AssignmentWithDetails
+        })
+      )
+
+      return assignmentsWithDetails
     }
   }
 
@@ -237,7 +346,7 @@ class TrackAssignmentService {
    */
   async getCompanyAssignments(companyId: string): Promise<AssignmentWithDetails[]> {
     try {
-      const { data: assignments, error } = await supabase
+      const { data: assignments, error } = await supabaseAdmin
         .from('track_assignments')
         .select(`
           *,
@@ -274,7 +383,7 @@ class TrackAssignmentService {
    */
   async getAssignmentScenarioProgress(assignmentId: string): Promise<(ScenarioProgress & { scenario: Scenario })[]> {
     try {
-      const { data: progress, error } = await supabase
+      const { data: progress, error } = await supabaseAdmin
         .from('scenario_progress')
         .select(`
           *,
@@ -293,6 +402,24 @@ class TrackAssignmentService {
       })) as (ScenarioProgress & { scenario: Scenario })[]
     } catch (error: any) {
       console.log('🚧 Demo mode: Getting scenario progress for assignment:', assignmentId)
+
+      // For demo mode, create mock progress data using demo scenarios
+      const assignment = demoAssignments.find(a => a.id === assignmentId)
+      if (assignment) {
+        const scenarios = await scenarioService.getScenariosByTrack(assignment.track_id)
+        return scenarios.map((scenario, index) => ({
+          id: `demo-progress-${assignmentId}-${scenario.id}`,
+          assignment_id: assignmentId,
+          scenario_id: scenario.id,
+          status: 'not_started' as ScenarioProgressStatus,
+          attempts: 0,
+          time_spent_minutes: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          scenario
+        }))
+      }
+
       return []
     }
   }
@@ -312,12 +439,13 @@ class TrackAssignmentService {
           ...updates,
           updated_at: new Date().toISOString()
         }
+        saveDemoAssignments(demoAssignments)
         return demoAssignments[assignmentIndex]
       }
       throw new Error('Demo assignment not found')
     }
 
-    const { data: assignment, error } = await supabase
+    const { data: assignment, error } = await supabaseAdmin
       .from('track_assignments')
       .update(updates)
       .eq('id', assignmentId)
@@ -341,7 +469,7 @@ class TrackAssignmentService {
   ): Promise<ScenarioProgress> {
     try {
       // First try to update existing progress
-      const { data: existing, error: selectError } = await supabase
+      const { data: existing, error: selectError } = await supabaseAdmin
         .from('scenario_progress')
         .select('id')
         .eq('assignment_id', assignmentId)
@@ -354,7 +482,7 @@ class TrackAssignmentService {
 
       if (existing) {
         // Update existing record
-        const { data: progress, error } = await supabase
+        const { data: progress, error } = await supabaseAdmin
           .from('scenario_progress')
           .update({
             ...updates,
@@ -369,7 +497,7 @@ class TrackAssignmentService {
         return progress
       } else {
         // Create new record
-        const { data: progress, error } = await supabase
+        const { data: progress, error } = await supabaseAdmin
           .from('scenario_progress')
           .insert([
             {
@@ -413,9 +541,11 @@ class TrackAssignmentService {
 
       if (existingIndex >= 0) {
         demoScenarioProgress[existingIndex] = { ...demoScenarioProgress[existingIndex], ...demoProgress }
+        saveDemoScenarioProgress(demoScenarioProgress)
         return demoScenarioProgress[existingIndex]
       } else {
         demoScenarioProgress.push(demoProgress)
+        saveDemoScenarioProgress(demoScenarioProgress)
         return demoProgress
       }
     }
@@ -426,14 +556,48 @@ class TrackAssignmentService {
    */
   async removeTrackAssignment(assignmentId: string): Promise<void> {
     if (assignmentId.startsWith('demo-assignment-')) {
-      const assignmentIndex = demoAssignments.findIndex(a => a.id === assignmentId)
+      console.log('🔍 DEBUG: BEFORE REMOVAL - In-memory array length:', demoAssignments.length)
+      console.log('🔍 DEBUG: BEFORE REMOVAL - In-memory IDs:', demoAssignments.map(a => a.id))
+      console.log('🔍 DEBUG: Attempting to remove assignment:', assignmentId)
+
+      // 🚨 FIX: Always load from file first to get the current state
+      const currentAssignments = loadDemoAssignments()
+      console.log('🔍 DEBUG: LOADED FROM FILE - Array length:', currentAssignments.length)
+      console.log('🔍 DEBUG: LOADED FROM FILE - All IDs:', currentAssignments.map(a => a.id))
+
+      const assignmentIndex = currentAssignments.findIndex(a => a.id === assignmentId)
+      console.log('🔍 DEBUG: Found assignment at index:', assignmentIndex)
+
       if (assignmentIndex >= 0) {
-        demoAssignments[assignmentIndex].is_active = false
+        // Actually remove the assignment from the loaded array
+        currentAssignments.splice(assignmentIndex, 1)
+
+        console.log('🔍 DEBUG: AFTER REMOVAL - Array length:', currentAssignments.length)
+        console.log('🔍 DEBUG: AFTER REMOVAL - All IDs:', currentAssignments.map(a => a.id))
+
+        // Save the updated array back to file
+        saveDemoAssignments(currentAssignments)
+
+        // Also update the in-memory array to keep it in sync
+        demoAssignments.length = 0
+        demoAssignments.push(...currentAssignments)
+
+        console.log(`✅ Removed demo assignment ${assignmentId} from file and updated in-memory array`)
+
+        // 🔍 DEBUG: Verify file contents immediately after save
+        try {
+          const fileContents = fs.readFileSync(ASSIGNMENTS_FILE, 'utf8')
+          console.log('🔍 DEBUG: File contents after save:', fileContents)
+        } catch (error) {
+          console.log('🔍 DEBUG: Could not read file after save:', error)
+        }
+      } else {
+        console.log('⚠️ DEBUG: Assignment not found in file:', assignmentId)
       }
       return
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('track_assignments')
       .update({ is_active: false })
       .eq('id', assignmentId)
@@ -448,7 +612,7 @@ class TrackAssignmentService {
    */
   async hasTrackAssignment(employeeId: string, trackId: string): Promise<boolean> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('track_assignments')
         .select('id')
         .eq('employee_id', employeeId)
@@ -469,6 +633,174 @@ class TrackAssignmentService {
         a.is_active
       )
     }
+  }
+
+  /**
+   * Get a single assignment with full details
+   */
+  async getAssignmentWithDetails(assignmentId: string): Promise<AssignmentWithDetails | null> {
+    try {
+      const { data: assignment, error } = await supabaseAdmin
+        .from('track_assignments')
+        .select(`
+          *,
+          tracks!inner(*)
+        `)
+        .eq('id', assignmentId)
+        .single()
+
+      if (error) throw error
+      if (!assignment) return null
+
+      // Get scenarios for the track
+      const { data: scenarios, error: scenariosError } = await supabaseAdmin
+        .from('scenarios')
+        .select('*')
+        .eq('track_id', assignment.track_id)
+        .eq('is_active', true)
+        .order('created_at')
+
+      if (scenariosError) throw scenariosError
+
+      // Get scenario progress
+      const scenarioProgress = await this.getAssignmentScenarioProgress(assignmentId)
+
+      return {
+        ...assignment,
+        track: {
+          ...assignment.tracks,
+          scenarios: scenarios || []
+        },
+        employee: { id: assignment.employee_id, name: 'Employee' } as Employee,
+        scenario_progress: scenarioProgress
+      } as AssignmentWithDetails
+
+    } catch (error: any) {
+      console.log('🚧 Demo mode: Getting assignment with details:', assignmentId)
+      console.log('🔍 DEBUG: In-memory demoAssignments array length:', demoAssignments.length)
+      console.log('🔍 DEBUG: In-memory assignment IDs:', demoAssignments.map(a => a.id))
+      console.log('🔍 DEBUG: Looking for assignment ID:', assignmentId)
+
+      // 🚨 FIX: Load from file first to get current state (same fix as deletion)
+      const currentAssignments = loadDemoAssignments()
+      console.log('🔍 DEBUG: LOADED FROM FILE - Array length:', currentAssignments.length)
+      console.log('🔍 DEBUG: LOADED FROM FILE - All IDs:', currentAssignments.map(a => a.id))
+
+      // Demo mode fallback
+      const demoAssignment = currentAssignments.find(a => a.id === assignmentId)
+      console.log('🔍 DEBUG: Found demo assignment in file:', demoAssignment ? 'YES' : 'NO')
+
+      if (!demoAssignment) {
+        console.log('🔍 DEBUG: Assignment not found in file, returning null')
+        return null
+      }
+
+      return {
+        ...demoAssignment,
+        employee: { id: demoAssignment.employee_id, name: 'Demo Employee' } as Employee,
+        track: {
+          id: demoAssignment.track_id,
+          name: 'New hire',
+          description: 'Essential training for new employees',
+          target_audience: 'new_hire' as const,
+          company_id: '01f773e2-1027-490e-8d36-279136700bbf',
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          scenarios: [{
+            id: 'demo-scenario-1',
+            track_id: demoAssignment.track_id,
+            company_id: '01f773e2-1027-490e-8d36-279136700bbf',
+            title: 'Theory Q&A',
+            description: 'Knowledge-based questions about our products and services',
+            scenario_type: 'theory' as const,
+            template_type: 'general_flow' as const,
+            client_behavior: 'N/A - Theory based',
+            expected_response: 'N/A - Theory based',
+            difficulty: 'beginner' as const,
+            estimated_duration_minutes: 15,
+            milestones: [],
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]
+        },
+        scenario_progress: []
+      } as AssignmentWithDetails
+    }
+  }
+
+  /**
+   * Update assignment
+   */
+  async updateAssignment(assignmentId: string, updates: Partial<TrackAssignment>): Promise<TrackAssignment> {
+    try {
+      const { data: assignment, error } = await supabaseAdmin
+        .from('track_assignments')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', assignmentId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return assignment
+
+    } catch (error: any) {
+      console.log('🚧 Demo mode: Updating assignment:', assignmentId)
+
+      // Demo mode fallback
+      const assignmentIndex = demoAssignments.findIndex(a => a.id === assignmentId)
+      if (assignmentIndex >= 0) {
+        demoAssignments[assignmentIndex] = {
+          ...demoAssignments[assignmentIndex],
+          ...updates,
+          updated_at: new Date().toISOString()
+        }
+        saveDemoAssignments(demoAssignments)
+        return demoAssignments[assignmentIndex]
+      }
+      throw new Error('Assignment not found')
+    }
+  }
+
+  /**
+   * Update scenario progress and recalculate assignment progress
+   */
+  async updateScenarioProgressAndAssignment(
+    assignmentId: string,
+    scenarioId: string,
+    status: ScenarioProgressStatus,
+    score?: number
+  ): Promise<AssignmentWithDetails | null> {
+    await this.updateScenarioProgress(assignmentId, scenarioId, {
+      status,
+      score,
+      time_spent_minutes: 1
+    })
+
+    // Update overall assignment progress
+    const assignment = await this.getAssignmentWithDetails(assignmentId)
+    if (!assignment) return null
+
+    // Calculate new progress percentage
+    const totalScenarios = assignment.track.scenarios?.length || 1
+    const completedScenarios = assignment.scenario_progress.filter(p => p.status === 'completed').length
+    const progressPercentage = Math.round((completedScenarios / totalScenarios) * 100)
+
+    const newStatus = progressPercentage === 100 ? 'completed' :
+                     progressPercentage > 0 ? 'in_progress' : 'assigned'
+
+    await this.updateAssignment(assignmentId, {
+      status: newStatus,
+      progress_percentage: progressPercentage,
+      started_at: newStatus !== 'assigned' ? new Date().toISOString() : assignment.started_at,
+      completed_at: newStatus === 'completed' ? new Date().toISOString() : undefined
+    })
+
+    return this.getAssignmentWithDetails(assignmentId)
   }
 
   /**

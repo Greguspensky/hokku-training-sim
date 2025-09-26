@@ -12,12 +12,14 @@
     "db:list-backups": "node scripts/backup-database.js list"
   },
   "dependencies": {
+    "@elevenlabs/client": "^0.6.2",
     "@google-cloud/translate": "^9.2.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.4",
+    "lucide-react": "^0.544.0",
     "next": "15.5.2",
     "next-intl": "^4.3.7",
-    "openai": "^5.20.2",
+    "openai": "^5.20.3",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

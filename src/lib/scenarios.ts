@@ -1,18 +1,4 @@
-import { supabase } from './supabase';
-
-// Global demo storage that persists across hot reloads
-declare global {
-  var __demoScenariosStore: Scenario[] | undefined;
-  var __demoTracksStore: Track[] | undefined;
-}
-
-// Demo scenario store for testing - use global to persist across hot reloads
-const demoScenarios: Scenario[] = globalThis.__demoScenariosStore || [];
-const demoTracks: Track[] = globalThis.__demoTracksStore || [];
-
-// Store references globally
-globalThis.__demoScenariosStore = demoScenarios;
-globalThis.__demoTracksStore = demoTracks;
+import { supabaseAdmin } from './supabase';
 
 export type ScenarioType = 'theory' | 'service_practice';
 export type ScenarioTemplate = 'upset_customer' | 'upselling' | 'general_flow' | 'conflict_resolution';
@@ -88,6 +74,12 @@ export interface Scenario {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Knowledge base associations for product knowledge scenarios
+  knowledge_category_ids?: string[];
+  knowledge_document_ids?: string[];
+  // Avatar mode support
+  avatar_mode?: boolean;
+  language?: string;
 }
 
 export interface CreateTrackData {
@@ -109,6 +101,9 @@ export interface CreateScenarioData {
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes?: number;
   milestones?: string[];
+  // Knowledge base associations for product knowledge scenarios
+  knowledge_category_ids?: string[];
+  knowledge_document_ids?: string[];
 }
 
 export interface UpdateScenarioData {
@@ -120,32 +115,28 @@ export interface UpdateScenarioData {
   estimated_duration_minutes?: number;
   milestones?: string[];
   is_active?: boolean;
+  // Knowledge base associations for product knowledge scenarios
+  knowledge_category_ids?: string[];
+  knowledge_document_ids?: string[];
 }
 
+// Force recompilation - updated with demo mode support
 class ScenarioService {
   /**
    * Create a new track
    */
   async createTrack(data: CreateTrackData): Promise<Track> {
-    const {
-      company_id,
-      name,
-      description,
-      target_audience
-    } = data;
-
     try {
-      const { data: track, error } = await supabase
+      const { data: track, error } = await supabaseAdmin
         .from('tracks')
-        .insert([
-          {
-            company_id,
-            name,
-            description,
-            target_audience,
-            is_active: true
-          }
-        ])
+        .insert({
+          company_id: data.company_id,
+          name: data.name,
+          description: data.description,
+          target_audience: data.target_audience,
+          is_active: true,
+          avatar_mode: true
+        })
         .select()
         .single();
 
@@ -155,19 +146,30 @@ class ScenarioService {
 
       return track;
     } catch (error: any) {
-      console.log('🚧 Demo mode: Creating mock track for testing (Error:', error.message, ')');
-      const demoTrack = {
-        id: `demo-track-${Date.now()}`,
-        company_id,
-        name,
-        description,
-        target_audience,
+      console.error('Error creating track in database:', error);
+      console.log('🚧 Falling back to demo mode for track creation');
+
+      // Create demo track in memory
+      const demoTrack: Track = {
+        id: crypto.randomUUID(),
+        company_id: data.company_id,
+        name: data.name,
+        description: data.description,
+        target_audience: data.target_audience,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      } as Track;
-      
-      demoTracks.push(demoTrack);
+      };
+
+      // Store in demo storage if available
+      if (typeof globalThis !== 'undefined') {
+        if (!globalThis.__demoTracksStore) {
+          globalThis.__demoTracksStore = [];
+        }
+        globalThis.__demoTracksStore.push(demoTrack);
+      }
+
+      console.log('✅ Created demo track:', demoTrack.name);
       return demoTrack;
     }
   }
@@ -176,53 +178,40 @@ class ScenarioService {
    * Create a new scenario
    */
   async createScenario(data: CreateScenarioData): Promise<Scenario> {
-    const {
-      track_id,
-      company_id,
-      title,
-      description,
-      scenario_type,
-      template_type,
-      client_behavior,
-      expected_response,
-      difficulty = 'beginner',
-      estimated_duration_minutes = 30,
-      milestones = []
-    } = data;
-
     // Provide defaults for theory scenarios
     let scenarioData = data;
-    if (scenario_type === 'theory') {
+    if (data.scenario_type === 'theory') {
       scenarioData = {
         ...data,
-        title: title || 'Theory Q&A',
-        description: description || 'Knowledge-based Q&A session',
-        template_type: 'general_flow', // Default template for theory
-        client_behavior: client_behavior || 'N/A - Theory based',
-        expected_response: expected_response || 'N/A - Theory based',
-        milestones: [] // Theory scenarios don't have milestones
+        title: data.title || 'Theory Q&A',
+        description: data.description || 'Knowledge-based Q&A session',
+        template_type: 'general_flow',
+        client_behavior: data.client_behavior || 'N/A - Theory based',
+        expected_response: data.expected_response || 'N/A - Theory based',
+        milestones: []
       };
     }
 
     try {
-      const { data: scenario, error } = await supabase
+      console.log('🔧 Creating scenario with demo mode fallback...');
+      const { data: scenario, error } = await supabaseAdmin
         .from('scenarios')
-        .insert([
-          {
-            track_id: scenarioData.track_id,
-            company_id: scenarioData.company_id,
-            title: scenarioData.title,
-            description: scenarioData.description,
-            scenario_type: scenarioData.scenario_type,
-            template_type: scenarioData.template_type,
-            client_behavior: scenarioData.client_behavior,
-            expected_response: scenarioData.expected_response,
-            difficulty: scenarioData.difficulty,
-            estimated_duration_minutes: scenarioData.estimated_duration_minutes,
-            milestones: scenarioData.milestones,
-            is_active: true
-          }
-        ])
+        .insert({
+          track_id: scenarioData.track_id,
+          company_id: scenarioData.company_id,
+          title: scenarioData.title,
+          description: scenarioData.description,
+          scenario_type: scenarioData.scenario_type,
+          template_type: scenarioData.template_type,
+          client_behavior: scenarioData.client_behavior,
+          expected_response: scenarioData.expected_response,
+          difficulty: scenarioData.difficulty || 'beginner',
+          estimated_duration_minutes: scenarioData.estimated_duration_minutes || 30,
+          milestones: scenarioData.milestones || [],
+          is_active: true,
+          knowledge_category_ids: scenarioData.knowledge_category_ids || null,
+          knowledge_document_ids: scenarioData.knowledge_document_ids || null
+        })
         .select()
         .single();
 
@@ -232,9 +221,12 @@ class ScenarioService {
 
       return scenario;
     } catch (error: any) {
-      console.log('🚧 Demo mode: Creating mock scenario for testing (Error:', error.message, ')');
-      const demoScenario = {
-        id: `demo-${Date.now()}`,
+      console.error('Error creating scenario in database:', error);
+      console.log('🚧 Falling back to demo mode for scenario creation');
+
+      // Create demo scenario in memory
+      const demoScenario: Scenario = {
+        id: crypto.randomUUID(),
         track_id: scenarioData.track_id,
         company_id: scenarioData.company_id,
         title: scenarioData.title,
@@ -243,15 +235,25 @@ class ScenarioService {
         template_type: scenarioData.template_type,
         client_behavior: scenarioData.client_behavior,
         expected_response: scenarioData.expected_response,
-        difficulty: scenarioData.difficulty,
-        estimated_duration_minutes: scenarioData.estimated_duration_minutes,
+        difficulty: scenarioData.difficulty || 'beginner',
+        estimated_duration_minutes: scenarioData.estimated_duration_minutes || 30,
         milestones: scenarioData.milestones || [],
         is_active: true,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      } as Scenario;
-      
-      demoScenarios.push(demoScenario);
+        updated_at: new Date().toISOString(),
+        knowledge_category_ids: scenarioData.knowledge_category_ids || [],
+        knowledge_document_ids: scenarioData.knowledge_document_ids || []
+      };
+
+      // Store in demo storage if available
+      if (typeof globalThis !== 'undefined') {
+        if (!globalThis.__demoScenariosStore) {
+          globalThis.__demoScenariosStore = [];
+        }
+        globalThis.__demoScenariosStore.push(demoScenario);
+      }
+
+      console.log('✅ Created demo scenario:', demoScenario.title);
       return demoScenario;
     }
   }
@@ -261,7 +263,7 @@ class ScenarioService {
    */
   async getTracks(companyId: string): Promise<Track[]> {
     try {
-      const { data: tracks, error } = await supabase
+      const { data: tracks, error } = await supabaseAdmin
         .from('tracks')
         .select('*')
         .eq('company_id', companyId)
@@ -269,18 +271,25 @@ class ScenarioService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw new Error(`Failed to fetch tracks: ${error.message}`);
+        throw error;
       }
 
-      const dbTracks = tracks || [];
-      const companyDemoTracks = demoTracks.filter(t => t.company_id === companyId);
-      
-      const allTracks = [...dbTracks, ...companyDemoTracks]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      return allTracks;
-    } catch (error) {
-      return demoTracks.filter(t => t.company_id === companyId);
+      // Include demo tracks if available
+      const demoTracks = (typeof globalThis !== 'undefined' && globalThis.__demoTracksStore) ?
+        globalThis.__demoTracksStore.filter((track: Track) => track.company_id === companyId && track.is_active) :
+        [];
+
+      return [...(tracks || []), ...demoTracks];
+    } catch (error: any) {
+      console.error('Error fetching tracks from database:', error);
+      console.log('🚧 Falling back to demo mode for track fetching');
+
+      // Return only demo tracks
+      const demoTracks = (typeof globalThis !== 'undefined' && globalThis.__demoTracksStore) ?
+        globalThis.__demoTracksStore.filter((track: Track) => track.company_id === companyId && track.is_active) :
+        [];
+
+      return demoTracks;
     }
   }
 
@@ -289,7 +298,7 @@ class ScenarioService {
    */
   async getScenariosByTrack(trackId: string): Promise<Scenario[]> {
     try {
-      const { data: scenarios, error } = await supabase
+      const { data: scenarios, error } = await supabaseAdmin
         .from('scenarios')
         .select('*')
         .eq('track_id', trackId)
@@ -297,18 +306,27 @@ class ScenarioService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw new Error(`Failed to fetch scenarios: ${error.message}`);
+        throw error;
       }
 
-      const dbScenarios = scenarios || [];
-      const trackDemoScenarios = demoScenarios.filter(s => s.track_id === trackId);
-      
-      const allScenarios = [...dbScenarios, ...trackDemoScenarios]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      return allScenarios;
-    } catch (error) {
-      return demoScenarios.filter(s => s.track_id === trackId);
+      // Include demo scenarios if available
+      const demoScenarios = (typeof globalThis !== 'undefined' && globalThis.__demoScenariosStore) ?
+        globalThis.__demoScenariosStore.filter((scenario: Scenario) =>
+          scenario.track_id === trackId && scenario.is_active) :
+        [];
+
+      return [...(scenarios || []), ...demoScenarios];
+    } catch (error: any) {
+      console.error('Error fetching scenarios from database:', error);
+      console.log('🚧 Falling back to demo mode for scenario fetching');
+
+      // Return only demo scenarios
+      const demoScenarios = (typeof globalThis !== 'undefined' && globalThis.__demoScenariosStore) ?
+        globalThis.__demoScenariosStore.filter((scenario: Scenario) =>
+          scenario.track_id === trackId && scenario.is_active) :
+        [];
+
+      return demoScenarios;
     }
   }
 
@@ -317,7 +335,7 @@ class ScenarioService {
    */
   async getScenarios(companyId: string): Promise<Scenario[]> {
     try {
-      const { data: scenarios, error } = await supabase
+      const { data: scenarios, error } = await supabaseAdmin
         .from('scenarios')
         .select('*')
         .eq('company_id', companyId)
@@ -325,18 +343,27 @@ class ScenarioService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw new Error(`Failed to fetch scenarios: ${error.message}`);
+        throw error;
       }
 
-      const dbScenarios = scenarios || [];
-      const companyDemoScenarios = demoScenarios.filter(s => s.company_id === companyId);
-      
-      const allScenarios = [...dbScenarios, ...companyDemoScenarios]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      return allScenarios;
-    } catch (error) {
-      return demoScenarios.filter(s => s.company_id === companyId);
+      // Include demo scenarios if available
+      const demoScenarios = (typeof globalThis !== 'undefined' && globalThis.__demoScenariosStore) ?
+        globalThis.__demoScenariosStore.filter((scenario: Scenario) =>
+          scenario.company_id === companyId && scenario.is_active) :
+        [];
+
+      return [...(scenarios || []), ...demoScenarios];
+    } catch (error: any) {
+      console.error('Error fetching scenarios from database:', error);
+      console.log('🚧 Falling back to demo mode for scenario fetching');
+
+      // Return only demo scenarios
+      const demoScenarios = (typeof globalThis !== 'undefined' && globalThis.__demoScenariosStore) ?
+        globalThis.__demoScenariosStore.filter((scenario: Scenario) =>
+          scenario.company_id === companyId && scenario.is_active) :
+        [];
+
+      return demoScenarios;
     }
   }
 
@@ -344,95 +371,66 @@ class ScenarioService {
    * Get a single track by ID
    */
   async getTrack(trackId: string): Promise<Track | null> {
-    if (trackId.startsWith('demo-track-')) {
-      const demoTrack = demoTracks.find(t => t.id === trackId);
-      if (demoTrack) {
-        return demoTrack;
+    const { data: track, error } = await supabaseAdmin
+      .from('tracks')
+      .select('*')
+      .eq('id', trackId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
       }
+      console.error('Error fetching track:', error);
+      throw new Error('Failed to fetch track');
     }
 
-    try {
-      const { data: track, error } = await supabase
-        .from('tracks')
-        .select('*')
-        .eq('id', trackId)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
-        throw new Error(`Failed to fetch track: ${error.message}`);
-      }
-
-      return track;
-    } catch (error) {
-      return null;
-    }
+    return track;
   }
 
   /**
    * Get a single scenario by ID
    */
   async getScenario(scenarioId: string): Promise<Scenario | null> {
-    if (scenarioId.startsWith('demo-')) {
-      const demoScenario = demoScenarios.find(s => s.id === scenarioId);
-      if (demoScenario) {
-        return demoScenario;
+    const { data: scenario, error } = await supabaseAdmin
+      .from('scenarios')
+      .select('*')
+      .eq('id', scenarioId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Scenario not found
       }
+      if (error.code === '22P02') {
+        // Invalid UUID format - likely a demo scenario ID
+        console.log('⚠️ Invalid UUID format for scenario ID, assuming demo scenario:', scenarioId);
+        return null;
+      }
+      console.error('Error fetching scenario:', error);
+      throw new Error('Failed to fetch scenario');
     }
 
-    try {
-      const { data: scenario, error } = await supabase
-        .from('scenarios')
-        .select('*')
-        .eq('id', scenarioId)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
-        throw new Error(`Failed to fetch scenario: ${error.message}`);
-      }
-
-      return scenario;
-    } catch (error) {
-      return null;
-    }
+    return scenario;
   }
 
   /**
    * Update a scenario
    */
   async updateScenario(scenarioId: string, updates: UpdateScenarioData): Promise<Scenario> {
-    if (scenarioId.startsWith('demo-')) {
-      console.log('🔍 Looking for demo scenario ID:', scenarioId);
-      console.log('🔍 Available demo scenarios:', demoScenarios.map(s => ({ id: s.id, title: s.title })));
-      
-      const demoIndex = demoScenarios.findIndex(s => s.id === scenarioId);
-      if (demoIndex >= 0) {
-        console.log('✅ Found demo scenario at index:', demoIndex);
-        demoScenarios[demoIndex] = {
-          ...demoScenarios[demoIndex],
-          ...updates,
-          updated_at: new Date().toISOString()
-        };
-        return demoScenarios[demoIndex];
-      }
-      console.log('❌ Demo scenario not found in array');
-      throw new Error('Demo scenario not found');
-    }
-
-    const { data: scenario, error } = await supabase
+    const { data: scenario, error } = await supabaseAdmin
       .from('scenarios')
-      .update(updates)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', scenarioId)
       .select()
       .single();
 
     if (error) {
-      throw new Error(`Failed to update scenario: ${error.message}`);
+      console.error('Error updating scenario:', error);
+      throw new Error('Failed to update scenario');
     }
 
     return scenario;
@@ -442,21 +440,14 @@ class ScenarioService {
    * Delete a scenario (soft delete)
    */
   async deleteScenario(scenarioId: string): Promise<void> {
-    if (scenarioId.startsWith('demo-')) {
-      const demoIndex = demoScenarios.findIndex(s => s.id === scenarioId);
-      if (demoIndex >= 0) {
-        demoScenarios[demoIndex].is_active = false;
-      }
-      return;
-    }
-
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('scenarios')
       .update({ is_active: false })
       .eq('id', scenarioId);
 
     if (error) {
-      throw new Error(`Failed to delete scenario: ${error.message}`);
+      console.error('Error deleting scenario:', error);
+      throw new Error('Failed to delete scenario');
     }
   }
 
@@ -464,21 +455,14 @@ class ScenarioService {
    * Delete a track (soft delete)
    */
   async deleteTrack(trackId: string): Promise<void> {
-    if (trackId.startsWith('demo-track-')) {
-      const demoIndex = demoTracks.findIndex(t => t.id === trackId);
-      if (demoIndex >= 0) {
-        demoTracks[demoIndex].is_active = false;
-      }
-      return;
-    }
-
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('tracks')
       .update({ is_active: false })
       .eq('id', trackId);
 
     if (error) {
-      throw new Error(`Failed to delete track: ${error.message}`);
+      console.error('Error deleting track:', error);
+      throw new Error('Failed to delete track');
     }
   }
 

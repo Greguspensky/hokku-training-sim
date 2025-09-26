@@ -12,7 +12,7 @@ export default function EmployeesPage() {
   const router = useRouter()
   const [roleChecking, setRoleChecking] = useState(true)
   const [isEmployee, setIsEmployee] = useState(false)
-  const companyId = user?.company_id || 'demo-company-1'
+  const companyId = user?.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
 
   // Check user role on mount
   useEffect(() => {

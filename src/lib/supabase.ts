@@ -26,13 +26,33 @@ export const supabaseAdmin = (() => {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceRoleKey) {
     console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not found, admin operations will fail')
-    return null
+    // Return a mock client that throws meaningful errors
+    return {
+      from: () => {
+        throw new Error('supabaseAdmin is not available: SUPABASE_SERVICE_ROLE_KEY not found')
+      },
+      rpc: () => {
+        throw new Error('supabaseAdmin is not available: SUPABASE_SERVICE_ROLE_KEY not found')
+      }
+    } as any
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
+  try {
+    return createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  } catch (error) {
+    console.error('Failed to create supabaseAdmin client:', error)
+    return {
+      from: () => {
+        throw new Error('supabaseAdmin failed to initialize')
+      },
+      rpc: () => {
+        throw new Error('supabaseAdmin failed to initialize')
+      }
+    } as any
+  }
 })()

@@ -26,7 +26,7 @@ export default function ManagerDashboard() {
   const [isEmployee, setIsEmployee] = useState(false)
 
   // Get company ID from authenticated user
-  const companyId = user?.company_id || 'demo-company-1'
+  const companyId = user?.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
 
   const loadTracks = async () => {
     try {

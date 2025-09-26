@@ -1,0 +1,577 @@
+'use client'
+
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { StreamingConversationService, ConversationConfig, ConversationChunk, ConversationState } from '@/lib/streaming-conversation'
+import { TranscriptEntry } from '@/lib/avatar-types'
+
+interface StreamingAvatarSessionProps {
+  scenario: any
+  assignment: any
+  language: string
+  onComplete: (session: any) => void
+  onError: (error: string) => void
+}
+
+export default function StreamingAvatarSession({
+  scenario,
+  assignment,
+  language,
+  onComplete,
+  onError
+}: StreamingAvatarSessionProps) {
+  // Core state
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [isActive, setIsActive] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Conversation state
+  const [conversationState, setConversationState] = useState<ConversationState | null>(null)
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
+  const [partialTranscript, setPartialTranscript] = useState('')
+
+  // Visual feedback
+  const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false)
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false)
+  const [voiceActivity, setVoiceActivity] = useState(0)
+
+  // Session stats
+  const [sessionStats, setSessionStats] = useState({
+    questionsAnswered: 0,
+    wordsSpoken: 0,
+    averageResponseTime: 0,
+    engagementScore: 0
+  })
+
+  // Audio settings
+  const [enableCamera, setEnableCamera] = useState(false)
+  const [audioLevel, setAudioLevel] = useState(0)
+
+  // Refs
+  const conversationServiceRef = useRef<StreamingConversationService | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const sessionStartTimeRef = useRef<number>(0)
+
+  // Conversation configuration
+  const conversationConfig: ConversationConfig = {
+    language,
+    sampleRate: 16000,
+    chunkSize: 100, // 100ms chunks for real-time processing
+    voiceActivityThreshold: 30, // Adjust based on environment
+    silenceTimeout: 2000, // 2 seconds of silence before stopping
+    interruptionThreshold: 50 // Volume level that allows interruption
+  }
+
+  /**
+   * Initialize the streaming conversation system
+   */
+  const initializeConversation = useCallback(async () => {
+    try {
+      setError(null)
+      console.log('🎙️ Initializing streaming conversation...')
+
+      // Request microphone (and camera if enabled) access
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000,
+          channelCount: 1
+        },
+        video: enableCamera ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      streamRef.current = stream
+
+      // Setup video preview if camera enabled
+      if (enableCamera && videoRef.current) {
+        videoRef.current.srcObject = stream
+      }
+
+      // Initialize streaming conversation service
+      const service = new StreamingConversationService(conversationConfig)
+      await service.initialize(stream)
+
+      // Set up event listeners
+      setupConversationListeners(service)
+
+      conversationServiceRef.current = service
+      setIsInitialized(true)
+
+      console.log('✅ Streaming conversation initialized')
+
+    } catch (error) {
+      console.error('❌ Failed to initialize conversation:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize'
+
+      if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
+        setError('🎤 Microphone access is required for avatar training. Please allow permissions and try again.')
+      } else {
+        setError(`🎤 Unable to access microphone: ${errorMessage}`)
+      }
+    }
+  }, [enableCamera, language])
+
+  /**
+   * Setup event listeners for the conversation service
+   */
+  const setupConversationListeners = (service: StreamingConversationService) => {
+    // Real-time conversation state updates
+    service.on('stateUpdate', (newState: ConversationState) => {
+      setConversationState(newState)
+      setVoiceActivity(newState.voiceActivityLevel)
+      setIsUserSpeaking(newState.isListening && newState.voiceActivityLevel > conversationConfig.voiceActivityThreshold)
+    })
+
+    // Partial transcription (word-by-word)
+    service.on('userSpeechPartial', (chunk: ConversationChunk) => {
+      setPartialTranscript(chunk.text)
+      console.log(`👤 (partial): ${chunk.text}`)
+    })
+
+    // Final transcription
+    service.on('userSpeechFinal', (chunk: ConversationChunk) => {
+      const transcriptEntry: TranscriptEntry = {
+        speaker: 'user',
+        text: chunk.text,
+        timestamp: new Date().toISOString(),
+        duration_ms: 0
+      }
+
+      setTranscript(prev => [...prev, transcriptEntry])
+      setPartialTranscript('')
+      updateSessionStats('userResponse', chunk.text)
+
+      console.log(`👤 (final): ${chunk.text}`)
+    })
+
+    // Avatar speaking events
+    service.on('avatarStartSpeaking', () => {
+      setIsAvatarSpeaking(true)
+      console.log('🤖 Avatar started speaking')
+    })
+
+    service.on('avatarStopSpeaking', () => {
+      setIsAvatarSpeaking(false)
+      console.log('🤖 Avatar stopped speaking')
+    })
+
+    // Avatar response text (for transcript)
+    service.on('avatarResponse', (text: string) => {
+      const transcriptEntry: TranscriptEntry = {
+        speaker: 'avatar',
+        text: text,
+        timestamp: new Date().toISOString(),
+        duration_ms: 0
+      }
+
+      setTranscript(prev => [...prev, transcriptEntry])
+      updateSessionStats('avatarQuestion', text)
+    })
+
+    // Listening state changes
+    service.on('listeningStarted', () => {
+      console.log('👂 Started listening')
+    })
+
+    service.on('listeningStopped', () => {
+      console.log('🔇 Stopped listening')
+    })
+
+    // Error handling
+    service.on('error', (error: Error) => {
+      console.error('❌ Conversation service error:', error)
+      setError(error.message)
+    })
+  }
+
+  /**
+   * Start the conversation session
+   */
+  const startSession = async () => {
+    if (!conversationServiceRef.current || !isInitialized) {
+      await initializeConversation()
+      return
+    }
+
+    try {
+      setIsActive(true)
+      sessionStartTimeRef.current = Date.now()
+
+      console.log('🚀 Starting streaming avatar session')
+
+      // Start the conversation service which will handle the initial greeting
+      await conversationServiceRef.current.startConversation({
+        companyId: assignment.company_id || 'demo-company-1',
+        scenarioContext: scenario
+      })
+
+    } catch (error) {
+      console.error('❌ Failed to start session:', error)
+      setError(error instanceof Error ? error.message : 'Failed to start session')
+    }
+  }
+
+  /**
+   * Stop the conversation session
+   */
+  const stopSession = () => {
+    if (conversationServiceRef.current) {
+      conversationServiceRef.current.stop()
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+    }
+
+    setIsActive(false)
+    setIsInitialized(false)
+
+    // Calculate final session data
+    const sessionDuration = Date.now() - sessionStartTimeRef.current
+    const finalSession = {
+      transcript,
+      duration: sessionDuration,
+      stats: sessionStats,
+      scenario_id: scenario.id,
+      assignment_id: assignment.id
+    }
+
+    onComplete(finalSession)
+  }
+
+  // TTS is now handled by the streaming conversation service
+
+  /**
+   * Browser TTS fallback with improved streaming feel
+   */
+  const speakWithBrowserTTS = (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
+        resolve()
+        return
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = language === 'ru' ? 'ru-RU' : language === 'ka' ? 'ka-GE' : 'en-US'
+      utterance.rate = 1.0 // Natural speed for streaming feel
+      utterance.pitch = 1.0
+      utterance.volume = 0.8
+
+      utterance.onstart = () => setIsAvatarSpeaking(true)
+      utterance.onend = () => {
+        setIsAvatarSpeaking(false)
+        resolve()
+      }
+      utterance.onerror = () => {
+        setIsAvatarSpeaking(false)
+        resolve()
+      }
+
+      window.speechSynthesis.speak(utterance)
+    })
+  }
+
+  /**
+   * Play streaming audio directly from response
+   */
+  const playStreamingAudio = async (response: Response): Promise<void> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Convert stream to blob
+        const audioBlob = await response.blob()
+        const audioUrl = URL.createObjectURL(audioBlob)
+        const audio = new Audio(audioUrl)
+
+        audio.onloadstart = () => setIsAvatarSpeaking(true)
+        audio.onended = () => {
+          setIsAvatarSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          resolve()
+        }
+        audio.onerror = (error) => {
+          setIsAvatarSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          reject(error)
+        }
+
+        audio.play()
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  /**
+   * Play audio data from ElevenLabs
+   */
+  const playAudioData = (base64Audio: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      try {
+        const audioBlob = new Blob([
+          Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0))
+        ], { type: 'audio/mpeg' })
+
+        const audioUrl = URL.createObjectURL(audioBlob)
+        const audio = new Audio(audioUrl)
+
+        audio.onloadstart = () => setIsAvatarSpeaking(true)
+        audio.onended = () => {
+          setIsAvatarSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          resolve()
+        }
+        audio.onerror = (error) => {
+          setIsAvatarSpeaking(false)
+          URL.revokeObjectURL(audioUrl)
+          reject(error)
+        }
+
+        audio.play()
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  /**
+   * Update session statistics
+   */
+  const updateSessionStats = (type: string, text: string) => {
+    setSessionStats(prev => {
+      const newStats = { ...prev }
+
+      if (type === 'userResponse') {
+        newStats.questionsAnswered += 1
+        newStats.wordsSpoken += text.split(' ').length
+      }
+
+      return newStats
+    })
+  }
+
+  // Initialize on mount
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      if (conversationServiceRef.current) {
+        conversationServiceRef.current.stop()
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
+  // Render error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
+          <div className="text-center">
+            <div className="text-red-600 text-lg mb-4">⚠️ Setup Required</div>
+            <p className="text-gray-700 mb-6">{error}</p>
+            <button
+              onClick={() => {
+                setError(null)
+                initializeConversation()
+              }}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Render initialization screen
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-4">🎤 Streaming Avatar Training</h2>
+            <p className="text-gray-600 mb-6">
+              Real-time conversation with natural dialogue flow
+            </p>
+
+            <div className="mb-6">
+              <label className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  checked={enableCamera}
+                  onChange={(e) => setEnableCamera(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Enable Camera</span>
+              </label>
+            </div>
+
+            <button
+              onClick={initializeConversation}
+              className="px-8 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 text-lg font-medium"
+            >
+              🎙️ Initialize Conversation
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Main session interface
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <h1 className="text-xl font-semibold text-gray-900">Streaming Avatar Training</h1>
+            <button
+              onClick={stopSession}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Stop Session
+            </button>
+          </div>
+          <div className="text-sm text-gray-600">
+            Real-time conversation • {language.toUpperCase()} • Questions answered: {sessionStats.questionsAnswered}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Video/Audio Area */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Live Session</h3>
+                <div className="flex items-center space-x-4">
+                  <div className={`flex items-center space-x-2 ${isAvatarSpeaking ? 'text-blue-600' : 'text-gray-400'}`}>
+                    <div className={`w-2 h-2 rounded-full ${isAvatarSpeaking ? 'bg-blue-600 animate-pulse' : 'bg-gray-300'}`}></div>
+                    <span className="text-sm">Avatar</span>
+                  </div>
+                  <div className={`flex items-center space-x-2 ${isUserSpeaking ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`w-2 h-2 rounded-full ${isUserSpeaking ? 'bg-green-600 animate-pulse' : 'bg-gray-300'}`}></div>
+                    <span className="text-sm">You</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Video Preview */}
+              {enableCamera && (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-64 bg-gray-900 rounded-lg mb-4"
+                />
+              )}
+
+              {/* Voice Activity Visualization */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                  <span>Voice Activity</span>
+                  <span>{Math.round(voiceActivity)}/100</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-green-600 h-2 rounded-full transition-all duration-100"
+                    style={{ width: `${Math.min(voiceActivity * 2, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Session Controls */}
+              <div className="flex justify-center">
+                {!isActive ? (
+                  <button
+                    onClick={startSession}
+                    className="px-8 py-3 bg-green-600 text-white rounded-full hover:bg-green-700 text-lg font-medium"
+                  >
+                    🎤 Start Conversation
+                  </button>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-green-600 font-medium mb-2">
+                      💬 Conversation Active
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Speak naturally - the system processes your words in real-time
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Transcript Panel */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium mb-4">Live Transcript</h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {transcript.map((entry, index) => (
+                <div key={index} className={`p-3 rounded-lg ${
+                  entry.speaker === 'avatar' ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-green-50 border-l-4 border-green-500'
+                }`}>
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-sm font-medium">
+                      {entry.speaker === 'avatar' ? '🤖 Avatar' : '👤 You'}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(entry.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="text-sm">{entry.text}</div>
+                </div>
+              ))}
+
+              {/* Partial transcript */}
+              {partialTranscript && (
+                <div className="p-3 rounded-lg bg-yellow-50 border-l-4 border-yellow-500 opacity-70">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-sm font-medium">👤 You</span>
+                    <span className="text-xs text-gray-500">speaking...</span>
+                  </div>
+                  <div className="text-sm italic">{partialTranscript}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Session Stats */}
+        <div className="mt-6 bg-white rounded-lg shadow p-4">
+          <h3 className="text-lg font-medium mb-4">Session Progress</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{sessionStats.questionsAnswered}</div>
+              <div className="text-sm text-gray-600">Questions Answered</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{sessionStats.wordsSpoken}</div>
+              <div className="text-sm text-gray-600">Words Spoken</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{Math.round(voiceActivity)}</div>
+              <div className="text-sm text-gray-600">Voice Level</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">
+                {isActive ? Math.round((Date.now() - sessionStartTimeRef.current) / 1000) : 0}s
+              </div>
+              <div className="text-sm text-gray-600">Duration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -67,6 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('AuthProvider: Initial session:', !!session)
       setUser(session?.user ?? null)
       setLoading(false)
+    }).catch((error) => {
+      console.error('AuthProvider: Error getting initial session:', error)
+      setLoading(false)
     })
 
     // Listen for auth changes
@@ -96,7 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      if (subscription?.unsubscribe) {
+        subscription.unsubscribe()
+      }
+    }
   }, [])
 
   const signOut = async () => {

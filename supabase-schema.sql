@@ -48,3 +48,41 @@ create table if not exists company_members (
 );
 
 alter table company_members enable row level security;
+
+-- Training Sessions table
+create table if not exists training_sessions (
+  id uuid primary key default uuid_generate_v4(),
+  employee_id uuid not null,
+  assignment_id text not null,
+  company_id uuid references companies(id) on delete cascade,
+  session_name text not null,
+  training_mode text not null check (training_mode in ('theory', 'service_practice')),
+  language text not null,
+  agent_id text not null,
+  knowledge_context jsonb,
+  conversation_transcript jsonb not null,
+  session_duration_seconds integer not null,
+  started_at timestamptz not null,
+  ended_at timestamptz not null,
+  created_at timestamptz default now()
+);
+
+alter table training_sessions enable row level security;
+
+-- RLS policies for training_sessions
+create policy "Users can view own training sessions" on training_sessions
+  for select using (
+    employee_id::text = auth.uid()::text OR
+    company_id in (
+      select company_id from company_members
+      where user_id = auth.uid() and role in ('owner', 'manager')
+    )
+  );
+
+create policy "Users can insert own training sessions" on training_sessions
+  for insert with check (employee_id::text = auth.uid()::text);
+
+-- Index for faster queries
+create index if not exists idx_training_sessions_employee_id on training_sessions(employee_id);
+create index if not exists idx_training_sessions_company_id on training_sessions(company_id);
+create index if not exists idx_training_sessions_created_at on training_sessions(created_at desc);

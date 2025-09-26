@@ -3,8 +3,13 @@
 ## Project Overview
 A Next.js 15 training simulation platform with Supabase backend for employee training management.
 
-## Current Status (2025-09-17)
-- ✅ **MAJOR MILESTONE**: Employee management system fully operational
+## Current Status (2025-09-19)
+- ✅ **MAJOR MILESTONE**: ElevenLabs Conversational AI Integration Complete
+- ✅ Theory Q&A Avatar Training System Operational
+- ✅ Multi-language support with 13 languages (flags + names)
+- ✅ Hard-coded knowledge base working (coffee shop menu in Russian)
+- ✅ Agent behaves as strict theory examiner, asks progressive questions
+- ✅ Employee management system fully operational
 - ✅ Real database integration replacing hardcoded data
 - ✅ Authentication system stable for managers and employees
 - ✅ Auto-sync between Supabase Auth and users table
@@ -107,5 +112,93 @@ Employees: emp1@greg45.com through emp7@greg45.com (auto-synced)
 - **Authentication**: Stable and functional
 - **Employee Management**: Production ready
 
+## ElevenLabs Conversational AI Integration (Session: 2025-09-19)
+
+### 🎯 Major Achievement: Working Theory Q&A System
+**Problem**: Previous streaming conversation system was broken and complex
+**Solution**: Replaced with ElevenLabs Conversational AI platform
+
+### Key Components Implemented
+
+#### 1. ElevenLabs Agent Configuration
+- **Agent ID**: `agent_0201k5h7pzgve478dn5fnh21r35n`
+- **System Prompt**: Configured in ElevenLabs dashboard with dynamic variable placeholders:
+```
+{{examiner_instructions}}
+
+Use this knowledge base to ask questions:
+{{knowledge_context}}
+
+Training mode: {{training_mode}}
+Available documents: {{documents_available}}
+
+You are operating in {{training_mode}} mode. Follow the examiner instructions above strictly
+```
+
+#### 2. Hard-coded Knowledge Base (Coffee Shop)
+**Location**: `src/components/ElevenLabsAvatarSession.tsx`
+```javascript
+const HARDCODED_KNOWLEDGE_BASE = `
+COFFEE SHOP MENU AND PRICES:
+НАПИТКИ (DRINKS): Эспрессо, Капучино, Латте, Раф...
+БАЗОВАЯ ВЫПЕЧКА (PASTRIES): Паштель де ната, чизкейк сан себастьян...
+`
+
+const HARDCODED_EXAMINER_INSTRUCTIONS = `
+You are a STRICT THEORY EXAMINER for a Russian coffee shop chain.
+- After the student gives ANY answer, IMMEDIATELY move to the next question
+- Do not repeat the same question - always ask different questions
+- Ask questions about: drinks, sizes, pastries, ingredients
+`
+```
+
+#### 3. Multi-Language Support
+**File**: `src/app/employee/training/[assignmentId]/page.tsx`
+- 13 supported languages with flags and names
+- Language dropdown affects agent conversation language
+- Real-time language switching
+- Languages: EN🇺🇸, RU🇷🇺, DE🇩🇪, ES🇪🇸, FR🇫🇷, IT🇮🇹, and more
+
+#### 4. Dynamic Variables System
+**How it works**:
+1. Client sends dynamic variables to ElevenLabs via SDK
+2. ElevenLabs agent system prompt references variables with `{{variable_name}}`
+3. Agent receives populated instructions and knowledge
+
+```javascript
+const dynamicVariables = {
+  training_mode: "theory",
+  knowledge_context: HARDCODED_KNOWLEDGE_BASE,
+  examiner_instructions: HARDCODED_EXAMINER_INSTRUCTIONS,
+  documents_available: 1,
+  language: selectedLanguage
+}
+```
+
+### Files Modified/Created
+- `src/lib/elevenlabs-conversation.ts` - Conversation service with dynamic variables
+- `src/components/ElevenLabsAvatarSession.tsx` - Hard-coded knowledge and instructions
+- `src/app/employee/training/[assignmentId]/page.tsx` - Language selection UI
+- `src/app/api/elevenlabs-token/route.ts` - Token API (GET method)
+
+### Current Testing Status
+✅ **Working**: Agent acts as theory examiner
+✅ **Working**: Asks coffee shop specific questions ("What sizes for cappuccino?")
+✅ **Working**: Moves to next question after any answer
+✅ **Working**: Language selection affects agent responses
+✅ **Working**: Debug panel shows all dynamic variables being sent
+
+### Next Steps (if session continues)
+1. **Dynamic Knowledge Loading** - Replace hard-coded knowledge with database
+2. **Fix Knowledge Service** - Make `ElevenLabsKnowledgeService.getScenarioKnowledge()` work
+3. **Question Evaluation** - Add scoring system for correct/incorrect answers
+4. **Session Recording** - Save conversation transcripts to database
+
+### Critical Success Factors Identified
+1. **ElevenLabs Dashboard Configuration**: Must reference dynamic variables in system prompt
+2. **Agent Behavior**: Clear instructions needed to prevent getting stuck on wrong answers
+3. **Knowledge Format**: Russian coffee shop menu works well for specific questions
+4. **Language Integration**: Seamless multi-language support via dropdown selection
+
 ## Last Updated
-2025-09-17 - Post employee management system completion
+2025-09-19 - ElevenLabs Conversational AI integration complete

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import UserHeader from '@/components/UserHeader'
+import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function EmployeeDashboard() {
@@ -37,6 +38,7 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     loadAssignments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId])
 
   // Handle authentication timeout and redirect
@@ -51,6 +53,7 @@ export default function EmployeeDashboard() {
       }, 1000) // 1 second delay
 
       setRedirectTimeout(timeout)
+      return () => clearTimeout(timeout)
     } else if (user) {
       // Clear timeout if user is found
       if (redirectTimeout) {
@@ -58,13 +61,7 @@ export default function EmployeeDashboard() {
         setRedirectTimeout(null)
       }
     }
-
-    return () => {
-      if (redirectTimeout) {
-        clearTimeout(redirectTimeout)
-      }
-    }
-  }, [authLoading, user, redirectTimeout])
+  }, [authLoading, user])
 
   const stats = {
     completed: assignments.filter(a => a.status === 'completed').length,
@@ -117,18 +114,6 @@ export default function EmployeeDashboard() {
           subtitle="Welcome to your training portal"
         />
 
-        {/* Welcome Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="text-center">
-            <svg className="mx-auto h-12 w-12 text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Account Created Successfully!</h2>
-            <p className="text-gray-600 mb-4">
-              Your account has been set up and you're now part of the team. Your manager will assign training tracks to you shortly.
-            </p>
-          </div>
-        </div>
 
         {/* Training Tracks Section */}
         <div>
@@ -169,6 +154,33 @@ export default function EmployeeDashboard() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Training History Section */}
+        <div className="mt-8 bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Training History</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                View your completed training sessions and conversation transcripts
+              </p>
+            </div>
+            <a
+              href="/employee/history"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              View Training History
+            </a>
+          </div>
+        </div>
+
+        {/* Theory Progress Dashboard */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Progress by Topic</h2>
+          <QuestionProgressDashboard />
         </div>
 
         {/* Quick Stats */}

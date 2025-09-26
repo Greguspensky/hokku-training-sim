@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Employee } from '@/lib/employees'
-import { Track } from '@/lib/scenarios'
+import { Track, Scenario } from '@/lib/scenarios'
 
 interface TrackAssignmentModalProps {
   isOpen: boolean
@@ -21,8 +21,11 @@ export default function TrackAssignmentModal({
 }: TrackAssignmentModalProps) {
   const [tracks, setTracks] = useState<Track[]>([])
   const [selectedTrackId, setSelectedTrackId] = useState('')
+  const [scenarios, setScenarios] = useState<Scenario[]>([])
+  const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([])
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingScenarios, setLoadingScenarios] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Load available tracks
@@ -42,17 +45,64 @@ export default function TrackAssignmentModal({
     }
   }
 
+  // Load scenarios for selected track
+  const loadScenarios = async (trackId: string) => {
+    if (!trackId) {
+      setScenarios([])
+      setSelectedScenarioIds([])
+      return
+    }
+
+    setLoadingScenarios(true)
+    try {
+      const response = await fetch(`/api/scenarios?track_id=${trackId}`)
+      const data = await response.json()
+
+      if (data.success) {
+        const trackScenarios = data.scenarios || []
+        setScenarios(trackScenarios)
+        // By default, select all scenarios
+        setSelectedScenarioIds(trackScenarios.map(s => s.id))
+      } else {
+        console.error('Failed to load scenarios:', data.error)
+        setScenarios([])
+        setSelectedScenarioIds([])
+      }
+    } catch (error) {
+      console.error('Failed to load scenarios:', error)
+      setScenarios([])
+      setSelectedScenarioIds([])
+    } finally {
+      setLoadingScenarios(false)
+    }
+  }
+
   useEffect(() => {
     if (isOpen && companyId) {
       loadTracks()
     }
   }, [isOpen, companyId])
 
+  // Load scenarios when track selection changes
+  useEffect(() => {
+    if (selectedTrackId) {
+      loadScenarios(selectedTrackId)
+    } else {
+      setScenarios([])
+      setSelectedScenarioIds([])
+    }
+  }, [selectedTrackId])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!selectedTrackId) {
       alert('Please select a track to assign')
+      return
+    }
+
+    if (scenarios.length > 0 && selectedScenarioIds.length === 0) {
+      alert('Please select at least one scenario to assign')
       return
     }
 
@@ -67,7 +117,8 @@ export default function TrackAssignmentModal({
           employee_id: employee.id,
           track_id: selectedTrackId,
           assigned_by: 'demo-manager-1', // In real app, get from auth
-          notes
+          notes,
+          selected_scenario_ids: selectedScenarioIds.length > 0 ? selectedScenarioIds : undefined
         })
       })
 
@@ -77,6 +128,8 @@ export default function TrackAssignmentModal({
         onAssignmentCreated()
         onClose()
         setSelectedTrackId('')
+        setSelectedScenarioIds([])
+        setScenarios([])
         setNotes('')
       } else {
         alert(data.error || 'Failed to assign track')
@@ -170,6 +223,90 @@ export default function TrackAssignmentModal({
             </div>
           )}
 
+          {/* Scenario Selection */}
+          {selectedTrackId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Scenarios to Assign
+              </label>
+              {loadingScenarios ? (
+                <div className="p-3 border border-gray-300 rounded-md">
+                  <div className="animate-pulse flex space-x-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : scenarios.length === 0 ? (
+                <div className="p-3 border border-gray-300 rounded-md bg-gray-50">
+                  <p className="text-sm text-gray-500">No scenarios available for this track</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-2">
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b">
+                    <span className="text-sm font-medium text-gray-700">
+                      {selectedScenarioIds.length} of {scenarios.length} selected
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedScenarioIds(scenarios.map(s => s.id))}
+                        className="text-xs text-blue-600 hover:text-blue-700"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedScenarioIds([])}
+                        className="text-xs text-gray-600 hover:text-gray-700"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                  {scenarios.map((scenario) => (
+                    <label key={scenario.id} className="flex items-start p-2 hover:bg-gray-50 cursor-pointer rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedScenarioIds.includes(scenario.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedScenarioIds([...selectedScenarioIds, scenario.id])
+                          } else {
+                            setSelectedScenarioIds(selectedScenarioIds.filter(id => id !== scenario.id))
+                          }
+                        }}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                      />
+                      <div className="ml-3 flex-1">
+                        <span className="text-sm font-medium text-gray-900">{scenario.title}</span>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            scenario.scenario_type === 'theory'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {scenario.scenario_type === 'theory' ? 'Theory' : 'Practice'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {scenario.difficulty} • {scenario.estimated_duration_minutes}min
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                          {scenario.description}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedScenarioIds.length === 0 && scenarios.length > 0 && (
+                <p className="text-sm text-red-600 mt-1">Please select at least one scenario to assign.</p>
+              )}
+            </div>
+          )}
+
           {/* Notes */}
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
@@ -197,7 +334,7 @@ export default function TrackAssignmentModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !selectedTrackId}
+              disabled={submitting || !selectedTrackId || (scenarios.length > 0 && selectedScenarioIds.length === 0)}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {submitting ? 'Assigning...' : 'Assign Track'}

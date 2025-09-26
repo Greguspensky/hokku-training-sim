@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { Scenario } from '@/lib/scenarios'
 
@@ -10,6 +11,7 @@ interface TrainingTrackCardProps {
 
 export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const router = useRouter()
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -38,9 +40,8 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
   }
 
   const handleStartTraining = () => {
-    // For now, just expand to show scenarios
-    // In a real app, this would navigate to the training interface
-    setExpanded(true)
+    // Navigate to the training session
+    router.push(`/employee/training/${assignment.id}`)
   }
 
   const getScenarioStatusIcon = (scenarioStatus: string) => {

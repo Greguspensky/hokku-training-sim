@@ -336,7 +336,7 @@ class EmployeeService {
         id: user.id,
         name: user.name,
         email: user.email,
-        company_id: 'demo-company-1', // Default for now
+        company_id: '01f773e2-1027-490e-8d36-279136700bbf', // Default for now
         manager_id: 'demo-manager-1', // Default for now
         invite_token: '',
         is_active: true,

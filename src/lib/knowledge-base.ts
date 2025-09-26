@@ -1,3 +1,5 @@
+import { supabaseAdmin } from './supabase'
+
 export interface KnowledgeBaseCategory {
   id: string
   company_id: string
@@ -38,6 +40,7 @@ export interface CreateDocumentData {
   company_id: string
 }
 
+// These are initial categories that can be created for new companies
 export const DEFAULT_CATEGORIES: Omit<KnowledgeBaseCategory, 'id' | 'company_id' | 'created_at' | 'updated_at'>[] = [
   {
     name: 'Standard Operating Procedures',
@@ -65,161 +68,223 @@ export const DEFAULT_CATEGORIES: Omit<KnowledgeBaseCategory, 'id' | 'company_id'
   }
 ]
 
-// Demo storage for development
-const demoCategories: KnowledgeBaseCategory[] = globalThis.__demoCategoriesStore || []
-const demoDocuments: KnowledgeBaseDocument[] = globalThis.__demoDocumentsStore || []
-
-// Persist demo data across hot reloads
-globalThis.__demoCategoriesStore = demoCategories
-globalThis.__demoDocumentsStore = demoDocuments
-
-// Initialize default categories if empty
-if (demoCategories.length === 0) {
-  DEFAULT_CATEGORIES.forEach((category, index) => {
-    demoCategories.push({
-      id: `demo-category-${index + 1}`,
-      company_id: 'demo-company-1',
-      ...category,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-  })
-}
 
 class KnowledgeBaseService {
   // Categories
   async getCategories(companyId: string): Promise<KnowledgeBaseCategory[]> {
-    // In demo mode, return demo categories with document counts
-    const categories = demoCategories.filter(cat => cat.company_id === companyId)
-    
+    const { data: categories, error } = await supabaseAdmin
+      .from('knowledge_base_categories')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching categories:', error)
+      throw new Error('Failed to fetch categories')
+    }
+
     // Add document counts
-    return categories.map(category => ({
-      ...category,
-      document_count: demoDocuments.filter(doc => doc.category_id === category.id).length
-    }))
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        const { count } = await supabaseAdmin
+          .from('knowledge_base_documents')
+          .select('*', { count: 'exact', head: true })
+          .eq('category_id', category.id)
+
+        return {
+          ...category,
+          document_count: count || 0
+        }
+      })
+    )
+
+    return categoriesWithCounts
   }
 
   async createCategory(data: CreateCategoryData): Promise<KnowledgeBaseCategory> {
-    const category: KnowledgeBaseCategory = {
-      id: `demo-category-${Date.now()}`,
-      ...data,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    const { data: category, error } = await supabaseAdmin
+      .from('knowledge_base_categories')
+      .insert({
+        name: data.name,
+        description: data.description,
+        company_id: data.company_id
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating category:', error)
+      throw new Error('Failed to create category')
     }
-    
-    demoCategories.push(category)
+
     return category
   }
 
   async updateCategory(id: string, data: Partial<CreateCategoryData>): Promise<KnowledgeBaseCategory> {
-    const categoryIndex = demoCategories.findIndex(cat => cat.id === id)
-    if (categoryIndex === -1) {
-      throw new Error('Category not found')
+    const { data: category, error } = await supabaseAdmin
+      .from('knowledge_base_categories')
+      .update({
+        ...data,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating category:', error)
+      throw new Error('Category not found or failed to update')
     }
 
-    demoCategories[categoryIndex] = {
-      ...demoCategories[categoryIndex],
-      ...data,
-      updated_at: new Date().toISOString()
-    }
-
-    return demoCategories[categoryIndex]
+    return category
   }
 
   async deleteCategory(id: string): Promise<void> {
-    // Delete all documents in this category first
-    const documentsToDelete = demoDocuments.filter(doc => doc.category_id === id)
-    documentsToDelete.forEach(doc => {
-      const docIndex = demoDocuments.findIndex(d => d.id === doc.id)
-      if (docIndex !== -1) {
-        demoDocuments.splice(docIndex, 1)
-      }
-    })
+    // Delete all documents in this category first (CASCADE should handle this, but being explicit)
+    const { error: docsError } = await supabaseAdmin
+      .from('knowledge_base_documents')
+      .delete()
+      .eq('category_id', id)
+
+    if (docsError) {
+      console.error('Error deleting documents:', docsError)
+    }
 
     // Delete the category
-    const categoryIndex = demoCategories.findIndex(cat => cat.id === id)
-    if (categoryIndex !== -1) {
-      demoCategories.splice(categoryIndex, 1)
+    const { error } = await supabaseAdmin
+      .from('knowledge_base_categories')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting category:', error)
+      throw new Error('Failed to delete category')
     }
   }
 
   // Documents
   async getDocuments(companyId: string, categoryId?: string): Promise<KnowledgeBaseDocument[]> {
-    let documents = demoDocuments.filter(doc => doc.company_id === companyId)
-    
+    let query = supabaseAdmin
+      .from('knowledge_base_documents')
+      .select(`
+        *,
+        category:knowledge_base_categories(*)
+      `)
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+
     if (categoryId) {
-      documents = documents.filter(doc => doc.category_id === categoryId)
+      query = query.eq('category_id', categoryId)
     }
 
-    // Add category information
-    return documents.map(doc => ({
-      ...doc,
-      category: demoCategories.find(cat => cat.id === doc.category_id)
-    }))
+    const { data: documents, error } = await query
+
+    if (error) {
+      console.error('Error fetching documents:', error)
+      throw new Error('Failed to fetch documents')
+    }
+
+    return documents || []
   }
 
   async getDocument(id: string): Promise<KnowledgeBaseDocument | null> {
-    const document = demoDocuments.find(doc => doc.id === id)
-    if (!document) return null
+    const { data: document, error } = await supabaseAdmin
+      .from('knowledge_base_documents')
+      .select(`
+        *,
+        category:knowledge_base_categories(*)
+      `)
+      .eq('id', id)
+      .single()
 
-    return {
-      ...document,
-      category: demoCategories.find(cat => cat.id === document.category_id)
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null // Document not found
+      }
+      console.error('Error fetching document:', error)
+      throw new Error('Failed to fetch document')
     }
+
+    return document
   }
 
   async createDocument(data: CreateDocumentData): Promise<KnowledgeBaseDocument> {
-    const document: KnowledgeBaseDocument = {
-      id: `demo-document-${Date.now()}`,
-      ...data,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    const { data: document, error } = await supabaseAdmin
+      .from('knowledge_base_documents')
+      .insert({
+        category_id: data.category_id,
+        title: data.title,
+        content: data.content,
+        file_url: data.file_url,
+        file_type: data.file_type,
+        file_size: data.file_size,
+        company_id: data.company_id
+      })
+      .select(`
+        *,
+        category:knowledge_base_categories(*)
+      `)
+      .single()
+
+    if (error) {
+      console.error('Error creating document:', error)
+      throw new Error('Failed to create document')
     }
-    
-    demoDocuments.push(document)
-    
-    return {
-      ...document,
-      category: demoCategories.find(cat => cat.id === document.category_id)
-    }
+
+    return document
   }
 
   async updateDocument(id: string, data: Partial<CreateDocumentData>): Promise<KnowledgeBaseDocument> {
-    const documentIndex = demoDocuments.findIndex(doc => doc.id === id)
-    if (documentIndex === -1) {
-      throw new Error('Document not found')
+    const { data: document, error } = await supabaseAdmin
+      .from('knowledge_base_documents')
+      .update({
+        ...data,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        category:knowledge_base_categories(*)
+      `)
+      .single()
+
+    if (error) {
+      console.error('Error updating document:', error)
+      throw new Error('Document not found or failed to update')
     }
 
-    demoDocuments[documentIndex] = {
-      ...demoDocuments[documentIndex],
-      ...data,
-      updated_at: new Date().toISOString()
-    }
-
-    return {
-      ...demoDocuments[documentIndex],
-      category: demoCategories.find(cat => cat.id === demoDocuments[documentIndex].category_id)
-    }
+    return document
   }
 
   async deleteDocument(id: string): Promise<void> {
-    const documentIndex = demoDocuments.findIndex(doc => doc.id === id)
-    if (documentIndex !== -1) {
-      demoDocuments.splice(documentIndex, 1)
+    const { error } = await supabaseAdmin
+      .from('knowledge_base_documents')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting document:', error)
+      throw new Error('Failed to delete document')
     }
   }
 
   async searchDocuments(companyId: string, query: string): Promise<KnowledgeBaseDocument[]> {
-    const documents = demoDocuments.filter(doc => 
-      doc.company_id === companyId &&
-      (doc.title.toLowerCase().includes(query.toLowerCase()) ||
-       doc.content.toLowerCase().includes(query.toLowerCase()))
-    )
+    const { data: documents, error } = await supabaseAdmin
+      .from('knowledge_base_documents')
+      .select(`
+        *,
+        category:knowledge_base_categories(*)
+      `)
+      .eq('company_id', companyId)
+      .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+      .order('created_at', { ascending: false })
 
-    return documents.map(doc => ({
-      ...doc,
-      category: demoCategories.find(cat => cat.id === doc.category_id)
-    }))
+    if (error) {
+      console.error('Error searching documents:', error)
+      throw new Error('Failed to search documents')
+    }
+
+    return documents || []
   }
 }
 

@@ -29,10 +29,12 @@ export async function POST(request: NextRequest) {
       expected_response: body.expected_response,
       difficulty: body.difficulty || 'beginner',
       estimated_duration_minutes: body.estimated_duration_minutes || 30,
-      milestones: body.milestones || []
+      milestones: body.milestones || [],
+      knowledge_category_ids: body.knowledge_category_ids || [],
+      knowledge_document_ids: body.knowledge_document_ids || []
     };
 
-    // Validate required fields based on scenario type
+    // Validate required fields for all scenarios
     if (!scenarioData.track_id || !scenarioData.company_id) {
       return NextResponse.json(
         { success: false, error: 'track_id and company_id are required' },
@@ -40,11 +42,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!scenarioData.title || !scenarioData.description) {
+      return NextResponse.json(
+        { success: false, error: 'title and description are required' },
+        { status: 400 }
+      );
+    }
+
     // Additional validation for service practice scenarios
     if (scenarioData.scenario_type === 'service_practice') {
-      if (!scenarioData.title || !scenarioData.description || !scenarioData.client_behavior || !scenarioData.expected_response) {
+      if (!scenarioData.client_behavior || !scenarioData.expected_response) {
         return NextResponse.json(
-          { success: false, error: 'For service practice scenarios: title, description, client_behavior, and expected_response are required' },
+          { success: false, error: 'For service practice scenarios: client_behavior and expected_response are required' },
           { status: 400 }
         );
       }

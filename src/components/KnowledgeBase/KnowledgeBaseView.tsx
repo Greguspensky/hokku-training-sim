@@ -7,6 +7,7 @@ import CategoryFolder from './CategoryFolder'
 import DocumentForm from './DocumentForm'
 import CategoryForm from './CategoryForm'
 import DocumentViewer from './DocumentViewer'
+import QuestionPoolView from './QuestionPoolView'
 
 interface KnowledgeBaseViewProps {
   companyId: string
@@ -25,6 +26,8 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   const [loading, setLoading] = useState(true)
   const [editingCategory, setEditingCategory] = useState<KnowledgeBaseCategory | null>(null)
   const [editingDocument, setEditingDocument] = useState<KnowledgeBaseDocument | null>(null)
+  const [generatingQuestions, setGeneratingQuestions] = useState(false)
+  const [currentView, setCurrentView] = useState<'documents' | 'questions'>('documents')
 
   const loadCategories = async () => {
     try {
@@ -193,6 +196,43 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
               </p>
             </div>
             <div className="flex space-x-3">
+              <button
+                onClick={async () => {
+                  const confirmed = confirm('Generate AI question pool from all documents? This will analyze your knowledge base and create training questions automatically.')
+                  if (confirmed) {
+                    setGeneratingQuestions(true)
+                    try {
+                      const response = await fetch('/api/generate-save-questions', { method: 'POST' })
+                      const data = await response.json()
+                      if (data.success) {
+                        alert(`✅ AI Question Pool Generated & Saved!\n\n📊 Results:\n• ${data.summary.topicsExtracted} topics extracted\n• ${data.summary.questionsSaved} questions saved to database\n• ${data.summary.documentsAnalyzed} documents analyzed\n\nQuestions are now saved and ready for training sessions!`)
+                      } else {
+                        alert('❌ Failed to generate questions: ' + (data.error || 'Unknown error'))
+                      }
+                    } catch (error) {
+                      console.error('Question generation error:', error)
+                      alert('❌ Failed to generate questions. Please check console for details.')
+                    } finally {
+                      setGeneratingQuestions(false)
+                    }
+                  }
+                }}
+                disabled={generatingQuestions}
+                className={`px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  generatingQuestions
+                    ? 'bg-purple-400 cursor-not-allowed text-white'
+                    : 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500'
+                }`}
+              >
+                {generatingQuestions ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Generating...</span>
+                  </div>
+                ) : (
+                  '🤖 Generate Questions'
+                )}
+              </button>
               {selectedCategory && (
                 <button
                   onClick={() => setShowDocumentForm(true)}
@@ -237,38 +277,70 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <form onSubmit={handleSearch} className="flex items-center space-x-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search documents..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Search
-            </button>
-            {(searchQuery || selectedCategory) && (
+        {/* Content Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
               <button
-                type="button"
-                onClick={clearSearch}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                onClick={() => setCurrentView('documents')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  currentView === 'documents'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
-                Clear
+                📁 Documents
               </button>
-            )}
-          </form>
+              <button
+                onClick={() => setCurrentView('questions')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  currentView === 'questions'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                🤖 AI Questions
+              </button>
+            </nav>
+          </div>
         </div>
 
+        {/* Search Bar - Only show for documents view */}
+        {currentView === 'documents' && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <form onSubmit={handleSearch} className="flex items-center space-x-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search documents..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Search
+              </button>
+              {(searchQuery || selectedCategory) && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Clear
+                </button>
+              )}
+            </form>
+          </div>
+        )}
+
         {/* Main Content */}
-        {!selectedCategory && !searchQuery ? (
+        {currentView === 'documents' ? (
+          // Documents view
+          !selectedCategory && !searchQuery ? (
           /* Categories Grid View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((category) => (
@@ -383,6 +455,10 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
               ))
             )}
           </div>
+        )
+        ) : (
+          // Questions view
+          <QuestionPoolView companyId={companyId} />
         )}
 
         {/* Category Form Modal */}

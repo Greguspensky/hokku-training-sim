@@ -76,7 +76,7 @@ async function createDemoUsers() {
             email: user.email,
             name: user.name,
             role: user.role,
-            company_id: 'demo-company-1',
+            company_id: '01f773e2-1027-490e-8d36-279136700bbf',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
