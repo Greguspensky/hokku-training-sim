@@ -43,16 +43,14 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ No existing assignment found, creating new one')
 
-    // Create new assignment (using production schema)
+    // Create new assignment (using production schema - notes column may not exist)
     const newAssignment = {
       user_id: employee_id,  // Using user_id instead of employee_id for production
       track_id,
       assigned_by,
       status: 'assigned',
       assigned_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      attempts_used: 0,
-      ...(notes && { notes })
+      attempts_used: 0
     }
 
     const { data: assignment, error: createError } = await supabaseAdmin
