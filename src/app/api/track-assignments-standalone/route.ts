@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Getting assignments:', { companyId, employeeId })
 
     if (employeeId) {
-      // Get assignments for a specific employee (using user_id for production schema)
+      // Get assignments for a specific employee with track details
       const { data: assignments, error } = await supabaseAdmin
         .from('track_assignments')
         .select('*')
@@ -110,9 +110,42 @@ export async function GET(request: NextRequest) {
 
       console.log(`✅ Found ${assignments?.length || 0} assignments for employee`)
 
+      // Manually fetch track details for each assignment (avoiding JOIN issues)
+      const enrichedAssignments = []
+
+      if (assignments && assignments.length > 0) {
+        for (const assignment of assignments) {
+          // Get track details (not using .single() to avoid issues)
+          const { data: tracks, error: trackError } = await supabaseAdmin
+            .from('tracks')
+            .select('*')
+            .eq('id', assignment.track_id)
+
+          if (!trackError && tracks && tracks.length > 0) {
+            const track = tracks[0] // Take the first match
+            enrichedAssignments.push({
+              ...assignment,
+              track: track,
+              progress_percentage: 0 // Default for now
+            })
+            console.log(`✅ Found track: ${track.name}`)
+          } else {
+            console.log(`⚠️ Could not find track ${assignment.track_id}:`, trackError?.message || 'No tracks found')
+            // Still include assignment but with null track
+            enrichedAssignments.push({
+              ...assignment,
+              track: null,
+              progress_percentage: 0
+            })
+          }
+        }
+      }
+
+      console.log(`✅ Enriched ${enrichedAssignments.length} assignments with track details`)
+
       return NextResponse.json({
         success: true,
-        assignments: assignments || []
+        assignments: enrichedAssignments
       })
 
     } else if (companyId) {
