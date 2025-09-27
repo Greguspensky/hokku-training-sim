@@ -160,3 +160,42 @@ export async function GET(
     )
   }
 }
+
+// DELETE /api/track-assignments-standalone/[assignmentId] - Delete a track assignment
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ assignmentId: string }> }
+) {
+  try {
+    const { assignmentId } = await params
+
+    console.log('🗑️ Deleting assignment:', assignmentId)
+
+    // Delete the assignment
+    const { error } = await supabaseAdmin
+      .from('track_assignments')
+      .delete()
+      .eq('id', assignmentId)
+
+    if (error) {
+      console.log('❌ Error deleting assignment:', error.message)
+      return NextResponse.json(
+        { success: false, error: 'Failed to delete assignment' },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ Assignment deleted successfully')
+    return NextResponse.json({ success: true })
+
+  } catch (error) {
+    console.error('Delete assignment error:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete assignment'
+      },
+      { status: 500 }
+    )
+  }
+}

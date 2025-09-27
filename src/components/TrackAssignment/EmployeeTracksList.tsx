@@ -15,7 +15,7 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
 
   const loadEmployeeAssignments = async () => {
     try {
-      const response = await fetch(`/api/track-assignments?employee_id=${employee.id}`)
+      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employee.id}`)
       const data = await response.json()
 
       if (data.success) {
@@ -68,7 +68,7 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
     }
 
     try {
-      const response = await fetch(`/api/track-assignments/${assignmentId}`, {
+      const response = await fetch(`/api/track-assignments-standalone/${assignmentId}`, {
         method: 'DELETE'
       })
 
