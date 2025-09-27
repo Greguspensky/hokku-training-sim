@@ -659,17 +659,43 @@ class TrackAssignmentService {
    */
   async getAssignmentWithDetails(assignmentId: string): Promise<AssignmentWithDetails | null> {
     try {
+      console.log('🔍 Getting assignment with details for ID:', assignmentId)
+
+      // Get assignment without JOIN (to work with production schema)
       const { data: assignment, error } = await supabaseAdmin
         .from('track_assignments')
-        .select(`
-          *,
-          tracks!inner(*)
-        `)
+        .select('*')
         .eq('id', assignmentId)
         .single()
 
-      if (error) throw error
-      if (!assignment) return null
+      if (error) {
+        console.log('❌ Assignment query error:', error.message)
+        throw error
+      }
+      if (!assignment) {
+        console.log('❌ Assignment not found')
+        return null
+      }
+
+      console.log('✅ Assignment found:', assignment.id, 'for user_id:', assignment.user_id)
+
+      // Manually get track details (replacing failed JOIN)
+      const { data: track, error: trackError } = await supabaseAdmin
+        .from('tracks')
+        .select('*')
+        .eq('id', assignment.track_id)
+        .single()
+
+      if (trackError) {
+        console.log('❌ Track query error:', trackError.message)
+        throw trackError
+      }
+      if (!track) {
+        console.log('❌ Track not found for track_id:', assignment.track_id)
+        throw new Error(`Track not found for track_id: ${assignment.track_id}`)
+      }
+
+      console.log('✅ Track found:', track.name)
 
       // Get scenarios for the track
       const { data: scenarios, error: scenariosError } = await supabaseAdmin
@@ -679,20 +705,28 @@ class TrackAssignmentService {
         .eq('is_active', true)
         .order('created_at')
 
-      if (scenariosError) throw scenariosError
+      if (scenariosError) {
+        console.log('❌ Scenarios query error:', scenariosError.message)
+        throw scenariosError
+      }
+
+      console.log('✅ Found', scenarios?.length || 0, 'scenarios for track')
 
       // Get scenario progress
       const scenarioProgress = await this.getAssignmentScenarioProgress(assignmentId)
 
-      return {
+      const result = {
         ...assignment,
         track: {
-          ...assignment.tracks,
+          ...track,
           scenarios: scenarios || []
         },
-        employee: { id: assignment.employee_id, name: 'Employee' } as Employee,
+        employee: { id: assignment.user_id, name: 'Employee' } as Employee, // Note: using user_id for production
         scenario_progress: scenarioProgress
       } as AssignmentWithDetails
+
+      console.log('✅ Assignment with details built successfully')
+      return result
 
     } catch (error: any) {
       console.log('🚧 Demo mode: Getting assignment with details:', assignmentId)
