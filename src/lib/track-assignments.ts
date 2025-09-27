@@ -217,8 +217,18 @@ class TrackAssignmentService {
    */
   private async initializeScenarioProgress(assignmentId: string, trackId: string): Promise<void> {
     try {
-      // Get all scenarios in the track using scenarioService which has demo fallback
-      const scenarios = await scenarioService.getScenariosByTrack(trackId)
+      // Get all scenarios in the track using direct database query
+      const { data: scenarios, error: scenariosError } = await supabaseAdmin
+        .from('scenarios')
+        .select('*')
+        .eq('track_id', trackId)
+        .eq('is_active', true)
+        .order('created_at')
+
+      if (scenariosError) {
+        console.log('❌ Failed to get scenarios for track:', trackId, scenariosError.message)
+        return
+      }
 
       if (scenarios && scenarios.length > 0) {
         const progressData = scenarios.map(scenario => ({
@@ -324,10 +334,18 @@ class TrackAssignmentService {
             track = globalThis.__demoTracksStore.find((t: Track) => t.id === assignment.track_id) || null
           }
 
-          // If not found in demo storage, try to get from scenarioService
+          // If not found in demo storage, try to get from database directly
           if (!track) {
             try {
-              track = await scenarioService.getTrack(assignment.track_id)
+              const { data: dbTrack, error: trackError } = await supabaseAdmin
+                .from('tracks')
+                .select('*')
+                .eq('id', assignment.track_id)
+                .single()
+
+              if (!trackError && dbTrack) {
+                track = dbTrack
+              }
             } catch (error) {
               console.log('Could not fetch track details for:', assignment.track_id)
             }
@@ -402,41 +420,66 @@ class TrackAssignmentService {
    */
   async getAssignmentScenarioProgress(assignmentId: string): Promise<(ScenarioProgress & { scenario: Scenario })[]> {
     try {
+      // Get scenario progress without JOIN (to work with production schema)
       const { data: progress, error } = await supabaseAdmin
         .from('scenario_progress')
-        .select(`
-          *,
-          scenarios!inner(
-            id, title, description, scenario_type, difficulty, estimated_duration_minutes
-          )
-        `)
+        .select('*')
         .eq('assignment_id', assignmentId)
         .order('created_at', { ascending: true })
 
       if (error) throw error
 
-      return (progress || []).map(p => ({
-        ...p,
-        scenario: p.scenarios
-      })) as (ScenarioProgress & { scenario: Scenario })[]
+      // Manually get scenario details for each progress record
+      const progressWithScenarios = await Promise.all(
+        (progress || []).map(async (p) => {
+          const { data: scenario, error: scenarioError } = await supabaseAdmin
+            .from('scenarios')
+            .select('id, title, description, scenario_type, difficulty, estimated_duration_minutes')
+            .eq('id', p.scenario_id)
+            .single()
+
+          if (scenarioError || !scenario) {
+            console.log(`⚠️ Could not find scenario for progress record ${p.id}`)
+            return null
+          }
+
+          return {
+            ...p,
+            scenario
+          }
+        })
+      )
+
+      // Filter out any null results and return
+      return progressWithScenarios.filter(p => p !== null) as (ScenarioProgress & { scenario: Scenario })[]
+
     } catch (error: any) {
       console.log('🚧 Demo mode: Getting scenario progress for assignment:', assignmentId)
 
-      // For demo mode, create mock progress data using demo scenarios
+      // For demo mode, create mock progress data without scenarioService dependency
       const assignment = demoAssignments.find(a => a.id === assignmentId)
       if (assignment) {
-        const scenarios = await scenarioService.getScenariosByTrack(assignment.track_id)
-        return scenarios.map((scenario, index) => ({
-          id: `demo-progress-${assignmentId}-${scenario.id}`,
-          assignment_id: assignmentId,
-          scenario_id: scenario.id,
-          status: 'not_started' as ScenarioProgressStatus,
-          attempts: 0,
-          time_spent_minutes: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          scenario
-        }))
+        // Get scenarios directly from database instead of scenarioService
+        const { data: scenarios, error: scenariosError } = await supabaseAdmin
+          .from('scenarios')
+          .select('*')
+          .eq('track_id', assignment.track_id)
+          .eq('is_active', true)
+          .order('created_at')
+
+        if (!scenariosError && scenarios) {
+          return scenarios.map((scenario, index) => ({
+            id: `demo-progress-${assignmentId}-${scenario.id}`,
+            assignment_id: assignmentId,
+            scenario_id: scenario.id,
+            status: 'not_started' as ScenarioProgressStatus,
+            attempts: 0,
+            time_spent_minutes: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            scenario
+          }))
+        }
       }
 
       return []
