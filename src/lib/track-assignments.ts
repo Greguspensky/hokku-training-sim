@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase'
-import { Track, Scenario, scenarioService } from './scenarios'
+import { Track, Scenario } from './scenarios'
 import { Employee } from './employees'
 
 export type AssignmentStatus = 'assigned' | 'in_progress' | 'completed' | 'cancelled'
