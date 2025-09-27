@@ -23,7 +23,7 @@ export default function EmployeeDashboard() {
     }
 
     try {
-      const response = await fetch(`/api/track-assignments?employee_id=${employeeId}`)
+      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employeeId}`)
       const data = await response.json()
 
       if (data.success) {

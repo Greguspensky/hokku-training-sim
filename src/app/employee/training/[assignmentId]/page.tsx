@@ -70,7 +70,7 @@ export default function TrainingSessionPage() {
       }
 
       // Load assignment details
-      const assignmentResponse = await fetch(`/api/track-assignments/${assignmentId}`)
+      const assignmentResponse = await fetch(`/api/track-assignments-standalone/${assignmentId}`)
       const assignmentData = await assignmentResponse.json()
 
       if (assignmentData.success) {

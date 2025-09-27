@@ -108,7 +108,7 @@ export default function TrackAssignmentModal({
 
     setSubmitting(true)
     try {
-      const response = await fetch('/api/track-assignments', {
+      const response = await fetch('/api/track-assignments-standalone', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
