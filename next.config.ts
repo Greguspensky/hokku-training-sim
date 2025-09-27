@@ -7,9 +7,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['@elevenlabs/client'],
-  },
+  serverExternalPackages: ['@elevenlabs/client'],
 };
 
 export default nextConfig;
