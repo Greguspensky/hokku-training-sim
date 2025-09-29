@@ -342,6 +342,9 @@ INSTRUCTIONS:
         knowledge_scope: contextToUse?.knowledgeScope || 'restricted',
         documents_available: contextToUse?.documents?.length || 1,
         questions_available: questionsToUse.length,
+        // Service practice specific fields
+        client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
+        expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
         // Use structured questions if available
         examiner_instructions: trainingMode === 'theory' ?
           (questionsToUse.length > 0 ?
@@ -361,7 +364,29 @@ If no structured questions are provided, ask general questions about the company
               `You are a STRICT THEORY EXAMINER for a company training. Ask specific, factual questions based on this knowledge context and move immediately to the next question after any student response.` :
               HARDCODED_EXAMINER_INSTRUCTIONS
           ) :
-          `You are a CUSTOMER in service scenarios. Role-play realistic customer situations and problems.`
+          `You are a CUSTOMER in a service training roleplay scenario.
+
+CUSTOMER BEHAVIOR INSTRUCTIONS:
+${scenarioContext?.client_behavior || 'Act as a typical customer seeking help'}
+
+SCENARIO CONTEXT:
+You are roleplaying as a customer in the following situation: ${scenarioContext?.title || 'General customer service scenario'}
+
+COMPANY KNOWLEDGE CONTEXT (for reference - you are the CUSTOMER, not the employee):
+${contextToUse?.formattedContext || HARDCODED_KNOWLEDGE_BASE}
+
+EXPECTED EMPLOYEE RESPONSE (for evaluation context):
+${scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable'}
+
+ROLEPLAY INSTRUCTIONS:
+- Act as the customer described in the behavior instructions above
+- Be realistic and stay in character throughout the conversation
+- Present the problem or situation naturally
+- Respond to the employee's attempts to help as this type of customer would
+- Do not break character or provide training guidance
+- Let the employee practice their customer service skills by interacting with you as a real customer would
+
+Start the conversation by presenting your customer problem or situation.`
       }
 
       console.log('🎯 Starting session with dynamic variables:', dynamicVariables)

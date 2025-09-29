@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { Scenario } from '@/lib/scenarios'
@@ -11,6 +11,8 @@ interface TrainingTrackCardProps {
 
 export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const [scenarios, setScenarios] = useState<Scenario[]>([])
+  const [scenariosLoading, setScenariosLoading] = useState(true)
   const router = useRouter()
 
   const getStatusColor = (status: string) => {
@@ -39,9 +41,38 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
     }
   }
 
+  // Fetch scenarios for this track
+  useEffect(() => {
+    const loadScenarios = async () => {
+      if (!assignment.track_id) return
+
+      try {
+        setScenariosLoading(true)
+        const response = await fetch(`/api/scenarios?track_id=${assignment.track_id}`)
+        const data = await response.json()
+
+        if (data.success) {
+          setScenarios(data.scenarios || [])
+        }
+      } catch (error) {
+        console.error('Failed to load scenarios for track:', error)
+      } finally {
+        setScenariosLoading(false)
+      }
+    }
+
+    loadScenarios()
+  }, [assignment.track_id])
+
   const handleStartTraining = () => {
     // Navigate to the training session
     router.push(`/employee/training/${assignment.id}`)
+  }
+
+  const handleStartScenario = (scenario: Scenario) => {
+    // For now, navigate to the generic training page
+    // In the future, this could be scenario-specific
+    router.push(`/employee/training/${assignment.id}?scenario=${scenario.id}`)
   }
 
   const getScenarioStatusIcon = (scenarioStatus: string) => {
@@ -56,6 +87,28 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
         return '⏭️'
       default:
         return '⏳'
+    }
+  }
+
+  const getScenarioTypeLabel = (scenarioType: string) => {
+    switch (scenarioType) {
+      case 'theory':
+        return 'Theory Q&A'
+      case 'service_practice':
+        return 'Service Practice'
+      default:
+        return scenarioType
+    }
+  }
+
+  const getScenarioTypeIcon = (scenarioType: string) => {
+    switch (scenarioType) {
+      case 'theory':
+        return '📚'
+      case 'service_practice':
+        return '🎭'
+      default:
+        return '📋'
     }
   }
 
@@ -120,10 +173,83 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
+        {/* Available Scenarios */}
+        <div className="mt-6">
+          <h4 className="text-md font-medium text-gray-900 mb-3">Available Training Scenarios</h4>
+
+          {scenariosLoading ? (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="animate-pulse flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                    <div>
+                      <div className="h-4 bg-gray-200 rounded w-32 mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-20"></div>
+                    </div>
+                  </div>
+                  <div className="h-8 w-20 bg-gray-200 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : scenarios.length > 0 ? (
+            <div className="space-y-2">
+              {scenarios.map((scenario) => (
+                <div key={scenario.id} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-lg">{getScenarioTypeIcon(scenario.scenario_type)}</span>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-sm">
+                        {scenario.title}
+                      </h5>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
+                          {getScenarioTypeLabel(scenario.scenario_type)}
+                        </span>
+                        {scenario.difficulty && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            scenario.difficulty === 'beginner' ? 'bg-green-100 text-green-700' :
+                            scenario.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {scenario.difficulty}
+                          </span>
+                        )}
+                        {scenario.estimated_duration_minutes && (
+                          <span className="text-xs text-gray-400">
+                            ~{scenario.estimated_duration_minutes}min
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleStartScenario(scenario)}
+                    className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Start
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-md border border-gray-200">
+              <svg className="mx-auto h-6 w-6 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-sm">No scenarios available yet</p>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons - Only show fallback buttons if no scenarios are available */}
+        <div className="flex items-center justify-between mt-6">
           <div className="flex items-center space-x-3">
-            {assignment.status === 'assigned' && (
+            {!scenariosLoading && scenarios.length === 0 && assignment.status === 'assigned' && (
               <button
                 onClick={handleStartTraining}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -135,7 +261,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
               </button>
             )}
 
-            {assignment.status === 'in_progress' && (
+            {!scenariosLoading && scenarios.length === 0 && assignment.status === 'in_progress' && (
               <button
                 onClick={handleStartTraining}
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -145,6 +271,12 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
                 </svg>
                 Continue Training
               </button>
+            )}
+
+            {scenarios.length > 0 && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{scenarios.length}</span> scenario{scenarios.length !== 1 ? 's' : ''} available
+              </div>
             )}
 
             {assignment.status === 'completed' && (

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Track } from '@/lib/scenarios'
 
 interface TrackFormData {
   name: string
@@ -11,17 +12,29 @@ interface TrackFormData {
 
 interface TrackFormProps {
   companyId: string
+  track?: Track // Optional track for editing
   onSuccess?: () => void
   onCancel?: () => void
 }
 
-export default function TrackForm({ companyId, onSuccess, onCancel }: TrackFormProps) {
+export default function TrackForm({ companyId, track, onSuccess, onCancel }: TrackFormProps) {
   const router = useRouter()
   const [formData, setFormData] = useState<TrackFormData>({
-    name: '',
-    description: '',
-    target_audience: 'new_hire'
+    name: track?.name || '',
+    description: track?.description || '',
+    target_audience: (track?.target_audience as 'new_hire' | 'existing_employee') || 'new_hire'
   })
+  const isEditing = !!track
+
+  useEffect(() => {
+    if (track) {
+      setFormData({
+        name: track.name,
+        description: track.description,
+        target_audience: track.target_audience as 'new_hire' | 'existing_employee'
+      })
+    }
+  }, [track])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,8 +55,11 @@ export default function TrackForm({ companyId, onSuccess, onCancel }: TrackFormP
     setError(null)
 
     try {
-      const response = await fetch('/api/tracks', {
-        method: 'POST',
+      const url = isEditing ? `/api/tracks/${track.id}` : '/api/tracks'
+      const method = isEditing ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           company_id: companyId,
@@ -54,13 +70,13 @@ export default function TrackForm({ companyId, onSuccess, onCancel }: TrackFormP
       const data = await response.json()
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to create track')
+        throw new Error(data.error || `Failed to ${isEditing ? 'update' : 'create'} track`)
       }
 
       onSuccess?.()
       router.refresh()
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to create track')
+      setError(error instanceof Error ? error.message : `Failed to ${isEditing ? 'update' : 'create'} track`)
     } finally {
       setIsSubmitting(false)
     }
@@ -76,7 +92,7 @@ export default function TrackForm({ companyId, onSuccess, onCancel }: TrackFormP
         )}
 
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Create Training Track</h3>
+          <h3 className="text-lg font-medium text-gray-900">{isEditing ? 'Edit' : 'Create'} Training Track</h3>
           
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -146,14 +162,14 @@ export default function TrackForm({ companyId, onSuccess, onCancel }: TrackFormP
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Creating...</span>
+                <span>{isEditing ? 'Updating...' : 'Creating...'}</span>
               </>
             ) : (
               <>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isEditing ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" : "M12 4v16m8-8H4"} />
                 </svg>
-                <span>Create Track</span>
+                <span>{isEditing ? 'Update Track' : 'Create Track'}</span>
               </>
             )}
           </button>

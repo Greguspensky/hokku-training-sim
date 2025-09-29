@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { Employee } from '@/lib/employees'
 import TrackAssignmentModal from '@/components/TrackAssignment/TrackAssignmentModal'
+import ScenarioAssignmentModal from '@/components/TrackAssignment/ScenarioAssignmentModal'
 import EmployeeTracksList from '@/components/TrackAssignment/EmployeeTracksList'
+import EmployeeScenariosList from './EmployeeScenariosList'
 
 interface EmployeeListProps {
   employees: Employee[]
@@ -16,7 +18,9 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
+  const [scenarioAssignmentModalOpen, setScenarioAssignmentModalOpen] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [selectedEmployeeForScenario, setSelectedEmployeeForScenario] = useState<Employee | null>(null)
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null)
 
   const handleDeleteEmployee = async (employee: Employee) => {
@@ -85,7 +89,17 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
     setAssignmentModalOpen(true)
   }
 
+  const handleAssignScenario = (employee: Employee) => {
+    setSelectedEmployeeForScenario(employee)
+    setScenarioAssignmentModalOpen(true)
+  }
+
   const handleAssignmentCreated = () => {
+    // Could refresh assignments here, or rely on the child component to refresh
+    // For now, we'll just close the modal
+  }
+
+  const handleScenarioAssignmentCreated = () => {
     // Could refresh assignments here, or rely on the child component to refresh
     // For now, we'll just close the modal
   }
@@ -194,17 +208,18 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
                   Assign Track
                 </button>
 
-                {/* View/Toggle Assignments */}
+                {/* Assign Scenario Button */}
                 <button
-                  onClick={() => toggleEmployeeExpansion(employee.id)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                  title="View assigned tracks"
+                  onClick={() => handleAssignScenario(employee)}
+                  className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm leading-4 font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  title="Assign individual scenario"
                 >
-                  <svg className={`h-4 w-4 mr-1.5 transition-transform ${expandedEmployeeId === employee.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
                   </svg>
-                  {expandedEmployeeId === employee.id ? 'Hide' : 'View'} Tracks
+                  Assign Scenario
                 </button>
+
 
                 {/* Remove Employee Button */}
                 <button
@@ -233,13 +248,17 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
               </div>
             </div>
 
-            {/* Expanded Track Assignments */}
-            {expandedEmployeeId === employee.id && (
-              <div className="mt-4 border-t border-gray-200 pt-4">
-                <h5 className="text-sm font-medium text-gray-900 mb-3">Assigned Training Tracks</h5>
-                <EmployeeTracksList employee={employee} companyId={companyId} />
-              </div>
-            )}
+            {/* Always Visible Track Assignments */}
+            <div className="mt-4 border-t border-gray-200 pt-4">
+              <h5 className="text-sm font-medium text-gray-900 mb-3">Assigned Training Tracks</h5>
+              <EmployeeTracksList employee={employee} companyId={companyId} />
+            </div>
+
+            {/* Individual Scenario Assignments */}
+            <div className="mt-4 border-t border-gray-200 pt-4">
+              <h5 className="text-sm font-medium text-gray-900 mb-3">Individual Scenarios</h5>
+              <EmployeeScenariosList employee={employee} />
+            </div>
           </div>
         ))}
       </div>
@@ -252,6 +271,17 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
           employee={selectedEmployee}
           companyId={companyId}
           onAssignmentCreated={handleAssignmentCreated}
+        />
+      )}
+
+      {/* Scenario Assignment Modal */}
+      {selectedEmployeeForScenario && (
+        <ScenarioAssignmentModal
+          isOpen={scenarioAssignmentModalOpen}
+          onClose={() => setScenarioAssignmentModalOpen(false)}
+          employee={selectedEmployeeForScenario}
+          companyId={companyId}
+          onAssignmentCreated={handleScenarioAssignmentCreated}
         />
       )}
     </div>

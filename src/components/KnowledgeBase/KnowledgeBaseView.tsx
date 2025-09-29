@@ -8,6 +8,7 @@ import DocumentForm from './DocumentForm'
 import CategoryForm from './CategoryForm'
 import DocumentViewer from './DocumentViewer'
 import QuestionPoolView from './QuestionPoolView'
+import DocumentSelectionModal from './DocumentSelectionModal'
 
 interface KnowledgeBaseViewProps {
   companyId: string
@@ -28,6 +29,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   const [editingDocument, setEditingDocument] = useState<KnowledgeBaseDocument | null>(null)
   const [generatingQuestions, setGeneratingQuestions] = useState(false)
   const [currentView, setCurrentView] = useState<'documents' | 'questions'>('documents')
+  const [showDocumentSelection, setShowDocumentSelection] = useState(false)
 
   const loadCategories = async () => {
     try {
@@ -167,6 +169,43 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
     setDocuments([])
   }
 
+  const handleGenerateQuestions = async (selectedDocuments: KnowledgeBaseDocument[]) => {
+    setGeneratingQuestions(true)
+    setShowDocumentSelection(false)
+
+    try {
+      const response = await fetch('/api/generate-save-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          selectedDocuments: selectedDocuments.map(doc => ({
+            id: doc.id,
+            title: doc.title,
+            content: doc.content
+          }))
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert(`✅ AI Question Pool Generated & Saved!\n\n📊 Results:\n• ${data.summary.topicsExtracted} topics extracted\n• ${data.summary.questionsSaved} questions saved to database\n• ${selectedDocuments.length} documents analyzed\n\nQuestions are now saved and ready for training sessions!`)
+
+        // Switch to questions view to show the new questions
+        setCurrentView('questions')
+      } else {
+        alert('❌ Failed to generate questions: ' + (data.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Question generation error:', error)
+      alert('❌ Failed to generate questions. Please check console for details.')
+    } finally {
+      setGeneratingQuestions(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -197,26 +236,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={async () => {
-                  const confirmed = confirm('Generate AI question pool from all documents? This will analyze your knowledge base and create training questions automatically.')
-                  if (confirmed) {
-                    setGeneratingQuestions(true)
-                    try {
-                      const response = await fetch('/api/generate-save-questions', { method: 'POST' })
-                      const data = await response.json()
-                      if (data.success) {
-                        alert(`✅ AI Question Pool Generated & Saved!\n\n📊 Results:\n• ${data.summary.topicsExtracted} topics extracted\n• ${data.summary.questionsSaved} questions saved to database\n• ${data.summary.documentsAnalyzed} documents analyzed\n\nQuestions are now saved and ready for training sessions!`)
-                      } else {
-                        alert('❌ Failed to generate questions: ' + (data.error || 'Unknown error'))
-                      }
-                    } catch (error) {
-                      console.error('Question generation error:', error)
-                      alert('❌ Failed to generate questions. Please check console for details.')
-                    } finally {
-                      setGeneratingQuestions(false)
-                    }
-                  }
-                }}
+                onClick={() => setShowDocumentSelection(true)}
                 disabled={generatingQuestions}
                 className={`px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   generatingQuestions
@@ -520,6 +540,15 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
             }}
           />
         )}
+
+        {/* Document Selection Modal for Question Generation */}
+        <DocumentSelectionModal
+          isOpen={showDocumentSelection}
+          onClose={() => setShowDocumentSelection(false)}
+          onGenerate={handleGenerateQuestions}
+          companyId={companyId}
+          isGenerating={generatingQuestions}
+        />
       </div>
     </div>
   )

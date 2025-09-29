@@ -77,6 +77,8 @@ export interface Scenario {
   // Knowledge base associations for product knowledge scenarios
   knowledge_category_ids?: string[];
   knowledge_document_ids?: string[];
+  // Topic associations for theory scenarios
+  topic_ids?: string[];
   // Avatar mode support
   avatar_mode?: boolean;
   language?: string;
@@ -104,6 +106,8 @@ export interface CreateScenarioData {
   // Knowledge base associations for product knowledge scenarios
   knowledge_category_ids?: string[];
   knowledge_document_ids?: string[];
+  // Topic associations for theory scenarios
+  topic_ids?: string[];
 }
 
 export interface UpdateScenarioData {
@@ -118,10 +122,28 @@ export interface UpdateScenarioData {
   // Knowledge base associations for product knowledge scenarios
   knowledge_category_ids?: string[];
   knowledge_document_ids?: string[];
+  // Topic associations for theory scenarios
+  topic_ids?: string[];
 }
 
 // Force recompilation - updated with demo mode support
 class ScenarioService {
+  /**
+   * Helper method to add stored topic_ids to scenarios
+   */
+  private addStoredTopicIds(scenarios: Scenario[]): Scenario[] {
+    if (typeof globalThis === 'undefined' || !globalThis.__scenarioTopicsStore) {
+      return scenarios.map(scenario => ({ ...scenario, topic_ids: scenario.topic_ids || [] }));
+    }
+
+    return scenarios.map(scenario => {
+      const storedTopicIds = globalThis.__scenarioTopicsStore?.get(scenario.id) || [];
+      return {
+        ...scenario,
+        topic_ids: scenario.topic_ids || storedTopicIds
+      };
+    });
+  }
   /**
    * Create a new track
    */
@@ -194,24 +216,28 @@ class ScenarioService {
 
     try {
       console.log('🔧 Creating scenario with demo mode fallback...');
+
+      // Prepare data without topic_ids since the column doesn't exist in database
+      const insertData = {
+        track_id: scenarioData.track_id,
+        company_id: scenarioData.company_id,
+        title: scenarioData.title,
+        description: scenarioData.description,
+        scenario_type: scenarioData.scenario_type,
+        template_type: scenarioData.template_type,
+        client_behavior: scenarioData.client_behavior,
+        expected_response: scenarioData.expected_response,
+        difficulty: scenarioData.difficulty || 'beginner',
+        estimated_duration_minutes: scenarioData.estimated_duration_minutes || 30,
+        milestones: scenarioData.milestones || [],
+        is_active: true,
+        knowledge_category_ids: scenarioData.knowledge_category_ids || null,
+        knowledge_document_ids: scenarioData.knowledge_document_ids || null
+      };
+
       const { data: scenario, error } = await supabaseAdmin
         .from('scenarios')
-        .insert({
-          track_id: scenarioData.track_id,
-          company_id: scenarioData.company_id,
-          title: scenarioData.title,
-          description: scenarioData.description,
-          scenario_type: scenarioData.scenario_type,
-          template_type: scenarioData.template_type,
-          client_behavior: scenarioData.client_behavior,
-          expected_response: scenarioData.expected_response,
-          difficulty: scenarioData.difficulty || 'beginner',
-          estimated_duration_minutes: scenarioData.estimated_duration_minutes || 30,
-          milestones: scenarioData.milestones || [],
-          is_active: true,
-          knowledge_category_ids: scenarioData.knowledge_category_ids || null,
-          knowledge_document_ids: scenarioData.knowledge_document_ids || null
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -219,7 +245,11 @@ class ScenarioService {
         throw error;
       }
 
-      return scenario;
+      // Add topic_ids to the returned scenario for consistency with interface
+      return {
+        ...scenario,
+        topic_ids: scenarioData.topic_ids || []
+      };
     } catch (error: any) {
       console.error('Error creating scenario in database:', error);
       console.log('🚧 Falling back to demo mode for scenario creation');
@@ -242,7 +272,8 @@ class ScenarioService {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         knowledge_category_ids: scenarioData.knowledge_category_ids || [],
-        knowledge_document_ids: scenarioData.knowledge_document_ids || []
+        knowledge_document_ids: scenarioData.knowledge_document_ids || [],
+        topic_ids: scenarioData.topic_ids || []
       };
 
       // Store in demo storage if available
@@ -294,9 +325,79 @@ class ScenarioService {
   }
 
   /**
-   * Get scenarios for a track
+   * Get scenarios for a track (now using many-to-many assignments)
    */
   async getScenariosByTrack(trackId: string): Promise<Scenario[]> {
+    try {
+      // First, get scenario assignments for this track
+      const assignedScenarioIds = await this.getAssignedScenarioIds(trackId);
+
+      if (assignedScenarioIds.length === 0) {
+        // No assignments found, check if there are legacy scenarios to migrate
+        const legacyScenarios = await this.getScenariosByTrackLegacy(trackId);
+
+        if (legacyScenarios.length > 0) {
+          console.log(`🔄 Migrating ${legacyScenarios.length} legacy scenarios to assignment system for track ${trackId}`);
+
+          // Check if there's a list of explicitly removed scenarios
+          if (typeof globalThis !== 'undefined') {
+            if (!globalThis.__removedScenarioAssignments) {
+              globalThis.__removedScenarioAssignments = new Set();
+            }
+          }
+
+          // Migrate legacy scenarios to the assignment system, but skip explicitly removed ones
+          const migratedScenarios: Scenario[] = [];
+          for (const scenario of legacyScenarios) {
+            const assignmentKey = `${trackId}_${scenario.id}`;
+
+            // Skip if this scenario was explicitly removed from this track
+            if (typeof globalThis !== 'undefined' && globalThis.__removedScenarioAssignments?.has(assignmentKey)) {
+              console.log(`⏭️ Skipping migration of scenario ${scenario.id} - was explicitly removed from track ${trackId}`);
+              continue;
+            }
+
+            try {
+              await this.assignScenarioToTrack(scenario.id, trackId, 'auto-migration');
+              console.log(`✅ Migrated scenario ${scenario.id} to assignment system`);
+              migratedScenarios.push(scenario);
+            } catch (migrationError) {
+              console.warn(`⚠️ Failed to migrate scenario ${scenario.id}:`, migrationError);
+            }
+          }
+
+          return migratedScenarios;
+        }
+
+        // No scenarios found at all
+        return [];
+      }
+
+      // Get scenarios by their IDs
+      const scenarios = await Promise.all(
+        assignedScenarioIds.map(id => this.getScenario(id))
+      );
+
+      // Filter out null results and ensure we have valid scenarios
+      const validScenarios = scenarios.filter((scenario): scenario is Scenario =>
+        scenario !== null && scenario.is_active
+      );
+
+      return validScenarios;
+
+    } catch (error: any) {
+      console.error('Error fetching assigned scenarios:', error);
+      console.log('🚧 Falling back to legacy track-scenario relationship');
+
+      // Fallback to legacy method
+      return this.getScenariosByTrackLegacy(trackId);
+    }
+  }
+
+  /**
+   * Legacy method: Get scenarios for a track using direct track_id relationship
+   */
+  private async getScenariosByTrackLegacy(trackId: string): Promise<Scenario[]> {
     try {
       const { data: scenarios, error } = await supabaseAdmin
         .from('scenarios')
@@ -315,7 +416,10 @@ class ScenarioService {
           scenario.track_id === trackId && scenario.is_active) :
         [];
 
-      return [...(scenarios || []), ...demoScenarios];
+      // Add stored topic_ids to all scenarios
+      const scenariosWithTopics = this.addStoredTopicIds([...(scenarios || []), ...demoScenarios]);
+
+      return scenariosWithTopics;
     } catch (error: any) {
       console.error('Error fetching scenarios from database:', error);
       console.log('🚧 Falling back to demo mode for scenario fetching');
@@ -326,7 +430,7 @@ class ScenarioService {
           scenario.track_id === trackId && scenario.is_active) :
         [];
 
-      return demoScenarios;
+      return this.addStoredTopicIds(demoScenarios);
     }
   }
 
@@ -352,7 +456,10 @@ class ScenarioService {
           scenario.company_id === companyId && scenario.is_active) :
         [];
 
-      return [...(scenarios || []), ...demoScenarios];
+      // Add stored topic_ids to all scenarios
+      const scenariosWithTopics = this.addStoredTopicIds([...(scenarios || []), ...demoScenarios]);
+
+      return scenariosWithTopics;
     } catch (error: any) {
       console.error('Error fetching scenarios from database:', error);
       console.log('🚧 Falling back to demo mode for scenario fetching');
@@ -363,7 +470,7 @@ class ScenarioService {
           scenario.company_id === companyId && scenario.is_active) :
         [];
 
-      return demoScenarios;
+      return this.addStoredTopicIds(demoScenarios);
     }
   }
 
@@ -411,29 +518,64 @@ class ScenarioService {
       throw new Error('Failed to fetch scenario');
     }
 
-    return scenario;
+    // Get stored topic_ids from demo storage
+    let storedTopicIds: string[] = [];
+    if (typeof globalThis !== 'undefined' && globalThis.__scenarioTopicsStore) {
+      storedTopicIds = globalThis.__scenarioTopicsStore.get(scenarioId) || [];
+      if (storedTopicIds.length > 0) {
+        console.log(`📖 Retrieved topic_ids for scenario ${scenarioId}:`, storedTopicIds);
+      }
+    }
+
+    // Ensure topic_ids is always present for interface consistency
+    return {
+      ...scenario,
+      topic_ids: scenario.topic_ids || storedTopicIds
+    };
   }
 
   /**
    * Update a scenario
    */
   async updateScenario(scenarioId: string, updates: UpdateScenarioData): Promise<Scenario> {
-    const { data: scenario, error } = await supabaseAdmin
-      .from('scenarios')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', scenarioId)
-      .select()
-      .single();
+    // Filter out topic_ids if the database column doesn't exist
+    const { topic_ids, ...safeUpdates } = updates;
 
-    if (error) {
+    const updateData = {
+      ...safeUpdates,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      const { data: scenario, error } = await supabaseAdmin
+        .from('scenarios')
+        .update(updateData)
+        .eq('id', scenarioId)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      // Store topic_ids in global demo storage since database column doesn't exist
+      if (topic_ids && typeof globalThis !== 'undefined') {
+        if (!globalThis.__scenarioTopicsStore) {
+          globalThis.__scenarioTopicsStore = new Map();
+        }
+        globalThis.__scenarioTopicsStore.set(scenarioId, topic_ids);
+        console.log(`💾 Stored topic_ids for scenario ${scenarioId}:`, topic_ids);
+      }
+
+      // Add topic_ids back to the result for consistency with interface
+      return {
+        ...scenario,
+        topic_ids: topic_ids || []
+      };
+    } catch (error: any) {
       console.error('Error updating scenario:', error);
       throw new Error('Failed to update scenario');
     }
-
-    return scenario;
   }
 
   /**
@@ -483,6 +625,119 @@ class ScenarioService {
    */
   getScenarioTemplate(templateId: ScenarioTemplate): ScenarioTemplateConfig | null {
     return SCENARIO_TEMPLATES.find(template => template.id === templateId) || null;
+  }
+
+  /**
+   * Assign a scenario to a track
+   */
+  async assignScenarioToTrack(scenarioId: string, trackId: string, assignedBy?: string): Promise<void> {
+    try {
+      const response = await fetch('/api/scenario-track-assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          scenario_id: scenarioId,
+          track_id: trackId,
+          assigned_by: assignedBy
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to assign scenario to track');
+      }
+
+      console.log(`✅ Successfully assigned scenario ${scenarioId} to track ${trackId}`);
+    } catch (error: any) {
+      console.error('Error assigning scenario to track:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a scenario from a track
+   */
+  async removeScenarioFromTrack(scenarioId: string, trackId: string): Promise<void> {
+    try {
+      // First, try to remove the assignment
+      const response = await fetch(`/api/scenario-track-assignments?scenario_id=${scenarioId}&track_id=${trackId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to remove scenario from track');
+      }
+
+      // Track this removal to prevent re-migration of legacy scenarios
+      if (typeof globalThis !== 'undefined') {
+        if (!globalThis.__removedScenarioAssignments) {
+          globalThis.__removedScenarioAssignments = new Set();
+        }
+        const assignmentKey = `${trackId}_${scenarioId}`;
+        globalThis.__removedScenarioAssignments.add(assignmentKey);
+        console.log(`📝 Marked scenario ${scenarioId} as explicitly removed from track ${trackId}`);
+      }
+
+      console.log(`✅ Successfully removed scenario ${scenarioId} from track ${trackId}`);
+    } catch (error: any) {
+      console.error('Error removing scenario from track:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get assigned scenario IDs for a track
+   */
+  private async getAssignedScenarioIds(trackId: string): Promise<string[]> {
+    // For server-side contexts, use the global in-memory store directly
+    if (typeof globalThis !== 'undefined' && globalThis.__scenarioTrackAssignmentsStore) {
+      const store = globalThis.__scenarioTrackAssignmentsStore as Map<string, any>;
+      const assignments = Array.from(store.values()).filter(
+        (assignment: any) => assignment.track_id === trackId
+      );
+      console.log(`✅ Found ${assignments.length} assignments from in-memory store for track ${trackId}`);
+      return assignments.map((assignment: any) => assignment.scenario_id);
+    }
+
+    // For client-side contexts, use fetch (this will work from browser)
+    try {
+      const response = await fetch(`/api/scenario-track-assignments?track_id=${trackId}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        console.log('No assignments found for track:', trackId);
+        return [];
+      }
+
+      return result.data.map((assignment: any) => assignment.scenario_id);
+    } catch (error: any) {
+      console.error('Error fetching assigned scenario IDs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get tracks that contain a specific scenario
+   */
+  async getTracksForScenario(scenarioId: string): Promise<string[]> {
+    try {
+      const response = await fetch(`/api/scenario-track-assignments?scenario_id=${scenarioId}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        return [];
+      }
+
+      return result.data.map((assignment: any) => assignment.track_id);
+    } catch (error: any) {
+      console.error('Error fetching tracks for scenario:', error);
+      return [];
+    }
   }
 
   /**

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import ManualQuestionInput from './ManualQuestionInput'
+import FlatQuestionListView from './FlatQuestionListView'
 
 interface Question {
   id: string
@@ -36,6 +37,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
   const [editAnswer, setEditAnswer] = useState('')
   const [deletingQuestion, setDeletingQuestion] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped')
 
   useEffect(() => {
     loadTopics()
@@ -217,150 +219,198 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">AI-Generated Question Pool</h2>
-          <div className="flex items-center space-x-4">
-            <div className="flex space-x-4 text-sm text-gray-600">
-              <span className="bg-blue-50 px-3 py-1 rounded-full">
-                📚 {topics.length} Topics
-              </span>
-              <span className="bg-green-50 px-3 py-1 rounded-full">
-                ❓ {totalQuestions} Questions
-              </span>
-            </div>
-            {topics.length > 0 && (
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 mb-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">AI-Generated Question Pool</h2>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+            {/* View Toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <button
-                onClick={clearAllQuestions}
-                disabled={clearing}
-                className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                onClick={() => setViewMode('grouped')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'grouped'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                <span>🗑️</span>
-                <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
+                <span>📁</span>
+                <span>Grouped by Topic</span>
               </button>
-            )}
+              <button
+                onClick={() => setViewMode('flat')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'flat'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span>📄</span>
+                <span>Flat List</span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <div className="flex space-x-4 text-sm text-gray-600">
+                <span className="bg-blue-50 px-3 py-1 rounded-full">
+                  📚 {topics.length} Topics
+                </span>
+                <span className="bg-green-50 px-3 py-1 rounded-full">
+                  ❓ {totalQuestions} Questions
+                </span>
+              </div>
+              {topics.length > 0 && (
+                <button
+                  onClick={clearAllQuestions}
+                  disabled={clearing}
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                >
+                  <span>🗑️</span>
+                  <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Category Filter */}
-        <div className="flex flex-wrap gap-2">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                selectedCategory === category
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
-            </button>
-          ))}
-        </div>
+        {/* Category Filter - only show for grouped view */}
+        {viewMode === 'grouped' && (
+          <div className="flex flex-wrap gap-2">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  selectedCategory === category
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Manual Question Input */}
       <ManualQuestionInput onQuestionsAdded={loadTopics} />
 
-      {/* Topics List */}
-      <div className="space-y-4">
-        {filteredTopics.map(topic => (
-          <div key={topic.id} className="bg-white rounded-lg shadow-sm border">
-            <div
-              className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={() => toggleTopic(topic.id)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="font-medium text-gray-900">{topic.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(topic.category)}`}>
-                      {topic.category}
-                    </span>
+      {/* Conditional View Rendering */}
+      {viewMode === 'flat' ? (
+        <FlatQuestionListView
+          topics={topics}
+          onDeleteQuestion={deleteQuestion}
+          onEditAnswer={startEditAnswer}
+          editingQuestion={editingQuestion}
+          editAnswer={editAnswer}
+          setEditAnswer={setEditAnswer}
+          onSaveAnswer={saveAnswer}
+          onCancelEdit={cancelEdit}
+          deletingQuestion={deletingQuestion}
+        />
+      ) : (
+        /* Topics List */
+        <div className="space-y-4">
+          {filteredTopics.map(topic => (
+            <div key={topic.id} className="bg-white rounded-lg shadow-sm border">
+              <div
+                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => toggleTopic(topic.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="font-medium text-gray-900">{topic.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(topic.category)}`}>
+                        {topic.category}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
+                    <div className="text-sm text-gray-500">
+                      {topic.topic_questions?.length || 0} questions
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
-                  <div className="text-sm text-gray-500">
-                    {topic.topic_questions?.length || 0} questions
+                  <div className="text-gray-400">
+                    {expandedTopics.has(topic.id) ? '▼' : '▶'}
                   </div>
-                </div>
-                <div className="text-gray-400">
-                  {expandedTopics.has(topic.id) ? '▼' : '▶'}
                 </div>
               </div>
-            </div>
 
-            {/* Questions */}
-            {expandedTopics.has(topic.id) && topic.topic_questions && (
-              <div className="border-t bg-gray-50">
-                <div className="p-4 space-y-4">
-                  {topic.topic_questions.map(question => (
-                    <div key={question.id} className="bg-white rounded-lg p-4 border">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 mb-3">{question.question_template}</h4>
+              {/* Questions */}
+              {expandedTopics.has(topic.id) && topic.topic_questions && (
+                <div className="border-t bg-gray-50">
+                  <div className="p-4 space-y-4">
+                    {topic.topic_questions.map(question => (
+                      <div key={question.id} className="bg-white rounded-lg p-4 border">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 mb-3">{question.question_template}</h4>
 
-                          {editingQuestion === question.id ? (
-                            <div className="mb-3">
-                              <label className="block text-xs text-gray-500 mb-1">Answer:</label>
-                              <textarea
-                                value={editAnswer}
-                                onChange={(e) => setEditAnswer(e.target.value)}
-                                rows={3}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                              />
-                              <div className="flex items-center space-x-2 mt-2">
-                                <button
-                                  onClick={() => saveAnswer(question.id)}
-                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
-                                >
-                                  Cancel
-                                </button>
+                            {editingQuestion === question.id ? (
+                              <div className="mb-3">
+                                <label className="block text-xs text-gray-500 mb-1">Answer:</label>
+                                <textarea
+                                  value={editAnswer}
+                                  onChange={(e) => setEditAnswer(e.target.value)}
+                                  rows={3}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                />
+                                <div className="flex items-center space-x-2 mt-2">
+                                  <button
+                                    onClick={() => saveAnswer(question.id)}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={cancelEdit}
+                                    className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="mb-3">
-                              <p className="text-xs text-gray-500 mb-1">Answer:</p>
-                              <p className="text-sm font-medium text-green-700">{question.correct_answer}</p>
-                            </div>
-                          )}
-                        </div>
+                            ) : (
+                              <div className="mb-3">
+                                <p className="text-xs text-gray-500 mb-1">Answer:</p>
+                                <p className="text-sm font-medium text-green-700">{question.correct_answer}</p>
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="flex items-center space-x-2 ml-4">
-                          {editingQuestion !== question.id && (
-                            <>
-                              <button
-                                onClick={() => startEditAnswer(question.id, question.correct_answer)}
-                                className="text-blue-600 hover:text-blue-800 text-sm"
-                                title="Edit answer"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => deleteQuestion(question.id)}
-                                disabled={deletingQuestion === question.id}
-                                className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
-                                title="Delete question"
-                              >
-                                {deletingQuestion === question.id ? '⏳' : '🗑️'}
-                              </button>
-                            </>
-                          )}
+                          <div className="flex items-center space-x-2 ml-4">
+                            {editingQuestion !== question.id && (
+                              <>
+                                <button
+                                  onClick={() => startEditAnswer(question.id, question.correct_answer)}
+                                  className="text-blue-600 hover:text-blue-800 text-sm"
+                                  title="Edit answer"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => deleteQuestion(question.id)}
+                                  disabled={deletingQuestion === question.id}
+                                  className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
+                                  title="Delete question"
+                                >
+                                  {deletingQuestion === question.id ? '⏳' : '🗑️'}
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

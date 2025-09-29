@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
+import IndividualScenariosCard from '@/components/Employee/IndividualScenariosCard'
 import UserHeader from '@/components/UserHeader'
 import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
 import { useAuth } from '@/contexts/AuthContext'
@@ -156,6 +157,11 @@ export default function EmployeeDashboard() {
           )}
         </div>
 
+        {/* Individual Scenarios Section */}
+        <div className="mt-8">
+          <IndividualScenariosCard employeeId={employeeId} />
+        </div>
+
         {/* Training History Section */}
         <div className="mt-8 bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
@@ -183,23 +189,6 @@ export default function EmployeeDashboard() {
           <QuestionProgressDashboard />
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {assignments.reduce((sum, a) => sum + (a.scenario_progress?.filter(p => p.status === 'completed').length || 0), 0)}
-            </div>
-            <div className="text-sm text-gray-600">Completed Scenarios</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <div className="text-2xl font-bold text-green-600">{Math.round(stats.totalHours * 10) / 10}</div>
-            <div className="text-sm text-gray-600">Training Hours</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <div className="text-2xl font-bold text-purple-600">{stats.achievements}</div>
-            <div className="text-sm text-gray-600">Completed Tracks</div>
-          </div>
-        </div>
       </div>
     </div>
   )

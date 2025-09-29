@@ -5,6 +5,21 @@ import { useRouter } from 'next/navigation'
 import { scenarioService, SCENARIO_TEMPLATES, type ScenarioType, type ScenarioTemplate, type Track } from '@/lib/scenarios'
 import { type KnowledgeBaseCategory, type KnowledgeBaseDocument } from '@/lib/knowledge-base'
 
+interface KnowledgeTopic {
+  id: string
+  name: string
+  description: string
+  category: string
+  difficulty_level: number
+  topic_questions: {
+    id: string
+    question_template: string
+    question_type: string
+    correct_answer: string
+    explanation: string
+  }[]
+}
+
 interface ScenarioFormData {
   track_id: string
   title: string
@@ -18,6 +33,7 @@ interface ScenarioFormData {
   milestones: string[]
   knowledge_category_ids: string[]
   knowledge_document_ids: string[]
+  topic_ids: string[]
 }
 
 interface ScenarioFormProps {
@@ -41,7 +57,8 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     estimated_duration_minutes: 30,
     milestones: [],
     knowledge_category_ids: [],
-    knowledge_document_ids: []
+    knowledge_document_ids: [],
+    topic_ids: []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +67,8 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
   const [knowledgeCategories, setKnowledgeCategories] = useState<KnowledgeBaseCategory[]>([])
   const [knowledgeDocuments, setKnowledgeDocuments] = useState<KnowledgeBaseDocument[]>([])
   const [loadingKnowledge, setLoadingKnowledge] = useState(false)
+  const [knowledgeTopics, setKnowledgeTopics] = useState<KnowledgeTopic[]>([])
+  const [loadingTopics, setLoadingTopics] = useState(false)
 
   const addMilestone = () => {
     if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
@@ -104,21 +123,24 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     }
   }, [tracks, formData.track_id])
 
-  // Load knowledge base data
+  // Load knowledge base data and topics
   useEffect(() => {
-    const loadKnowledgeBase = async () => {
+    const loadData = async () => {
       if (!companyId) return
 
       setLoadingKnowledge(true)
+      setLoadingTopics(true)
       try {
-        const [categoriesResponse, documentsResponse] = await Promise.all([
+        const [categoriesResponse, documentsResponse, topicsResponse] = await Promise.all([
           fetch(`/api/knowledge-base/categories?company_id=${companyId}`),
-          fetch(`/api/knowledge-base/documents?company_id=${companyId}`)
+          fetch(`/api/knowledge-base/documents?company_id=${companyId}`),
+          fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`)
         ])
 
-        const [categoriesData, documentsData] = await Promise.all([
+        const [categoriesData, documentsData, topicsData] = await Promise.all([
           categoriesResponse.json(),
-          documentsResponse.json()
+          documentsResponse.json(),
+          topicsResponse.json()
         ])
 
         if (categoriesData.success) {
@@ -127,14 +149,18 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
         if (documentsData.success) {
           setKnowledgeDocuments(documentsData.documents)
         }
+        if (topicsData.success) {
+          setKnowledgeTopics(topicsData.topics)
+        }
       } catch (error) {
-        console.error('Failed to load knowledge base:', error)
+        console.error('Failed to load data:', error)
       } finally {
         setLoadingKnowledge(false)
+        setLoadingTopics(false)
       }
     }
 
-    loadKnowledgeBase()
+    loadData()
   }, [companyId])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -145,16 +171,22 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
       return
     }
 
-    // Validate required fields for all scenarios
-    if (!formData.title.trim() || !formData.description.trim()) {
-      setError('Title and description are required')
-      return
-    }
-
-    // Additional validation for service practice scenarios
+    // Validate required fields based on scenario type
     if (formData.scenario_type === 'service_practice') {
+      if (!formData.title.trim()) {
+        setError('Situation is required for service practice scenarios')
+        return
+      }
       if (!formData.client_behavior.trim() || !formData.expected_response.trim()) {
         setError('Client behavior and expected response are required for service practice scenarios')
+        return
+      }
+    }
+
+    // For theory scenarios, validate topic selection
+    if (formData.scenario_type === 'theory') {
+      if (formData.topic_ids.length === 0) {
+        setError('At least one topic must be selected for theory scenarios')
         return
       }
     }
@@ -170,7 +202,8 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
           company_id: companyId,
           ...formData,
           knowledge_category_ids: formData.knowledge_category_ids.length > 0 ? formData.knowledge_category_ids : undefined,
-          knowledge_document_ids: formData.knowledge_document_ids.length > 0 ? formData.knowledge_document_ids : undefined
+          knowledge_document_ids: formData.knowledge_document_ids.length > 0 ? formData.knowledge_document_ids : undefined,
+          topic_ids: formData.topic_ids.length > 0 ? formData.topic_ids : undefined
         })
       })
 
@@ -248,57 +281,25 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
             </select>
           </div>
 
-          {/* Template selection only for service practice */}
+
+          {/* Situation field - only for Service Practice */}
           {formData.scenario_type === 'service_practice' && (
             <div>
-              <label htmlFor="template_type" className="block text-sm font-medium text-gray-700 mb-2">
-                Template
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+                Situation *
               </label>
-              <select
-                id="template_type"
-                value={formData.template_type}
-                onChange={(e) => handleInputChange('template_type', e.target.value as ScenarioTemplate)}
+              <textarea
+                id="title"
+                rows={4}
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {availableTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="Describe the situation the employee will face"
+                required
+              />
             </div>
           )}
 
-          {/* Title and Description for all scenario types */}
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-              Scenario Title *
-            </label>
-            <input
-              type="text"
-              id="title"
-              value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter scenario title"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              Description *
-            </label>
-            <textarea
-              id="description"
-              rows={3}
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Describe the training scenario and objectives"
-              required
-            />
-          </div>
         </div>
 
         {formData.scenario_type === 'service_practice' && (
@@ -336,38 +337,6 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 mb-2">
-                  Difficulty Level
-                </label>
-                <select
-                  id="difficulty"
-                  value={formData.difficulty}
-                  onChange={(e) => handleInputChange('difficulty', e.target.value as 'beginner' | 'intermediate' | 'advanced')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  id="duration"
-                  min="5"
-                  max="180"
-                  value={formData.estimated_duration_minutes}
-                  onChange={(e) => handleInputChange('estimated_duration_minutes', parseInt(e.target.value) || 30)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
             
             {/* Milestones Section - Only for Service Practice */}
             <div className="space-y-4">
@@ -422,114 +391,92 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
         )}
 
         {formData.scenario_type === 'theory' && (
-          /* Theory Settings - Duration and Knowledge Base Selection */
+          /* Theory Settings - Topic Selection */
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900">Theory Settings</h3>
-
-            <div className="max-w-sm">
-              <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
-                Estimated Duration (minutes)
-              </label>
-              <input
-                type="number"
-                id="duration"
-                min="5"
-                max="180"
-                value={formData.estimated_duration_minutes}
-                onChange={(e) => handleInputChange('estimated_duration_minutes', parseInt(e.target.value) || 30)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
 
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-sm text-blue-700">
                 <strong>Theory scenarios</strong> are Q&A based and don't require role-playing elements.
-                They focus on knowledge testing and theoretical understanding using your knowledge base.
+                They focus on knowledge testing using questions from selected topics in your question pool.
               </p>
             </div>
 
-            {/* Knowledge Base Selection */}
-            {loadingKnowledge ? (
+            {/* Topic Selection */}
+            {loadingTopics ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-sm text-gray-600 mt-2">Loading knowledge base...</p>
+                <p className="text-sm text-gray-600 mt-2">Loading topics...</p>
               </div>
             ) : (
               <div className="space-y-4">
-                <h4 className="text-md font-medium text-gray-900">Knowledge Base Selection</h4>
+                <h4 className="text-md font-medium text-gray-900">Topic Selection *</h4>
                 <p className="text-sm text-gray-600">
-                  Select knowledge categories and/or specific documents to generate questions from.
+                  Select one or more topics from your question pool. All questions from selected topics will be available during the session.
                 </p>
 
-                {/* Category Selection */}
-                {knowledgeCategories.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Knowledge Categories
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {knowledgeCategories.map((category) => (
-                        <label key={category.id} className="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.knowledge_category_ids.includes(category.id)}
-                            onChange={(e) => {
-                              const categoryIds = e.target.checked
-                                ? [...formData.knowledge_category_ids, category.id]
-                                : formData.knowledge_category_ids.filter(id => id !== category.id)
-                              handleInputChange('knowledge_category_ids', categoryIds)
-                            }}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <div className="ml-3">
-                            <span className="text-sm font-medium text-gray-900">{category.name}</span>
-                            <p className="text-xs text-gray-500">{category.document_count || 0} documents</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Document Selection */}
-                {knowledgeDocuments.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Specific Documents
-                    </label>
-                    <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                      <div className="grid grid-cols-1 gap-1 p-2">
-                        {knowledgeDocuments.map((document) => (
-                          <label key={document.id} className="flex items-start p-2 hover:bg-gray-50 cursor-pointer rounded">
-                            <input
-                              type="checkbox"
-                              checked={formData.knowledge_document_ids.includes(document.id)}
-                              onChange={(e) => {
-                                const documentIds = e.target.checked
-                                  ? [...formData.knowledge_document_ids, document.id]
-                                  : formData.knowledge_document_ids.filter(id => id !== document.id)
-                                handleInputChange('knowledge_document_ids', documentIds)
-                              }}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
-                            />
-                            <div className="ml-3 flex-1">
-                              <span className="text-sm font-medium text-gray-900">{document.title}</span>
-                              <p className="text-xs text-gray-500">{document.category?.name}</p>
-                              <p className="text-xs text-gray-400 truncate">
-                                {document.content.substring(0, 80)}...
-                              </p>
+                {knowledgeTopics.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {knowledgeTopics.map((topic) => (
+                      <label key={topic.id} className="flex items-start p-4 border-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formData.topic_ids.includes(topic.id)}
+                          onChange={(e) => {
+                            const topicIds = e.target.checked
+                              ? [...formData.topic_ids, topic.id]
+                              : formData.topic_ids.filter(id => id !== topic.id)
+                            handleInputChange('topic_ids', topicIds)
+                          }}
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                        />
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-lg font-medium text-gray-900">{topic.name}</span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                topic.category === 'menu' ? 'bg-green-100 text-green-800' :
+                                topic.category === 'procedures' ? 'bg-blue-100 text-blue-800' :
+                                topic.category === 'policies' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {topic.category}
+                              </span>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Level {topic.difficulty_level}
+                              </span>
                             </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {topic.topic_questions?.length || 0} questions available
+                          </div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                )}
-
-                {knowledgeCategories.length === 0 && knowledgeDocuments.length === 0 && (
+                ) : (
                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                     <p className="text-sm text-yellow-700">
-                      No knowledge base content found. Add knowledge base categories and documents first to generate AI-powered questions.
+                      No topics found in your question pool. Create topics with questions first to use them in theory scenarios.
+                    </p>
+                  </div>
+                )}
+
+                {/* Show selection summary */}
+                {formData.topic_ids.length > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-700">
+                      <strong>{formData.topic_ids.length} topic{formData.topic_ids.length === 1 ? '' : 's'} selected</strong> with a total of{' '}
+                      <strong>
+                        {knowledgeTopics
+                          .filter(topic => formData.topic_ids.includes(topic.id))
+                          .reduce((sum, topic) => sum + (topic.topic_questions?.length || 0), 0)}
+                      </strong>{' '}
+                      questions available for the session.
                     </p>
                   </div>
                 )}

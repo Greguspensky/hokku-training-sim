@@ -4,6 +4,21 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { scenarioService, SCENARIO_TEMPLATES, type ScenarioType, type ScenarioTemplate, type Track, type Scenario } from '@/lib/scenarios'
 
+interface KnowledgeTopic {
+  id: string
+  name: string
+  description: string
+  category: string
+  difficulty_level: number
+  topic_questions: {
+    id: string
+    question_template: string
+    question_type: string
+    correct_answer: string
+    explanation: string
+  }[]
+}
+
 interface EditScenarioFormData {
   track_id: string
   title: string
@@ -15,6 +30,7 @@ interface EditScenarioFormData {
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   estimated_duration_minutes: number
   milestones: string[]
+  topic_ids: string[]
 }
 
 interface EditScenarioFormProps {
@@ -37,7 +53,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     expected_response: scenario.expected_response,
     difficulty: scenario.difficulty,
     estimated_duration_minutes: scenario.estimated_duration_minutes,
-    milestones: scenario.milestones || []
+    milestones: scenario.milestones || [],
+    topic_ids: scenario.topic_ids || []
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,6 +62,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     scenarioService.getScenarioTemplates(scenario.scenario_type)
   )
   const [newMilestone, setNewMilestone] = useState('')
+  const [knowledgeTopics, setKnowledgeTopics] = useState<KnowledgeTopic[]>([])
+  const [loadingTopics, setLoadingTopics] = useState(false)
 
   const addMilestone = () => {
     if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
@@ -63,10 +82,32 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     }))
   }
 
+  // Load topics data
+  useEffect(() => {
+    const loadTopics = async () => {
+      if (!companyId) return
+
+      setLoadingTopics(true)
+      try {
+        const response = await fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`)
+        const data = await response.json()
+        if (data.success) {
+          setKnowledgeTopics(data.topics)
+        }
+      } catch (error) {
+        console.error('Failed to load topics:', error)
+      } finally {
+        setLoadingTopics(false)
+      }
+    }
+
+    loadTopics()
+  }, [companyId])
+
   const handleInputChange = (field: keyof EditScenarioFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setError(null)
-    
+
     // Update available templates when scenario type changes
     if (field === 'scenario_type') {
       const filteredTemplates = scenarioService.getScenarioTemplates(value as ScenarioType)
@@ -76,7 +117,7 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
         setFormData(prev => ({ ...prev, template_type: filteredTemplates[0]?.id || 'general_flow' }))
       }
     }
-    
+
     // Auto-fill template defaults when template changes
     if (field === 'template_type') {
       const template = scenarioService.getScenarioTemplate(value as ScenarioTemplate)
@@ -100,9 +141,22 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
       return
     }
 
+    // Validate required fields based on scenario type
     if (formData.scenario_type === 'service_practice') {
-      if (!formData.title.trim() || !formData.description.trim() || !formData.client_behavior.trim() || !formData.expected_response.trim()) {
-        setError('Title, description, client behavior, and expected response are required for service practice scenarios')
+      if (!formData.title.trim()) {
+        setError('Situation is required for service practice scenarios')
+        return
+      }
+      if (!formData.client_behavior.trim() || !formData.expected_response.trim()) {
+        setError('Client behavior and expected response are required for service practice scenarios')
+        return
+      }
+    }
+
+    // For theory scenarios, validate topic selection
+    if (formData.scenario_type === 'theory') {
+      if (formData.topic_ids.length === 0) {
+        setError('At least one topic must be selected for theory scenarios')
         return
       }
     }
@@ -116,7 +170,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           company_id: companyId,
-          ...formData
+          ...formData,
+          topic_ids: formData.topic_ids.length > 0 ? formData.topic_ids : undefined
         })
       })
 
@@ -204,15 +259,15 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
 
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                  Scenario Title *
+                  Situation *
                 </label>
-                <input
-                  type="text"
+                <textarea
                   id="title"
+                  rows={4}
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter scenario title"
+                  placeholder="Describe the situation the employee will face"
                   required
                 />
               </div>
@@ -356,31 +411,97 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
         )}
 
         {formData.scenario_type === 'theory' && (
-          /* Theory Settings - Only Duration */
-          <div className="space-y-4">
+          /* Theory Settings - Topic Selection */
+          <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900">Theory Settings</h3>
-            
-            <div className="max-w-sm">
-              <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
-                Estimated Duration (minutes)
-              </label>
-              <input
-                type="number"
-                id="duration"
-                min="5"
-                max="180"
-                value={formData.estimated_duration_minutes}
-                onChange={(e) => handleInputChange('estimated_duration_minutes', parseInt(e.target.value) || 30)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            
+
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
               <p className="text-sm text-blue-700">
-                <strong>Theory scenarios</strong> are Q&A based and don't require role-playing elements. 
-                They focus on knowledge testing and theoretical understanding.
+                <strong>Theory scenarios</strong> are Q&A based and don't require role-playing elements.
+                They focus on knowledge testing using questions from selected topics in your question pool.
               </p>
             </div>
+
+            {/* Topic Selection */}
+            {loadingTopics ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Loading topics...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h4 className="text-md font-medium text-gray-900">Topic Selection *</h4>
+                <p className="text-sm text-gray-600">
+                  Select one or more topics from your question pool. All questions from selected topics will be available during the session.
+                </p>
+
+                {knowledgeTopics.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {knowledgeTopics.map((topic) => (
+                      <label key={topic.id} className="flex items-start p-4 border-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formData.topic_ids.includes(topic.id)}
+                          onChange={(e) => {
+                            const topicIds = e.target.checked
+                              ? [...formData.topic_ids, topic.id]
+                              : formData.topic_ids.filter(id => id !== topic.id)
+                            handleInputChange('topic_ids', topicIds)
+                          }}
+                          className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+                        />
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-lg font-medium text-gray-900">{topic.name}</span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                topic.category === 'menu' ? 'bg-green-100 text-green-800' :
+                                topic.category === 'procedures' ? 'bg-blue-100 text-blue-800' :
+                                topic.category === 'policies' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {topic.category}
+                              </span>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Level {topic.difficulty_level}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {topic.topic_questions?.length || 0} questions available
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-700">
+                      No topics found in your question pool. Create topics with questions first to use them in theory scenarios.
+                    </p>
+                  </div>
+                )}
+
+                {/* Show selection summary */}
+                {formData.topic_ids.length > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-700">
+                      <strong>{formData.topic_ids.length} topic{formData.topic_ids.length === 1 ? '' : 's'} selected</strong> with a total of{' '}
+                      <strong>
+                        {knowledgeTopics
+                          .filter(topic => formData.topic_ids.includes(topic.id))
+                          .reduce((sum, topic) => sum + (topic.topic_questions?.length || 0), 0)}
+                      </strong>{' '}
+                      questions available for the session.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

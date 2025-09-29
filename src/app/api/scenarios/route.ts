@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
     const scenarioData: CreateScenarioData = {
       track_id: body.track_id,
       company_id: body.company_id,
-      title: body.title,
-      description: body.description,
+      title: body.title || '', // Make title optional for theory scenarios
+      description: '', // Set empty description since field was removed
       scenario_type: body.scenario_type || 'service_practice',
       template_type: body.template_type || 'general_flow',
       client_behavior: body.client_behavior,
@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
       estimated_duration_minutes: body.estimated_duration_minutes || 30,
       milestones: body.milestones || [],
       knowledge_category_ids: body.knowledge_category_ids || [],
-      knowledge_document_ids: body.knowledge_document_ids || []
+      knowledge_document_ids: body.knowledge_document_ids || [],
+      topic_ids: body.topic_ids || []
     };
 
     // Validate required fields for all scenarios
@@ -42,18 +43,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!scenarioData.title || !scenarioData.description) {
-      return NextResponse.json(
-        { success: false, error: 'title and description are required' },
-        { status: 400 }
-      );
-    }
-
-    // Additional validation for service practice scenarios
+    // Validate required fields based on scenario type
     if (scenarioData.scenario_type === 'service_practice') {
+      if (!scenarioData.title) {
+        return NextResponse.json(
+          { success: false, error: 'Situation is required for service practice scenarios' },
+          { status: 400 }
+        );
+      }
       if (!scenarioData.client_behavior || !scenarioData.expected_response) {
         return NextResponse.json(
           { success: false, error: 'For service practice scenarios: client_behavior and expected_response are required' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // For theory scenarios, validate topic selection
+    if (scenarioData.scenario_type === 'theory') {
+      if (!scenarioData.topic_ids || scenarioData.topic_ids.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'At least one topic must be selected for theory scenarios' },
           { status: 400 }
         );
       }

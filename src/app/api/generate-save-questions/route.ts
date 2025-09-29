@@ -12,19 +12,17 @@ export async function POST(request: NextRequest) {
   const companyId = '01f773e2-1027-490e-8d36-279136700bbf'
 
   try {
-    // 1. Get documents from database
-    console.log('📚 Loading knowledge base documents...')
-    const { data: documents, error } = await supabaseAdmin
-      .from('knowledge_base_documents')
-      .select('*')
-      .eq('company_id', companyId)
+    // 1. Get selected documents from request body
+    const body = await request.json()
+    const { selectedDocuments } = body
 
-    if (error || !documents || documents.length === 0) {
-      console.error('❌ No documents found:', error)
-      return NextResponse.json({ error: 'No documents found' }, { status: 404 })
+    if (!selectedDocuments || selectedDocuments.length === 0) {
+      console.error('❌ No documents selected')
+      return NextResponse.json({ error: 'No documents selected' }, { status: 400 })
     }
 
-    console.log(`✅ Found ${documents.length} documents to analyze`)
+    console.log(`✅ Processing ${selectedDocuments.length} selected documents`)
+    const documents = selectedDocuments
 
     // 2. Clear existing AI-generated questions and topics
     console.log('🗑️ Clearing existing AI-generated content...')
@@ -41,11 +39,10 @@ export async function POST(request: NextRequest) {
     const savedTopics = []
     const savedQuestions = []
 
-    // 3. Extract topics and questions from each document
+    // 3. Process each selected document
     for (const doc of documents) {
       console.log(`🧠 AI analyzing "${doc.title}"...`)
 
-      // Extract topics using GPT-4 - Focus only on document content
       const categoryMapping = {
         'Prices': 'prices',
         'Drinks info': 'drinks_info'
@@ -53,78 +50,28 @@ export async function POST(request: NextRequest) {
 
       const documentCategory = categoryMapping[doc.title] || 'general'
 
-      const topicsPrompt = `
-STRICT INSTRUCTION: Only create topics based on the EXACT content in this document. Do NOT add topics about health, safety, policies, or procedures unless they are explicitly mentioned in the document content.
-
-Document: "${doc.title}"
-Document Category: ${documentCategory}
-Content: """
-${doc.content}
-"""
-
-Based ONLY on what is written in this document content above, extract learning topics:
-
-If this is a PRICES document, focus on:
-- Price information for specific drinks
-- Size options available
-- Cost-related topics
-
-If this is a DRINKS INFO document, focus on:
-- Drink compositions and ingredients
-- Drink descriptions
-- What each drink consists of
-
-Do NOT create topics about health, safety, policies, or procedures unless they are explicitly mentioned in the document content.
-
-Return response as JSON array:
-[
-  {
-    "name": "Topic Name Based on Document Content",
-    "description": "What employees need to learn from this specific document",
-    "category": "${documentCategory}",
-    "difficulty_level": 1
-  }
-]`
-
-      try {
-        const topicsResponse = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [{ role: 'user', content: topicsPrompt }],
-          temperature: 0.1,
-          max_tokens: 2000
+      // Create ONE topic per document
+      const { data: savedTopic, error: topicError } = await supabaseAdmin
+        .from('knowledge_topics')
+        .insert({
+          name: doc.title,
+          description: `Learn about the content and information in ${doc.title}`,
+          category: documentCategory,
+          difficulty_level: 1
         })
+        .select()
+        .single()
 
-        const topicsAI = topicsResponse.choices[0]?.message?.content?.trim()
-        const topicsMatch = topicsAI?.match(/\[[\s\S]*\]/)
+      if (savedTopic && !topicError) {
+        savedTopics.push(savedTopic)
+        console.log(`  💾 Created topic: ${doc.title}`)
 
-        if (topicsMatch) {
-          const topics = JSON.parse(topicsMatch[0])
-          console.log(`  ✅ Extracted ${topics.length} topics`)
+        // Generate questions for this topic
+        console.log(`  🤔 Generating questions for: ${doc.title}`)
 
-          // Save topics to database
-          for (const topic of topics) {
-            const { data: savedTopic, error: topicError } = await supabaseAdmin
-              .from('knowledge_topics')
-              .insert({
-                name: topic.name,
-                description: topic.description,
-                category: topic.category,
-                difficulty_level: topic.difficulty_level
-              })
-              .select()
-              .single()
+        const questionsPrompt = `
+STRICT INSTRUCTION: Create ONLY 5-8 UNIQUE simple question and answer pairs based on the EXACT document content. NO multiple choice, NO true/false, NO options.
 
-            if (savedTopic && !topicError) {
-              savedTopics.push(savedTopic)
-              console.log(`  💾 Saved topic: ${topic.name}`)
-
-              // Generate questions for each topic
-              console.log(`  🤔 Generating questions for: ${topic.name}`)
-
-              const questionsPrompt = `
-STRICT INSTRUCTION: Create ONLY simple question and answer pairs based on the EXACT document content. NO multiple choice, NO true/false, NO options.
-
-Topic: "${topic.name}"
 Document: "${doc.title}"
 Document Category: ${documentCategory}
 Content: """
@@ -143,7 +90,7 @@ For DRINKS_INFO documents, ask:
 - "What does [drink name] consist of?"
 - "What are the ingredients in [drink name]?"
 
-Generate 2-3 questions that can ONLY be answered using information from the document above.
+IMPORTANT: Generate 5-8 COMPLETELY UNIQUE questions. Each question must be about a DIFFERENT drink or DIFFERENT aspect. NO DUPLICATES ALLOWED.
 
 Return as JSON array with simple structure:
 [
@@ -156,55 +103,50 @@ Return as JSON array with simple structure:
   }
 ]`
 
-              try {
-                const questionsResponse = await openai.chat.completions.create({
-                  model: 'gpt-4o-mini',
-                  messages: [{ role: 'user', content: questionsPrompt }],
-                  temperature: 0.2,
-                  max_tokens: 2000
+        try {
+          const questionsResponse = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: questionsPrompt }],
+            temperature: 0.3,
+            max_tokens: 3000
+          })
+
+          const questionsAI = questionsResponse.choices[0]?.message?.content?.trim()
+          const questionsMatch = questionsAI?.match(/\[[\s\S]*\]/)
+
+          if (questionsMatch) {
+            const questions = JSON.parse(questionsMatch[0])
+            console.log(`  ✅ Generated ${questions.length} questions`)
+
+            // Save questions to database
+            for (const question of questions) {
+              const { data: savedQuestion, error: questionError } = await supabaseAdmin
+                .from('topic_questions')
+                .insert({
+                  topic_id: savedTopic.id,
+                  question_template: question.question_template,
+                  question_type: 'open_ended',
+                  correct_answer: question.correct_answer,
+                  answer_options: null,
+                  points: question.points || 1,
+                  explanation: question.explanation
                 })
+                .select()
+                .single()
 
-                const questionsAI = questionsResponse.choices[0]?.message?.content?.trim()
-                const questionsMatch = questionsAI?.match(/\[[\s\S]*\]/)
-
-                if (questionsMatch) {
-                  const questions = JSON.parse(questionsMatch[0])
-                  console.log(`    ✅ Generated ${questions.length} questions`)
-
-                  // Save questions to database
-                  for (const question of questions) {
-                    const { data: savedQuestion, error: questionError } = await supabaseAdmin
-                      .from('topic_questions')
-                      .insert({
-                        topic_id: savedTopic.id,
-                        question_template: question.question_template,
-                        question_type: 'open_ended', // Force all questions to be open_ended
-                        correct_answer: question.correct_answer,
-                        answer_options: null, // Remove multiple choice options
-                        points: question.points || 1,
-                        explanation: question.explanation
-                      })
-                      .select()
-                      .single()
-
-                    if (savedQuestion && !questionError) {
-                      savedQuestions.push(savedQuestion)
-                      console.log(`    💾 Saved question: ${question.question_template.substring(0, 50)}...`)
-                    } else {
-                      console.error(`    ❌ Failed to save question:`, questionError)
-                    }
-                  }
-                }
-              } catch (qError) {
-                console.log(`    ⚠️ Question generation failed: ${qError}`)
+              if (savedQuestion && !questionError) {
+                savedQuestions.push(savedQuestion)
+                console.log(`    💾 Saved question: ${question.question_template.substring(0, 50)}...`)
+              } else {
+                console.error(`    ❌ Failed to save question:`, questionError)
               }
-            } else {
-              console.error(`  ❌ Failed to save topic:`, topicError)
             }
           }
+        } catch (qError) {
+          console.log(`  ⚠️ Question generation failed: ${qError}`)
         }
-      } catch (tError) {
-        console.log(`  ⚠️ Topic extraction failed: ${tError}`)
+      } else {
+        console.error(`  ❌ Failed to save topic:`, topicError)
       }
     }
 

@@ -45,6 +45,7 @@ export default function TrainingSessionPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguageCode>('en')
   const [recordingPreference, setRecordingPreference] = useState<RecordingPreference>('none')
   const [showRecordingConsent, setShowRecordingConsent] = useState(true)
+  const [showAvatarSession, setShowAvatarSession] = useState(false)
   const [sessionData, setSessionData] = useState<any>(null)
   const [isAnalyzingTranscript, setIsAnalyzingTranscript] = useState(false)
   const [transcriptAnalysis, setTranscriptAnalysis] = useState<any>(null)
@@ -57,9 +58,10 @@ export default function TrainingSessionPage() {
     if (!user) return
 
     try {
-      // Check URL parameters for theory practice mode
+      // Check URL parameters for theory practice mode and scenario-specific routing
       const urlParams = new URLSearchParams(window.location.search)
       const practiceMode = urlParams.get('mode') === 'theory-practice'
+      const scenarioId = urlParams.get('scenario')
 
       if (practiceMode) {
         // Theory practice mode - use the special assignment ID for practice
@@ -84,19 +86,42 @@ export default function TrainingSessionPage() {
           setKnowledgeDocuments(kbData.documents)
         }
 
-        // Check if any scenario is theory type (always use avatar mode for theory)
-        const theoryScenario = assignmentData.assignment.track.scenarios?.find(
-          (scenario: any) => scenario.scenario_type === 'theory'
-        )
+        // Handle scenario-specific routing
+        if (scenarioId) {
+          // Find the specific scenario requested
+          const selectedScenario = assignmentData.assignment.track.scenarios?.find(
+            (scenario: any) => scenario.id === scenarioId
+          )
 
-        if (theoryScenario) {
-          // Always use avatar mode for theory scenarios
-          setCurrentScenario(theoryScenario)
-          setIsAvatarMode(true)
-          console.log('🎭 Avatar mode activated for theory scenario:', theoryScenario.title)
+          if (selectedScenario) {
+            // Always use avatar mode for specific scenario selection
+            setCurrentScenario(selectedScenario)
+            setIsAvatarMode(true)
+            console.log(`🎭 Avatar mode activated for ${selectedScenario.scenario_type} scenario:`, selectedScenario.title)
+          } else {
+            console.error('❌ Scenario not found:', scenarioId)
+            // Fall back to default behavior
+            const firstScenario = assignmentData.assignment.track.scenarios?.[0]
+            if (firstScenario) {
+              setCurrentScenario(firstScenario)
+              setIsAvatarMode(true)
+            }
+          }
         } else {
-          // Generate training questions for non-theory scenarios (service practice)
-          await generateTrainingQuestions(assignmentData.assignment, kbData.documents || [])
+          // Default behavior: Check if any scenario is theory type (always use avatar mode for theory)
+          const theoryScenario = assignmentData.assignment.track.scenarios?.find(
+            (scenario: any) => scenario.scenario_type === 'theory'
+          )
+
+          if (theoryScenario) {
+            // Always use avatar mode for theory scenarios
+            setCurrentScenario(theoryScenario)
+            setIsAvatarMode(true)
+            console.log('🎭 Avatar mode activated for theory scenario:', theoryScenario.title)
+          } else {
+            // Generate training questions for non-theory scenarios (service practice)
+            await generateTrainingQuestions(assignmentData.assignment, kbData.documents || [])
+          }
         }
       }
     } catch (error) {
@@ -484,7 +509,7 @@ export default function TrainingSessionPage() {
     )
   }
 
-  // If avatar mode is enabled, render language selection and ElevenLabsAvatarSession component
+  // If avatar mode is enabled, render unified single-screen interface
   if (isAvatarMode && currentScenario) {
     // Use the company ID to get the appropriate agent
     const companyId = assignment.company_id || '01f773e2-1027-490e-8d36-279136700bbf' // Default to demo company
@@ -497,105 +522,210 @@ export default function TrainingSessionPage() {
             <UserHeader />
           </div>
 
-          {/* Recording Consent - Show first */}
-          {showRecordingConsent && (
-            <RecordingConsent
-              selectedPreference={recordingPreference}
-              onSelectionChange={setRecordingPreference}
-              className="mb-6"
-            />
-          )}
+          {/* Unified Configuration and Session Interface */}
+          <div className="space-y-8">
+            {/* Configuration Section */}
+            {showRecordingConsent && (
+              <div className="bg-white rounded-lg shadow-lg p-8">
+                {/* Session Configuration Header */}
+                <div className="mb-8">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    {currentScenario.scenario_type === 'theory' ? '📖 Theory Q&A Session' : '🗣️ Service Practice Session'}
+                  </h1>
+                  <p className="text-gray-600">
+                    {currentScenario.scenario_type === 'theory'
+                      ? 'Structured knowledge assessment - Answer questions accurately and concisely'
+                      : 'Interactive roleplay scenario - Practice real customer service situations'
+                    }
+                  </p>
+                </div>
 
-          {/* Language Selection */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">🌍 Language Selection</h2>
-            <p className="text-gray-600 mb-4">
-              Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
-            </p>
+                {/* Session Configuration */}
+                <div className="space-y-8">
+                  {/* Training Mode Display */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-gray-900 mb-2">⚙️ Session Configuration</h3>
+                    <div className="text-gray-700 text-sm space-y-1">
+                      <p><strong>Training Mode:</strong> {currentScenario.scenario_type === 'theory' ? '📖 Theory Assessment' : '🗣️ Service Practice'}</p>
+                      <p><strong>Scenario:</strong> {currentScenario.title}</p>
+                      <p><strong>Company:</strong> {companyId}</p>
+                    </div>
+                  </div>
 
-            <div className="relative inline-block text-left w-full max-w-xs">
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguageCode)}
-                className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
-              >
-                {SUPPORTED_LANGUAGES.map((language) => (
-                  <option key={language.code} value={language.code}>
-                    {language.flag} {language.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                  {/* ElevenLabs Settings Preview */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-gray-900 mb-4">🤖 ElevenLabs AI Agent Settings</h3>
+                    <div className="text-sm space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <p className="font-medium text-gray-900 mb-2">🎭 Character Role</p>
+                          <p className="text-gray-600">
+                            {currentScenario.scenario_type === 'theory'
+                              ? 'Strict Theory Examiner - Will ask knowledge-based questions'
+                              : 'Customer in Roleplay - Will act according to scenario behavior'
+                            }
+                          </p>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <p className="font-medium text-gray-900 mb-2">📋 Scenario Context</p>
+                          <p className="text-gray-600 text-xs">
+                            {currentScenario.scenario_type === 'theory'
+                              ? 'Will ask questions based on company knowledge base'
+                              : currentScenario.title
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {currentScenario.scenario_type === 'service_practice' && (
+                        <>
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                            <p className="font-medium text-gray-900 mb-2">😤 Customer Behavior</p>
+                            <p className="text-gray-600 text-xs max-h-20 overflow-y-auto">
+                              {currentScenario.client_behavior || 'Act as typical customer seeking help'}
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                            <p className="font-medium text-gray-900 mb-2">✅ Expected Employee Response</p>
+                            <p className="text-gray-600 text-xs max-h-20 overflow-y-auto">
+                              {currentScenario.expected_response || 'Employee should be helpful and knowledgeable'}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Language Selection */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
+                    <p className="text-gray-600 mb-4">
+                      Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
+                    </p>
+
+                    <div className="relative inline-block text-left w-full max-w-xs">
+                      <select
+                        value={selectedLanguage}
+                        onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguageCode)}
+                        className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                      >
+                        {SUPPORTED_LANGUAGES.map((language) => (
+                          <option key={language.code} value={language.code}>
+                            {language.flag} {language.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Recording Preferences - Simplified Dropdown */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
+                    <p className="text-gray-600 mb-4">
+                      Choose your recording preference for this training session.
+                    </p>
+
+                    <div className="relative inline-block text-left w-full max-w-xs">
+                      <select
+                        value={recordingPreference}
+                        onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
+                        className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                      >
+                        <option value="none">🚫 No Recording</option>
+                        <option value="audio">🎤 Audio Recording</option>
+                        <option value="audio_video">🎬 Audio + Video Recording</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        {recordingPreference === 'none' && (
+                          <><strong>Selected:</strong> 🚫 No Recording - Only text transcript will be saved</>
+                        )}
+                        {recordingPreference === 'audio' && (
+                          <><strong>Selected:</strong> 🎤 Audio Recording - Your voice will be captured for review</>
+                        )}
+                        {recordingPreference === 'audio_video' && (
+                          <><strong>Selected:</strong> 🎬 Audio + Video Recording - Full session recording for detailed analysis</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Privacy Notice */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-blue-900">Data Security & Privacy</h4>
+                        <div className="mt-1 text-sm text-blue-800">
+                          All recordings are stored securely and are only accessible by you and authorized training managers. You can request deletion of your recordings at any time.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Start Session Button */}
+                <div className="mt-8 text-center">
+                  <button
+                    onClick={() => {
+                      setShowRecordingConsent(false)
+                      setShowAvatarSession(true)
+                    }}
+                    className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
+                  >
+                    🚀 Start Training Session
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
-                <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
-              </p>
-            </div>
+            {/* Avatar Session - Shown Inline */}
+            {showAvatarSession && (
+              <div className="bg-white rounded-lg shadow-lg">
+                <ElevenLabsAvatarSession
+                  companyId={companyId}
+                  scenarioId={currentScenario.id}
+                  scenarioContext={{
+                    title: currentScenario.title,
+                    type: currentScenario.scenario_type,
+                    client_behavior: currentScenario.client_behavior,
+                    expected_response: currentScenario.expected_response
+                  }}
+                  language={selectedLanguage}
+                  agentId="agent_9301k5efjt1sf81vhzc3pjmw0fy9"
+                  recordingPreference={recordingPreference}
+                  onSessionEnd={(completedSessionData) => {
+                    console.log('✅ Avatar session completed:', completedSessionData)
+                    setSessionData(completedSessionData)
+                    updateProgress()
+                    setSessionComplete(true)
+                  }}
+                />
+              </div>
+            )}
           </div>
-
-          {/* Start Training Button */}
-          {!showRecordingConsent && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Start Training?</h3>
-                <p className="text-gray-600 mb-4">
-                  You've configured your preferences. Click below to begin your training session.
-                </p>
-                <button
-                  onClick={() => setShowRecordingConsent(false)}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  🚀 Start Training Session
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showRecordingConsent && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Continue?</h3>
-                <p className="text-gray-600 mb-4">
-                  Please review your recording preferences above, then click continue to proceed with language selection.
-                </p>
-                <button
-                  onClick={() => setShowRecordingConsent(false)}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  ✅ Continue to Language Selection
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ElevenLabs Avatar Session - Only show when recording consent is complete */}
-          {!showRecordingConsent && (
-            <ElevenLabsAvatarSession
-              companyId={companyId}
-              scenarioId={currentScenario.id}
-              scenarioContext={{
-                title: currentScenario.title,
-                type: currentScenario.scenario_type,
-                difficulty: currentScenario.difficulty || 'beginner'
-              }}
-              language={selectedLanguage}
-              agentId="agent_9301k5efjt1sf81vhzc3pjmw0fy9"
-              recordingPreference={recordingPreference}
-              onSessionEnd={(completedSessionData) => {
-                console.log('✅ Avatar session completed:', completedSessionData)
-                setSessionData(completedSessionData)
-                updateProgress()
-                setSessionComplete(true)
-              }}
-              className="mb-8"
-            />
-          )}
         </div>
       </div>
     )

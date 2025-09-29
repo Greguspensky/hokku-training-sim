@@ -72,22 +72,39 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.log('Updating scenario ID:', resolvedParams.id);
     console.log('Update data:', body);
     
-    // Prepare update data, ensuring milestones is included
+    // Prepare update data, including topic_ids for theory scenarios
     const updateData = {
-      title: body.title,
+      title: body.title || '',
       description: body.description,
       client_behavior: body.client_behavior,
       expected_response: body.expected_response,
       difficulty: body.difficulty,
       estimated_duration_minutes: body.estimated_duration_minutes,
-      milestones: body.milestones || []
+      milestones: body.milestones || [],
+      topic_ids: body.topic_ids || []
     };
     
     // Validate required fields based on scenario type
     if (body.scenario_type === 'service_practice') {
-      if (!body.title || !body.description || !body.client_behavior || !body.expected_response) {
+      if (!body.title) {
         return NextResponse.json(
-          { success: false, error: 'For service practice scenarios: title, description, client_behavior, and expected_response are required' },
+          { success: false, error: 'Situation is required for service practice scenarios' },
+          { status: 400 }
+        );
+      }
+      if (!body.client_behavior || !body.expected_response) {
+        return NextResponse.json(
+          { success: false, error: 'Client behavior and expected response are required for service practice scenarios' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // For theory scenarios, validate topic selection
+    if (body.scenario_type === 'theory') {
+      if (!body.topic_ids || body.topic_ids.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'At least one topic must be selected for theory scenarios' },
           { status: 400 }
         );
       }

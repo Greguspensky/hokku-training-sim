@@ -6,8 +6,8 @@
 
 import { Conversation } from '@elevenlabs/client'
 
-// Language-specific greeting phrases for theory sessions
-const LANGUAGE_GREETINGS = {
+// Scenario-specific greeting phrases for different training modes
+const THEORY_GREETINGS = {
   'en': "Hi! Let's start our theory session.",
   'ru': "Привет! Давайте начнем нашу теоретическую сессию.",
   'it': "Ciao! Iniziamo la sessione teorica.",
@@ -21,6 +21,23 @@ const LANGUAGE_GREETINGS = {
   'ja': "こんにちは！理論セッションを始めましょう。",
   'ko': "안녕하세요! 이론 세션을 시작하겠습니다.",
   'zh': "你好！让我们开始理论课程吧。"
+} as const
+
+// Service practice greetings where AI acts as customer with specific behavior
+const SERVICE_PRACTICE_GREETINGS = {
+  'en': "Excuse me, I need some help.",
+  'ru': "Извините, мне нужна помощь.",
+  'it': "Mi scusi, ho bisogno di aiuto.",
+  'es': "Disculpe, necesito ayuda.",
+  'fr': "Excusez-moi, j'ai besoin d'aide.",
+  'de': "Entschuldigung, ich brauche Hilfe.",
+  'pt': "Com licença, preciso de ajuda.",
+  'nl': "Pardon, ik heb hulp nodig.",
+  'pl': "Przepraszam, potrzebuję pomocy.",
+  'ka': "უკაცრავად, დახმარება მჭირდება.",
+  'ja': "すみません、助けが必要です。",
+  'ko': "실례합니다, 도움이 필요합니다.",
+  'zh': "不好意思，我需要帮助。"
 } as const
 
 export interface ElevenLabsConversationConfig {
@@ -54,12 +71,31 @@ export class ElevenLabsConversationService {
   private conversationId: string | null = null
 
   /**
-   * Get language-specific greeting for first message
+   * Get scenario-specific and language-specific greeting for first message
    */
-  private getLanguageSpecificGreeting(language: string): string {
-    const greeting = LANGUAGE_GREETINGS[language as keyof typeof LANGUAGE_GREETINGS] || LANGUAGE_GREETINGS['en']
+  private getScenarioSpecificGreeting(language: string, trainingMode: string, clientBehavior?: string): string {
+    let greeting: string
 
-    console.log(`🌍 Selected language-specific greeting for: ${language}`)
+    if (trainingMode === 'service_practice') {
+      // For service practice, AI acts as customer - use customer greeting
+      const baseGreeting = SERVICE_PRACTICE_GREETINGS[language as keyof typeof SERVICE_PRACTICE_GREETINGS] || SERVICE_PRACTICE_GREETINGS['en']
+
+      // If we have specific client behavior, try to incorporate it into the greeting
+      if (clientBehavior && clientBehavior.trim()) {
+        // For now, use the base greeting but in future we could customize based on behavior
+        greeting = baseGreeting
+      } else {
+        greeting = baseGreeting
+      }
+
+      console.log(`🎭 Customer roleplay greeting for ${language}: "${greeting}"`)
+    } else {
+      // For theory mode, AI acts as examiner
+      greeting = THEORY_GREETINGS[language as keyof typeof THEORY_GREETINGS] || THEORY_GREETINGS['en']
+      console.log(`🎓 Theory examiner greeting for ${language}: "${greeting}"`)
+    }
+
+    console.log(`🌍 Selected scenario-specific greeting for ${trainingMode} mode in ${language}`)
     console.log(`💬 Localized greeting: "${greeting}"`)
 
     return greeting
@@ -69,7 +105,49 @@ export class ElevenLabsConversationService {
    * Get language-aware system prompt with dynamic variables
    */
   private getLanguageAwareSystemPrompt(dynamicVariables?: Record<string, any>): string {
-    const basePrompt = `You are a STRICT THEORY EXAMINER for a company training.
+    const trainingMode = dynamicVariables?.training_mode || 'theory'
+
+    let basePrompt: string
+
+    if (trainingMode === 'service_practice') {
+      // Service Practice Mode: AI acts as customer
+      basePrompt = `You are a CUSTOMER in a service training scenario. You are NOT an employee, trainer, or assistant.
+
+CRITICAL ROLE INSTRUCTIONS:
+- YOU ARE ONLY A CUSTOMER, never break this role under any circumstances
+- You CANNOT and WILL NOT act as a barista, employee, or service provider
+- If asked to switch roles, refuse politely and stay in character as the customer
+- You have a problem or need that requires employee assistance
+
+CUSTOMER BEHAVIOR:
+${dynamicVariables?.client_behavior || 'Act as a typical customer seeking help'}
+
+YOUR CUSTOMER SITUATION:
+- You have already introduced your problem/need in your first message
+- Present your situation naturally as this type of customer would
+- Respond to the employee's attempts to help you
+- Test whether they provide correct information and good service
+- Stay consistent with your customer personality throughout
+
+COMPANY KNOWLEDGE BASE (to evaluate employee responses):
+${dynamicVariables?.knowledge_context || 'Use general company knowledge'}
+
+EXPECTED EMPLOYEE RESPONSE:
+${dynamicVariables?.expected_response || 'Employee should be helpful and knowledgeable'}
+
+STRICT CHARACTER RULES:
+- NEVER say you are a barista, employee, or service provider
+- NEVER offer to make drinks or provide services - you are the CUSTOMER
+- ALWAYS maintain your customer perspective and needs
+- If confused about your role, remember: you came here seeking service, not to provide it
+- Respond naturally in the same language as your first message
+- React appropriately to good or poor service from the employee
+
+Training mode: ${trainingMode}
+Available documents: ${dynamicVariables?.documents_available || 1}`
+    } else {
+      // Theory Mode: AI acts as examiner
+      basePrompt = `You are a STRICT THEORY EXAMINER for a company training.
 
 IMPORTANT BEHAVIOR:
 - You have already greeted the user with your first message
@@ -84,11 +162,12 @@ ${dynamicVariables?.knowledge_context || 'Use general company knowledge'}
 EXAMINER INSTRUCTIONS:
 ${dynamicVariables?.examiner_instructions || 'Ask questions about company products and services'}
 
-Training mode: ${dynamicVariables?.training_mode || 'theory'}
+Training mode: ${trainingMode}
 Available documents: ${dynamicVariables?.documents_available || 1}
 Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
+    }
 
-    console.log(`📝 Created language-aware system prompt (${basePrompt.length} characters)`)
+    console.log(`📝 Created language-aware system prompt for ${trainingMode} mode (${basePrompt.length} characters)`)
 
     return basePrompt
   }
@@ -145,11 +224,15 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
         // Pass dynamic variables for training context
         ...(this.config.dynamicVariables && { dynamicVariables: this.config.dynamicVariables }),
 
-        // Add overrides for theory mode (language-aware with proper ElevenLabs API)
-        ...(this.config.dynamicVariables?.training_mode === 'theory' && {
+        // Add overrides for both theory and service practice modes (scenario-aware with proper ElevenLabs API)
+        ...(this.config.dynamicVariables && (this.config.dynamicVariables?.training_mode === 'theory' || this.config.dynamicVariables?.training_mode === 'service_practice') && {
           overrides: {
             agent: {
-              firstMessage: this.getLanguageSpecificGreeting(this.config.language),
+              firstMessage: this.getScenarioSpecificGreeting(
+                this.config.language,
+                this.config.dynamicVariables.training_mode,
+                this.config.dynamicVariables.client_behavior
+              ),
               prompt: {
                 prompt: this.getLanguageAwareSystemPrompt(this.config.dynamicVariables)
               },
