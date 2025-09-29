@@ -328,70 +328,9 @@ class ScenarioService {
    * Get scenarios for a track (now using many-to-many assignments)
    */
   async getScenariosByTrack(trackId: string): Promise<Scenario[]> {
-    try {
-      // First, get scenario assignments for this track
-      const assignedScenarioIds = await this.getAssignedScenarioIds(trackId);
-
-      if (assignedScenarioIds.length === 0) {
-        // No assignments found, check if there are legacy scenarios to migrate
-        const legacyScenarios = await this.getScenariosByTrackLegacy(trackId);
-
-        if (legacyScenarios.length > 0) {
-          console.log(`🔄 Migrating ${legacyScenarios.length} legacy scenarios to assignment system for track ${trackId}`);
-
-          // Check if there's a list of explicitly removed scenarios
-          if (typeof globalThis !== 'undefined') {
-            if (!globalThis.__removedScenarioAssignments) {
-              globalThis.__removedScenarioAssignments = new Set();
-            }
-          }
-
-          // Migrate legacy scenarios to the assignment system, but skip explicitly removed ones
-          const migratedScenarios: Scenario[] = [];
-          for (const scenario of legacyScenarios) {
-            const assignmentKey = `${trackId}_${scenario.id}`;
-
-            // Skip if this scenario was explicitly removed from this track
-            if (typeof globalThis !== 'undefined' && globalThis.__removedScenarioAssignments?.has(assignmentKey)) {
-              console.log(`⏭️ Skipping migration of scenario ${scenario.id} - was explicitly removed from track ${trackId}`);
-              continue;
-            }
-
-            try {
-              await this.assignScenarioToTrack(scenario.id, trackId, 'auto-migration');
-              console.log(`✅ Migrated scenario ${scenario.id} to assignment system`);
-              migratedScenarios.push(scenario);
-            } catch (migrationError) {
-              console.warn(`⚠️ Failed to migrate scenario ${scenario.id}:`, migrationError);
-            }
-          }
-
-          return migratedScenarios;
-        }
-
-        // No scenarios found at all
-        return [];
-      }
-
-      // Get scenarios by their IDs
-      const scenarios = await Promise.all(
-        assignedScenarioIds.map(id => this.getScenario(id))
-      );
-
-      // Filter out null results and ensure we have valid scenarios
-      const validScenarios = scenarios.filter((scenario): scenario is Scenario =>
-        scenario !== null && scenario.is_active
-      );
-
-      return validScenarios;
-
-    } catch (error: any) {
-      console.error('Error fetching assigned scenarios:', error);
-      console.log('🚧 Falling back to legacy track-scenario relationship');
-
-      // Fallback to legacy method
-      return this.getScenariosByTrackLegacy(trackId);
-    }
+    // TEMPORARY FIX: Always use legacy method until track_scenarios table is properly set up
+    console.log(`📋 Using legacy method to get scenarios for track ${trackId}`);
+    return this.getScenariosByTrackLegacy(trackId);
   }
 
   /**

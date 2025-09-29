@@ -67,7 +67,64 @@ export async function GET(
 
     console.log('🔍 Getting assignment with details for ID:', assignmentId)
 
-    // Get assignment without JOIN (to work with production schema)
+    // Check if this is an individual scenario assignment (format: individual-<scenario-id>)
+    if (assignmentId.startsWith('individual-')) {
+      const scenarioId = assignmentId.replace('individual-', '')
+      console.log('🎯 Individual scenario detected, scenario ID:', scenarioId)
+
+      // Get scenario details directly (first result if multiple)
+      const { data: scenarios, error: scenarioError } = await supabaseAdmin
+        .from('scenarios')
+        .select('*')
+        .eq('id', scenarioId)
+        .limit(1)
+
+      const scenario = scenarios?.[0]
+
+      if (scenarioError || !scenario) {
+        console.log('❌ Individual scenario not found:', scenarioError?.message || 'No scenario data')
+        console.log('🔍 Searched for scenario ID:', scenarioId)
+        return NextResponse.json(
+          { success: false, error: 'Individual scenario not found' },
+          { status: 404 }
+        )
+      }
+
+      console.log('✅ Individual scenario found:', scenario.title)
+
+      // Create a mock assignment structure for individual scenarios
+      const mockAssignment: AssignmentWithDetails = {
+        id: assignmentId,
+        track_id: 'individual',
+        user_id: 'individual-user',
+        status: 'active',
+        attempts_used: 0,
+        created_at: new Date().toISOString(),
+        assigned_by: 'self',
+        assigned_at: new Date().toISOString(),
+        track: {
+          id: 'individual',
+          name: 'Individual Scenario',
+          description: 'Single scenario practice',
+          target_audience: 'individual',
+          company_id: scenario.company_id,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          scenarios: [scenario]
+        },
+        employee: { id: 'individual-user', name: 'Individual Practice' },
+        scenario_progress: []
+      }
+
+      console.log('✅ Individual scenario assignment created successfully')
+      return NextResponse.json({
+        success: true,
+        assignment: mockAssignment
+      })
+    }
+
+    // Regular track assignment handling
     const { data: assignment, error } = await supabaseAdmin
       .from('track_assignments')
       .select('*')

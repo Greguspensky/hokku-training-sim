@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react'
 
+interface KnowledgeTopic {
+  id: string
+  name: string
+  description: string
+  category: string
+  difficulty_level: number
+}
+
 interface ScenarioAssignment {
   id: string
   scenario_id: string
@@ -32,6 +40,30 @@ interface IndividualScenariosCardProps {
 export default function IndividualScenariosCard({ employeeId }: IndividualScenariosCardProps) {
   const [scenarioAssignments, setScenarioAssignments] = useState<ScenarioAssignment[]>([])
   const [loading, setLoading] = useState(true)
+  const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
+
+  // Function to fetch topic details
+  const loadTopics = async (topicIds: string[]) => {
+    if (topicIds.length === 0) return
+
+    try {
+      // Use a demo company ID for now, since we don't have easy access to company ID from assignment data
+      const response = await fetch(`/api/knowledge-assessment/topics?company_id=demo-company`)
+      const data = await response.json()
+
+      if (data.success) {
+        const topicMap: {[key: string]: KnowledgeTopic} = {}
+        data.topics.forEach((topic: KnowledgeTopic) => {
+          if (topicIds.includes(topic.id)) {
+            topicMap[topic.id] = topic
+          }
+        })
+        setTopics(prev => ({ ...prev, ...topicMap }))
+      }
+    } catch (error) {
+      console.error('Failed to load topics:', error)
+    }
+  }
 
   const loadScenarioAssignments = async () => {
     console.log('🎯 IndividualScenariosCard - employeeId:', employeeId)
@@ -54,6 +86,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
       if (data.success) {
         console.log('✅ Found scenario assignments:', data.assignments.length)
         setScenarioAssignments(data.assignments || [])
+
       } else {
         console.log('❌ API Error:', data.error)
       }
@@ -148,6 +181,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   <span>{assignment.scenarios.estimated_duration_minutes} min</span>
                 </div>
 
+
                 {assignment.notes && (
                   <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
                     <p className="text-sm text-blue-700">
@@ -166,8 +200,8 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   <button
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     onClick={() => {
-                      // Navigate to training session - we'll implement this based on scenario type
-                      const assignmentId = `individual-${assignment.id}`
+                      // Navigate to training session using scenario ID, not assignment ID
+                      const assignmentId = `individual-${assignment.scenario_id}`
                       window.location.href = `/employee/training/${assignmentId}`
                     }}
                   >

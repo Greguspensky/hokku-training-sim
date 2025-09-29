@@ -13,6 +13,7 @@ interface ElevenLabsAvatarSessionProps {
   companyId: string
   scenarioId?: string
   scenarioContext?: any
+  scenarioQuestions?: any[]
   language?: string
   agentId: string // ElevenLabs Agent ID
   recordingPreference?: RecordingPreference
@@ -24,6 +25,7 @@ export function ElevenLabsAvatarSession({
   companyId,
   scenarioId,
   scenarioContext = {},
+  scenarioQuestions = [],
   language = 'en',
   agentId,
   recordingPreference = 'none',
@@ -204,10 +206,15 @@ export function ElevenLabsAvatarSession({
       const contextToUse = loadedKnowledgeContext || knowledgeContext
       console.log('🔍 Using knowledge context:', contextToUse ? `${contextToUse.documents?.length || 0} documents loaded` : 'No context available')
 
-      // Use the passed questions or fall back to sessionQuestions (new API) or structuredQuestions (legacy)
-      const questionsToUse = loadedQuestions || sessionQuestions || structuredQuestions
+      // Use scenario-specific questions first, then fall back to other sources
+      const questionsToUse = scenarioQuestions.length > 0 ? scenarioQuestions : loadedQuestions || sessionQuestions || structuredQuestions
       console.log('📋 Using structured questions:', questionsToUse.length, 'questions available')
-      console.log('📋 Questions source:', loadedQuestions ? 'loadedQuestions' : sessionQuestions.length > 0 ? 'sessionQuestions (new API)' : 'structuredQuestions (legacy)')
+      console.log('📋 Questions source:',
+        scenarioQuestions.length > 0 ? 'scenarioQuestions (scenario-specific)' :
+        loadedQuestions ? 'loadedQuestions' :
+        sessionQuestions.length > 0 ? 'sessionQuestions (new API)' :
+        'structuredQuestions (legacy)'
+      )
 
       // Determine training mode from scenario context
       const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice'

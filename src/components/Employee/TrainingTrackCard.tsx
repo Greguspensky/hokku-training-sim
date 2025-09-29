@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { Scenario } from '@/lib/scenarios'
 
+interface KnowledgeTopic {
+  id: string
+  name: string
+  description: string
+  category: string
+  difficulty_level: number
+}
+
 interface TrainingTrackCardProps {
   assignment: AssignmentWithDetails
 }
@@ -13,6 +21,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
   const [expanded, setExpanded] = useState(false)
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [scenariosLoading, setScenariosLoading] = useState(true)
+  const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
   const router = useRouter()
 
   const getStatusColor = (status: string) => {
@@ -41,6 +50,29 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
     }
   }
 
+  // Function to fetch topic details
+  const loadTopics = async (topicIds: string[]) => {
+    if (topicIds.length === 0) return
+
+    try {
+      // Use a demo company ID for now
+      const response = await fetch(`/api/knowledge-assessment/topics?company_id=demo-company`)
+      const data = await response.json()
+
+      if (data.success) {
+        const topicMap: {[key: string]: KnowledgeTopic} = {}
+        data.topics.forEach((topic: KnowledgeTopic) => {
+          if (topicIds.includes(topic.id)) {
+            topicMap[topic.id] = topic
+          }
+        })
+        setTopics(prev => ({ ...prev, ...topicMap }))
+      }
+    } catch (error) {
+      console.error('Failed to load topics:', error)
+    }
+  }
+
   // Fetch scenarios for this track
   useEffect(() => {
     const loadScenarios = async () => {
@@ -53,6 +85,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
 
         if (data.success) {
           setScenarios(data.scenarios || [])
+
         }
       } catch (error) {
         console.error('Failed to load scenarios for track:', error)
@@ -221,6 +254,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
                           </span>
                         )}
                       </div>
+
                     </div>
                   </div>
 
