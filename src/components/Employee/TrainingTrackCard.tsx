@@ -235,6 +235,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
                       <h5 className="font-medium text-gray-900 text-sm">
                         {scenario.title}
                       </h5>
+                      <p className="text-xs text-gray-400 font-mono">ID: {scenario.id}</p>
                       <div className="flex items-center space-x-2 mt-1">
                         <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
                           {getScenarioTypeLabel(scenario.scenario_type)}

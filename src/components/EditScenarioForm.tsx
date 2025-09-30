@@ -19,6 +19,16 @@ interface KnowledgeTopic {
   }[]
 }
 
+interface RecommendationQuestion {
+  id: string
+  question_text: string
+  category: string
+  difficulty_level: number
+  created_at: string
+  updated_at: string
+  is_active: boolean
+}
+
 interface EditScenarioFormData {
   track_id: string
   title: string
@@ -31,6 +41,9 @@ interface EditScenarioFormData {
   estimated_duration_minutes: number
   milestones: string[]
   topic_ids: string[]
+  recommendation_question_ids: string[]
+  recommendation_question_durations: { [questionId: string]: number }
+  instructions: string
 }
 
 interface EditScenarioFormProps {
@@ -54,7 +67,10 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     difficulty: scenario.difficulty,
     estimated_duration_minutes: scenario.estimated_duration_minutes,
     milestones: scenario.milestones || [],
-    topic_ids: scenario.topic_ids || []
+    topic_ids: scenario.topic_ids || [],
+    recommendation_question_ids: scenario.recommendation_question_ids || [],
+    recommendation_question_durations: scenario.recommendation_question_durations || {},
+    instructions: scenario.instructions || ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +80,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
   const [newMilestone, setNewMilestone] = useState('')
   const [knowledgeTopics, setKnowledgeTopics] = useState<KnowledgeTopic[]>([])
   const [loadingTopics, setLoadingTopics] = useState(false)
+  const [recommendationQuestions, setRecommendationQuestions] = useState<RecommendationQuestion[]>([])
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   const addMilestone = () => {
     if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
@@ -82,26 +100,39 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     }))
   }
 
-  // Load topics data
+  // Load topics and recommendations data
   useEffect(() => {
-    const loadTopics = async () => {
+    const loadData = async () => {
       if (!companyId) return
 
       setLoadingTopics(true)
+      setLoadingRecommendations(true)
       try {
-        const response = await fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`)
-        const data = await response.json()
-        if (data.success) {
-          setKnowledgeTopics(data.topics)
+        const [topicsResponse, recommendationsResponse] = await Promise.all([
+          fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`),
+          fetch(`/api/recommendation-questions?company_id=${companyId}`)
+        ])
+
+        const [topicsData, recommendationsData] = await Promise.all([
+          topicsResponse.json(),
+          recommendationsResponse.json()
+        ])
+
+        if (topicsData.success) {
+          setKnowledgeTopics(topicsData.topics)
+        }
+        if (recommendationsData.success) {
+          setRecommendationQuestions(recommendationsData.questions)
         }
       } catch (error) {
-        console.error('Failed to load topics:', error)
+        console.error('Failed to load data:', error)
       } finally {
         setLoadingTopics(false)
+        setLoadingRecommendations(false)
       }
     }
 
-    loadTopics()
+    loadData()
   }, [companyId])
 
   const handleInputChange = (field: keyof EditScenarioFormData, value: any) => {
@@ -215,8 +246,9 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               id="track_id"
               value={formData.track_id}
               onChange={(e) => handleInputChange('track_id', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100"
               required
+              disabled
             >
               {tracks.map((track) => (
                 <option key={track.id} value={track.id}>
@@ -234,15 +266,17 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               id="scenario_type"
               value={formData.scenario_type}
               onChange={(e) => handleInputChange('scenario_type', e.target.value as ScenarioType)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100"
+              disabled
             >
               <option value="theory">Theory (Q&A)</option>
               <option value="service_practice">Service Practice (Role-play)</option>
+              <option value="recommendations">Recommendations</option>
             </select>
           </div>
 
-          {/* Name field - only for Theory Q&A */}
-          {formData.scenario_type === 'theory' && (
+          {/* Name field - for Theory Q&A and Recommendations */}
+          {(formData.scenario_type === 'theory' || formData.scenario_type === 'recommendations') && (
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                 Name *
@@ -428,6 +462,120 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               {formData.milestones.length === 0 && (
                 <p className="text-sm text-gray-500 italic">No milestones added yet.</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {formData.scenario_type === 'recommendations' && (
+          /* Recommendations Settings - Question Selection */
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900">Recommendations Settings</h3>
+
+            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-700">
+                <strong>Recommendations scenarios</strong> are video response training where TTS asks questions and
+                employees respond through voice and video. Select questions from your recommendation question pool.
+              </p>
+            </div>
+
+            {/* Question Selection */}
+            {loadingRecommendations ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Loading recommendation questions...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h4 className="text-md font-medium text-gray-900">Question Selection *</h4>
+                <p className="text-sm text-gray-600">
+                  Select one or more questions from your recommendation questions pool. The agent will ask these questions during the session.
+                </p>
+
+                {recommendationQuestions.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {recommendationQuestions.map((question) => (
+                      <label key={question.id} className="flex items-start p-4 border-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formData.recommendation_question_ids.includes(question.id)}
+                          onChange={(e) => {
+                            const questionIds = e.target.checked
+                              ? [...formData.recommendation_question_ids, question.id]
+                              : formData.recommendation_question_ids.filter(id => id !== question.id)
+                            handleInputChange('recommendation_question_ids', questionIds)
+
+                            // Add or remove duration for this question
+                            const newDurations = { ...formData.recommendation_question_durations }
+                            if (e.target.checked) {
+                              newDurations[question.id] = formData.recommendation_question_durations[question.id] || 30 // Default 30 seconds or keep existing
+                            } else {
+                              delete newDurations[question.id]
+                            }
+                            handleInputChange('recommendation_question_durations', newDurations)
+                          }}
+                          className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-0.5"
+                        />
+                        <div className="ml-4 flex-1">
+                          <p className="text-gray-900 leading-relaxed">{question.question_text}</p>
+
+                          {/* Duration field - only show if question is selected */}
+                          {formData.recommendation_question_ids.includes(question.id) && (
+                            <div className="mt-3 flex items-center space-x-2">
+                              <label className="text-sm font-medium text-gray-700">Duration:</label>
+                              <input
+                                type="number"
+                                value={formData.recommendation_question_durations[question.id] || 30}
+                                onChange={(e) => {
+                                  const newDurations = {
+                                    ...formData.recommendation_question_durations,
+                                    [question.id]: Math.max(1, parseInt(e.target.value) || 30)
+                                  }
+                                  handleInputChange('recommendation_question_durations', newDurations)
+                                }}
+                                min="1"
+                                max="300"
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                              />
+                              <span className="text-sm text-gray-500">seconds</span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-700">
+                      No recommendation questions found. Create recommendation questions first in the Knowledge Base section to use them in recommendation scenarios.
+                    </p>
+                  </div>
+                )}
+
+                {/* Show selection summary */}
+                {formData.recommendation_question_ids.length > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-700">
+                      <strong>{formData.recommendation_question_ids.length} question{formData.recommendation_question_ids.length === 1 ? '' : 's'} selected</strong> for the recommendation session.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Instructions Field */}
+            <div className="space-y-4">
+              <h4 className="text-md font-medium text-gray-900">Manager Instructions</h4>
+              <p className="text-sm text-gray-600">
+                Optional instructions for the manager about this recommendation scenario. This field is not mandatory.
+              </p>
+              <textarea
+                id="instructions"
+                rows={4}
+                value={formData.instructions}
+                onChange={(e) => handleInputChange('instructions', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter any special instructions or notes for managers about this recommendation scenario..."
+              />
             </div>
           </div>
         )}

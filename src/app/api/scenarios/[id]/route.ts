@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.log('Updating scenario ID:', resolvedParams.id);
     console.log('Update data:', body);
     
-    // Prepare update data, including topic_ids for theory scenarios
+    // Prepare update data - matching the filtering in scenarios service
     const updateData = {
       title: body.title || '',
       description: body.description,
@@ -81,7 +81,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       difficulty: body.difficulty,
       estimated_duration_minutes: body.estimated_duration_minutes,
       milestones: body.milestones || [],
-      topic_ids: body.topic_ids || []
+      topic_ids: body.topic_ids || [],
+      recommendation_question_ids: body.recommendation_question_ids || [],
+      recommendation_question_durations: body.recommendation_question_durations || {},
+      instructions: body.instructions
     };
     
     // Validate required fields based on scenario type
@@ -105,6 +108,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (!body.topic_ids || body.topic_ids.length === 0) {
         return NextResponse.json(
           { success: false, error: 'At least one topic must be selected for theory scenarios' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // For recommendations scenarios, validate question selection
+    if (body.scenario_type === 'recommendations') {
+      if (!body.title) {
+        return NextResponse.json(
+          { success: false, error: 'Name is required for recommendations scenarios' },
+          { status: 400 }
+        );
+      }
+      if (!body.recommendation_question_ids || body.recommendation_question_ids.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'At least one recommendation question must be selected for recommendations scenarios' },
           { status: 400 }
         );
       }

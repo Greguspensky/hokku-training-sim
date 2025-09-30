@@ -9,6 +9,7 @@ import CategoryForm from './CategoryForm'
 import DocumentViewer from './DocumentViewer'
 import QuestionPoolView from './QuestionPoolView'
 import DocumentSelectionModal from './DocumentSelectionModal'
+import RecommendationQuestionsView from './RecommendationQuestionsView'
 
 interface KnowledgeBaseViewProps {
   companyId: string
@@ -28,7 +29,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   const [editingCategory, setEditingCategory] = useState<KnowledgeBaseCategory | null>(null)
   const [editingDocument, setEditingDocument] = useState<KnowledgeBaseDocument | null>(null)
   const [generatingQuestions, setGeneratingQuestions] = useState(false)
-  const [currentView, setCurrentView] = useState<'documents' | 'questions'>('documents')
+  const [currentView, setCurrentView] = useState<'documents' | 'questions' | 'recommendations'>('documents')
   const [showDocumentSelection, setShowDocumentSelection] = useState(false)
 
   const loadCategories = async () => {
@@ -321,6 +322,16 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
               >
                 🤖 AI Questions
               </button>
+              <button
+                onClick={() => setCurrentView('recommendations')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  currentView === 'recommendations'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                💡 Recommendations
+              </button>
             </nav>
           </div>
         </div>
@@ -476,9 +487,12 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
             )}
           </div>
         )
-        ) : (
+        ) : currentView === 'questions' ? (
           // Questions view
           <QuestionPoolView companyId={companyId} />
+        ) : (
+          // Recommendations view
+          <RecommendationQuestionsView companyId={companyId} />
         )}
 
         {/* Category Form Modal */}

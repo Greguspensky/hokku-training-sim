@@ -56,7 +56,7 @@ create table if not exists training_sessions (
   assignment_id text not null,
   company_id uuid references companies(id) on delete cascade,
   session_name text not null,
-  training_mode text not null check (training_mode in ('theory', 'service_practice')),
+  training_mode text not null check (training_mode in ('theory', 'service_practice', 'recommendation_tts')),
   language text not null,
   agent_id text not null,
   knowledge_context jsonb,
@@ -64,7 +64,11 @@ create table if not exists training_sessions (
   session_duration_seconds integer not null,
   started_at timestamptz not null,
   ended_at timestamptz not null,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  -- Video recording fields
+  video_recording_url text,
+  video_file_size integer,
+  recording_duration_seconds integer
 );
 
 alter table training_sessions enable row level security;

@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
       milestones: body.milestones || [],
       knowledge_category_ids: body.knowledge_category_ids || [],
       knowledge_document_ids: body.knowledge_document_ids || [],
-      topic_ids: body.topic_ids || []
+      topic_ids: body.topic_ids || [],
+      recommendation_question_ids: body.recommendation_question_ids || [],
+      instructions: body.instructions
     };
 
     // Validate required fields for all scenarios
@@ -64,6 +66,16 @@ export async function POST(request: NextRequest) {
       if (!scenarioData.topic_ids || scenarioData.topic_ids.length === 0) {
         return NextResponse.json(
           { success: false, error: 'At least one topic must be selected for theory scenarios' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // For recommendations scenarios, validate question selection
+    if (scenarioData.scenario_type === 'recommendations') {
+      if (!scenarioData.recommendation_question_ids || scenarioData.recommendation_question_ids.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'At least one recommendation question must be selected for recommendations scenarios' },
           { status: 400 }
         );
       }

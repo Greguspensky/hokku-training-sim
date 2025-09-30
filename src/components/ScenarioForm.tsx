@@ -20,6 +20,16 @@ interface KnowledgeTopic {
   }[]
 }
 
+interface RecommendationQuestion {
+  id: string
+  question_text: string
+  category: string
+  difficulty_level: number
+  created_at: string
+  updated_at: string
+  is_active: boolean
+}
+
 interface ScenarioFormData {
   track_id: string
   title: string
@@ -34,6 +44,9 @@ interface ScenarioFormData {
   knowledge_category_ids: string[]
   knowledge_document_ids: string[]
   topic_ids: string[]
+  recommendation_question_ids: string[]
+  recommendation_question_durations: { [questionId: string]: number }
+  instructions: string
 }
 
 interface ScenarioFormProps {
@@ -58,7 +71,10 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     milestones: [],
     knowledge_category_ids: [],
     knowledge_document_ids: [],
-    topic_ids: []
+    topic_ids: [],
+    recommendation_question_ids: [],
+    recommendation_question_durations: {},
+    instructions: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,6 +85,8 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
   const [loadingKnowledge, setLoadingKnowledge] = useState(false)
   const [knowledgeTopics, setKnowledgeTopics] = useState<KnowledgeTopic[]>([])
   const [loadingTopics, setLoadingTopics] = useState(false)
+  const [recommendationQuestions, setRecommendationQuestions] = useState<RecommendationQuestion[]>([])
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   const addMilestone = () => {
     if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
@@ -130,17 +148,20 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
 
       setLoadingKnowledge(true)
       setLoadingTopics(true)
+      setLoadingRecommendations(true)
       try {
-        const [categoriesResponse, documentsResponse, topicsResponse] = await Promise.all([
+        const [categoriesResponse, documentsResponse, topicsResponse, recommendationsResponse] = await Promise.all([
           fetch(`/api/knowledge-base/categories?company_id=${companyId}`),
           fetch(`/api/knowledge-base/documents?company_id=${companyId}`),
-          fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`)
+          fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`),
+          fetch(`/api/recommendation-questions?company_id=${companyId}`)
         ])
 
-        const [categoriesData, documentsData, topicsData] = await Promise.all([
+        const [categoriesData, documentsData, topicsData, recommendationsData] = await Promise.all([
           categoriesResponse.json(),
           documentsResponse.json(),
-          topicsResponse.json()
+          topicsResponse.json(),
+          recommendationsResponse.json()
         ])
 
         if (categoriesData.success) {
@@ -152,11 +173,15 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
         if (topicsData.success) {
           setKnowledgeTopics(topicsData.topics)
         }
+        if (recommendationsData.success) {
+          setRecommendationQuestions(recommendationsData.questions)
+        }
       } catch (error) {
         console.error('Failed to load data:', error)
       } finally {
         setLoadingKnowledge(false)
         setLoadingTopics(false)
+        setLoadingRecommendations(false)
       }
     }
 
@@ -195,6 +220,18 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
       }
     }
 
+    // For recommendations scenarios, validate name and question selection
+    if (formData.scenario_type === 'recommendations') {
+      if (!formData.title.trim()) {
+        setError('Name is required for recommendations scenarios')
+        return
+      }
+      if (formData.recommendation_question_ids.length === 0) {
+        setError('At least one recommendation question must be selected for recommendations scenarios')
+        return
+      }
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -207,7 +244,10 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
           ...formData,
           knowledge_category_ids: formData.knowledge_category_ids.length > 0 ? formData.knowledge_category_ids : undefined,
           knowledge_document_ids: formData.knowledge_document_ids.length > 0 ? formData.knowledge_document_ids : undefined,
-          topic_ids: formData.topic_ids.length > 0 ? formData.topic_ids : undefined
+          topic_ids: formData.topic_ids.length > 0 ? formData.topic_ids : undefined,
+          recommendation_question_ids: formData.recommendation_question_ids.length > 0 ? formData.recommendation_question_ids : undefined,
+          recommendation_question_durations: formData.recommendation_question_ids.length > 0 ? formData.recommendation_question_durations : undefined,
+          instructions: formData.instructions.trim() || undefined
         })
       })
 
@@ -282,12 +322,13 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
             >
               <option value="theory">Theory (Q&A)</option>
               <option value="service_practice">Service Practice (Role-play)</option>
+              <option value="recommendations">Recommendations</option>
             </select>
           </div>
 
 
-          {/* Name field - only for Theory Q&A */}
-          {formData.scenario_type === 'theory' && (
+          {/* Name field - for Theory Q&A and Recommendations */}
+          {(formData.scenario_type === 'theory' || formData.scenario_type === 'recommendations') && (
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                 Name *
@@ -408,6 +449,120 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               {formData.milestones.length === 0 && (
                 <p className="text-sm text-gray-500 italic">No milestones added yet.</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {formData.scenario_type === 'recommendations' && (
+          /* Recommendations Settings - Question Selection */
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900">Recommendations Settings</h3>
+
+            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-700">
+                <strong>Recommendations scenarios</strong> are video response training where TTS asks questions and
+                employees respond through voice and video. Select questions from your recommendation question pool.
+              </p>
+            </div>
+
+            {/* Question Selection */}
+            {loadingRecommendations ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Loading recommendation questions...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h4 className="text-md font-medium text-gray-900">Question Selection *</h4>
+                <p className="text-sm text-gray-600">
+                  Select one or more questions from your recommendation questions pool. The agent will ask these questions during the session.
+                </p>
+
+                {recommendationQuestions.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {recommendationQuestions.map((question) => (
+                      <label key={question.id} className="flex items-start p-4 border-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={formData.recommendation_question_ids.includes(question.id)}
+                          onChange={(e) => {
+                            const questionIds = e.target.checked
+                              ? [...formData.recommendation_question_ids, question.id]
+                              : formData.recommendation_question_ids.filter(id => id !== question.id)
+                            handleInputChange('recommendation_question_ids', questionIds)
+
+                            // Add or remove duration for this question
+                            const newDurations = { ...formData.recommendation_question_durations }
+                            if (e.target.checked) {
+                              newDurations[question.id] = 30 // Default 30 seconds
+                            } else {
+                              delete newDurations[question.id]
+                            }
+                            handleInputChange('recommendation_question_durations', newDurations)
+                          }}
+                          className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded mt-0.5"
+                        />
+                        <div className="ml-4 flex-1">
+                          <p className="text-gray-900 leading-relaxed">{question.question_text}</p>
+
+                          {/* Duration field - only show if question is selected */}
+                          {formData.recommendation_question_ids.includes(question.id) && (
+                            <div className="mt-3 flex items-center space-x-2">
+                              <label className="text-sm font-medium text-gray-700">Duration:</label>
+                              <input
+                                type="number"
+                                value={formData.recommendation_question_durations[question.id] || 30}
+                                onChange={(e) => {
+                                  const newDurations = {
+                                    ...formData.recommendation_question_durations,
+                                    [question.id]: Math.max(1, parseInt(e.target.value) || 30)
+                                  }
+                                  handleInputChange('recommendation_question_durations', newDurations)
+                                }}
+                                min="1"
+                                max="300"
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                              />
+                              <span className="text-sm text-gray-500">seconds</span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-sm text-yellow-700">
+                      No recommendation questions found. Create recommendation questions first in the Knowledge Base section to use them in recommendation scenarios.
+                    </p>
+                  </div>
+                )}
+
+                {/* Show selection summary */}
+                {formData.recommendation_question_ids.length > 0 && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-700">
+                      <strong>{formData.recommendation_question_ids.length} question{formData.recommendation_question_ids.length === 1 ? '' : 's'} selected</strong> for the recommendation session.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Instructions Field */}
+            <div className="space-y-4">
+              <h4 className="text-md font-medium text-gray-900">Manager Instructions</h4>
+              <p className="text-sm text-gray-600">
+                Optional instructions for the manager about this recommendation scenario. This field is not mandatory.
+              </p>
+              <textarea
+                id="instructions"
+                rows={4}
+                value={formData.instructions}
+                onChange={(e) => handleInputChange('instructions', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter any special instructions or notes for managers about this recommendation scenario..."
+              />
             </div>
           </div>
         )}

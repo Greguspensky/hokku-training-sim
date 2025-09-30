@@ -134,6 +134,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
     switch (type) {
       case 'theory': return 'bg-purple-100 text-purple-800'
       case 'service_practice': return 'bg-green-100 text-green-800'
+      case 'recommendations': return 'bg-orange-100 text-orange-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -142,6 +143,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
     switch (type) {
       case 'theory': return 'Theory (Q&A)'
       case 'service_practice': return 'Service Practice'
+      case 'recommendations': return 'Recommendations'
       default: return type
     }
   }
@@ -153,6 +155,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
           <div className="flex items-start justify-between mb-2">
             <div className="flex-1">
               <h6 className="font-medium text-gray-900 text-sm">{assignment.scenarios.title}</h6>
+              <p className="text-xs text-gray-400 font-mono">ID: {assignment.scenarios.id}</p>
               <p className="text-xs text-gray-600 mt-1">{assignment.scenarios.description}</p>
             </div>
             <div className="flex items-center space-x-2">

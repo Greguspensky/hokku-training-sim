@@ -203,6 +203,8 @@ export default function ManagerDashboard() {
     if (selectedTrack) {
       loadScenarios(selectedTrack.id)
     }
+    // Always refresh the all scenarios list
+    loadAllScenarios()
   }
 
   const handleEditScenario = (scenario: Scenario) => {
@@ -410,30 +412,36 @@ export default function ManagerDashboard() {
         />
 
         {/* Action Buttons */}
-        <div className="flex justify-end space-x-3 mb-8">
+        <div className="flex justify-between items-center mb-8">
           {selectedTrack && (
             <>
-              <button
-                onClick={() => setShowScenarioForm(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                Add Scenario
-              </button>
               <button
                 onClick={handleBackToTracks}
                 className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
                 Back to Tracks
               </button>
+              <div></div>
             </>
           )}
           {!selectedTrack && (
-            <button
-              onClick={() => setShowTrackForm(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Create Track
-            </button>
+            <>
+              <div></div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowScenarioForm(true)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Add Scenario
+                </button>
+                <button
+                  onClick={() => setShowTrackForm(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Create Track
+                </button>
+              </div>
+            </>
           )}
         </div>
 
@@ -503,10 +511,12 @@ export default function ManagerDashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h3 className="text-lg font-medium text-gray-900">{scenario.title}</h3>
+                          <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
                           <p className="text-gray-600 mt-1">{scenario.description}</p>
                           <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' : 'Service Practice'}
+                              {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
+                               scenario.scenario_type === 'recommendations' ? 'Recommendations' : 'Service Practice'}
                             </span>
                             {scenario.scenario_type === 'service_practice' && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -548,6 +558,29 @@ export default function ManagerDashboard() {
                                   <span className="text-sm text-gray-500 italic">No topics assigned</span>
                                 )}
                               </div>
+                            </div>
+                          )}
+
+                          {scenario.scenario_type === 'recommendations' && (
+                            <div className="mt-4 space-y-2">
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">Questions:</span>
+                                <div className="mt-1">
+                                  {scenario.recommendation_question_ids && scenario.recommendation_question_ids.length > 0 ? (
+                                    <span className="text-sm text-gray-600">
+                                      {scenario.recommendation_question_ids.length} recommendation question{scenario.recommendation_question_ids.length === 1 ? '' : 's'} selected
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm text-gray-500 italic">No questions assigned</span>
+                                  )}
+                                </div>
+                              </div>
+                              {scenario.instructions && (
+                                <div>
+                                  <span className="text-sm font-medium text-gray-700">Instructions:</span>
+                                  <p className="text-sm text-gray-600 mt-1">{scenario.instructions}</p>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -626,10 +659,12 @@ export default function ManagerDashboard() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <h3 className="text-lg font-medium text-gray-900">{scenario.title}</h3>
+                        <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
                         <p className="text-gray-600 mt-1">{scenario.description}</p>
                         <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' : 'Service Practice'}
+                            {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
+                             scenario.scenario_type === 'recommendations' ? 'Recommendations' : 'Service Practice'}
                           </span>
                           {scenario.scenario_type === 'service_practice' && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -686,6 +721,29 @@ export default function ManagerDashboard() {
                             </div>
                           </div>
                         )}
+
+                        {scenario.scenario_type === 'recommendations' && (
+                          <div className="mt-4 space-y-2">
+                            <div>
+                              <span className="text-sm font-medium text-gray-700">Questions:</span>
+                              <div className="mt-1">
+                                {scenario.recommendation_question_ids && scenario.recommendation_question_ids.length > 0 ? (
+                                  <span className="text-sm text-gray-600">
+                                    {scenario.recommendation_question_ids.length} recommendation question{scenario.recommendation_question_ids.length === 1 ? '' : 's'} selected
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-500 italic">No questions assigned</span>
+                                )}
+                              </div>
+                            </div>
+                            {scenario.instructions && (
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">Instructions:</span>
+                                <p className="text-sm text-gray-600 mt-1">{scenario.instructions}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="ml-4 flex-shrink-0 flex space-x-2">
                         <button
@@ -723,16 +781,18 @@ export default function ManagerDashboard() {
         )}
 
         {/* Scenario Form Modal */}
-        {showScenarioForm && selectedTrack && (
+        {showScenarioForm && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Create New Scenario</h3>
-                <p className="text-sm text-gray-600">Adding to: {selectedTrack.name}</p>
+                {selectedTrack && (
+                  <p className="text-sm text-gray-600">Adding to: {selectedTrack.name}</p>
+                )}
               </div>
               <ScenarioForm
                 companyId={companyId}
-                tracks={[selectedTrack]}
+                tracks={selectedTrack ? [selectedTrack] : tracks}
                 onSuccess={handleScenarioCreated}
                 onCancel={() => setShowScenarioForm(false)}
               />

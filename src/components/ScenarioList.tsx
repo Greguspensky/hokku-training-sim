@@ -262,6 +262,9 @@ export default function ScenarioList({
                       <h3 className="text-lg font-medium text-gray-900 mb-1">
                         {localizedScenario.title}
                       </h3>
+                      <p className="text-xs text-gray-400 font-mono mb-1">
+                        ID: {scenario.id}
+                      </p>
                       <p className="text-gray-600 text-sm">
                         {localizedScenario.description}
                       </p>

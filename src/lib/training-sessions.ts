@@ -15,7 +15,7 @@ export interface TrainingSession {
   assignment_id: string
   company_id: string
   session_name: string
-  training_mode: 'theory' | 'service_practice'
+  training_mode: 'theory' | 'service_practice' | 'recommendation_tts'
   language: string
   agent_id: string
   knowledge_context: ScenarioKnowledgeContext | null
@@ -44,7 +44,7 @@ export interface CreateSessionData {
   employee_id: string
   assignment_id: string
   company_id: string
-  training_mode: 'theory' | 'service_practice'
+  training_mode: 'theory' | 'service_practice' | 'recommendation_tts'
   language: string
   agent_id: string
   knowledge_context?: ScenarioKnowledgeContext | null

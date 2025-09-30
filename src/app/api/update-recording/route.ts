@@ -4,11 +4,21 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('📦 Received update-recording request:', JSON.stringify(body, null, 2))
     const { sessionId, recordingData } = body
 
-    if (!sessionId || !recordingData) {
+    if (!sessionId) {
+      console.error('❌ Missing sessionId in request')
       return NextResponse.json(
-        { error: 'Missing sessionId or recordingData' },
+        { error: 'Missing sessionId' },
+        { status: 400 }
+      )
+    }
+
+    if (!recordingData) {
+      console.error('❌ Missing recordingData in request')
+      return NextResponse.json(
+        { error: 'Missing recordingData' },
         { status: 400 }
       )
     }

@@ -5,23 +5,26 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2025-09-26)
+## Current Project State (2025-09-29)
 **Status**: ElevenLabs Conversational AI integration COMPLETE and WORKING ✅
 **NEW**: AI Knowledge Extraction System COMPLETE and TESTED ✅
-**🔥 LATEST**: Language-Specific Initialization FIXED ✅
+**🔥 LATEST**: Scenario-Specific Question Selection FIXED ✅
+**✅ PREVIOUS**: Language-Specific Initialization FIXED ✅
 **Documentation**: Complete project documentation created
 
 ### What's Working Now
-- **Theory Q&A System**: Agent acts as strict examiner asking coffee shop questions
+- **Theory Q&A System**: Agent acts as strict examiner asking scenario-specific questions
+- **🔥 Scenario-Specific Questions**: Agent asks ONLY the questions assigned to the specific scenario (e.g., 8 pastry questions) instead of general knowledge base
 - **Multi-language Support**: 13 languages with flag dropdown selection
 - **Dynamic Knowledge**: Database-driven knowledge loading (2 documents, 1629 chars)
 - **Dynamic Variables**: Successfully passing instructions and knowledge to agent
+- **Question Preview**: UI shows exactly which questions the agent will ask with priority status
 - **Question Progression**: Agent moves to next question after any answer
 - **Demo Mode**: File-based assignments working perfectly
 - **✅ AI Knowledge Extraction**: GPT-4 analyzes documents → 18 topics → 54 questions automatically
 - **✅ Transcript Attribution**: Fixed "You" vs "AI Trainer" message display in training sessions
 - **✅ Assessment Scoring**: Real Q&A evaluation scores instead of "No Assessment Available"
-- **🔥 ✅ Language-Specific Initialization**: Agent starts immediately in selected language without English greeting
+- **✅ Language-Specific Initialization**: Agent starts immediately in selected language without English greeting
 
 ### Key URLs
 - Training Page: http://localhost:3000/employee/training/demo-assignment-1758312913428-7qtmmsq
@@ -74,6 +77,7 @@ You are operating in {{training_mode}} mode. Follow the examiner instructions ab
 3. **Question Scoring**: Add evaluation system for correct/incorrect answers
 
 ### Known Issues Status ⚠️
+- **🔥 ✅ FIXED: Scenario-Specific Question Selection**: Agent now uses ONLY scenario questions (e.g., 8 pastry questions) instead of general knowledge base (16 questions)
 - **✅ FIXED: Language-Specific Initialization**: Agent now starts immediately in selected language using ElevenLabs overrides
 - **✅ FIXED: Transcript Attribution**: Training sessions now show proper "You" vs "AI Trainer" messages
 - **✅ FIXED: Assessment Scoring**: Real Q&A evaluation results instead of "No Assessment Available"
@@ -83,9 +87,10 @@ You are operating in {{training_mode}} mode. Follow the examiner instructions ab
 - **Hard-coded Knowledge**: Still present as fallback, but dynamic loading works
 
 ### Key Files to Know
-- `src/components/ElevenLabsAvatarSession.tsx` - Main avatar session component (has hard-coded content)
-- **🔥 `src/lib/elevenlabs-conversation.ts`** - Conversation service with language-specific initialization (FIXED)
-- `src/app/employee/training/[assignmentId]/page.tsx` - Training page with language selection
+- **🔥 `src/components/ElevenLabsAvatarSession.tsx`** - Main avatar session component with scenario-specific question prioritization (FIXED)
+- **🔥 `src/app/api/scenario-questions/route.ts`** - NEW: API endpoint for loading scenario-specific questions based on topic_ids (NEW)
+- **🔥 `src/app/employee/training/[assignmentId]/page.tsx`** - Training page with scenario question loading and preview display (UPDATED)
+- `src/lib/elevenlabs-conversation.ts` - Conversation service with language-specific initialization (FIXED)
 - `src/app/api/elevenlabs-token/route.ts` - Token API (GET method)
 - `src/app/api/elevenlabs-conversation-transcript/route.ts` - Production transcript endpoint (FIXED)
 - `src/app/api/test-elevenlabs-transcript/route.ts` - Test transcript endpoint (NEW)
@@ -369,3 +374,93 @@ When session starts, console shows:
 ✅ **Comprehensive Logging**: Easy debugging and troubleshooting
 
 **Status**: Language-specific initialization now working with proper ElevenLabs API usage
+
+## 🔥 Scenario-Specific Question Selection System (2025-09-29)
+
+### Problem Solved
+ElevenLabs agent was asking 16 general questions from the knowledge base instead of the 8 specific scenario questions that were correctly loaded and displayed in the UI.
+
+### Root Cause Analysis
+**Data Flow Disconnect:** The scenario questions were being loaded in the training page state but weren't being passed to the ElevenLabsAvatarSession component, causing the agent to fall back to the hard-coded general knowledge base.
+
+### Technical Solution Details
+
+#### 1. New API Endpoint (`/src/app/api/scenario-questions/route.ts`)
+```javascript
+export async function GET(request: NextRequest) {
+  // Loads questions based on scenario's topic_ids
+  // Implements priority-based sorting: unanswered → incorrect → correct
+  // Returns scenario-specific questions with status tracking
+}
+```
+
+#### 2. Component Data Flow (`/src/app/employee/training/[assignmentId]/page.tsx:100-116`)
+```javascript
+// Load scenario questions if it's a theory scenario
+if (selectedScenario.scenario_type === 'theory') {
+  loadScenarioQuestions(selectedScenario.id, user?.id)
+}
+
+// Pass scenario questions to ElevenLabs component
+<ElevenLabsAvatarSession
+  scenarioQuestions={scenarioQuestions} // NEW: Scenario-specific questions
+  // ... other props
+/>
+```
+
+#### 3. Question Prioritization Logic (`/src/components/ElevenLabsAvatarSession.tsx:209-217`)
+```javascript
+// Use scenario-specific questions first, then fall back to other sources
+const questionsToUse = scenarioQuestions.length > 0 ? scenarioQuestions :
+  loadedQuestions || sessionQuestions || structuredQuestions
+
+console.log('📋 Questions source:',
+  scenarioQuestions.length > 0 ? 'scenarioQuestions (scenario-specific)' :
+  loadedQuestions ? 'loadedQuestions' :
+  sessionQuestions.length > 0 ? 'sessionQuestions (new API)' :
+  'structuredQuestions (legacy)'
+)
+```
+
+#### 4. Enhanced UI Features
+- **Question Preview Section**: Shows exactly which questions the agent will ask
+- **Priority Status Indicators**: Visual indicators for unanswered/incorrect/correct questions
+- **Scenario Context Display**: Shows agent will ask scenario-specific questions vs general knowledge base
+
+### Expected Behavior After Fix
+
+**Before Fix:**
+```
+❌ Agent asks 16 general questions from knowledge base (drinks topics)
+❌ UI shows 8 pastry questions but agent ignores them
+❌ No connection between UI preview and agent behavior
+```
+
+**After Fix:**
+```
+✅ Agent asks ONLY the 8 specific pastry questions shown in UI
+✅ Perfect sync between question preview and agent behavior
+✅ Priority-based question ordering: unanswered → incorrect → correct
+✅ Scenario-specific context: "Theory Pastry" questions only
+```
+
+### Files Modified
+1. **NEW: `/src/app/api/scenario-questions/route.ts`** - API endpoint for loading scenario questions
+2. **`/src/components/ElevenLabsAvatarSession.tsx`** - Added `scenarioQuestions` prop and priority logic
+3. **`/src/app/employee/training/[assignmentId]/page.tsx`** - Load and pass scenario questions to component
+4. **`/src/components/ScenarioForm.tsx`** & **`EditScenarioForm.tsx`** - Added mandatory Name field for Theory scenarios
+
+### Testing Instructions
+1. Visit Theory Pastry scenario training page
+2. **Verify Question Preview**: Should show exactly 8 pastry-specific questions with priority status
+3. **Start ElevenLabs Session**: Agent should ask ONLY the 8 pastry questions, not general drinks questions
+4. **Check Console Logs**: Should show "scenarioQuestions (scenario-specific)" as questions source
+
+### Impact
+✅ **Perfect Question Targeting**: Agent now asks only relevant scenario questions
+✅ **UI/Agent Sync**: Question preview matches exactly what agent will ask
+✅ **Enhanced UX**: Users see exactly what to expect before starting session
+✅ **Priority Learning**: Questions ordered by learning needs (unanswered first)
+✅ **Scenario Focus**: Agent stays on topic instead of asking random knowledge base questions
+
+**Status**: Critical ElevenLabs agent question selection issue completely resolved

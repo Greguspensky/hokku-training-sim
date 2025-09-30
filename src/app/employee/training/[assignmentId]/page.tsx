@@ -7,6 +7,7 @@ import { KnowledgeBaseDocument } from '@/lib/knowledge-base'
 import { useAuth } from '@/contexts/AuthContext'
 import UserHeader from '@/components/UserHeader'
 import { ElevenLabsAvatarSession } from '@/components/ElevenLabsAvatarSession'
+import { RecommendationTTSSession } from '@/components/RecommendationTTSSession'
 import TheoryPracticeSession from '@/components/TheoryPracticeSession'
 import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '@/lib/avatar-types'
 import { RecordingConsent } from '@/components/RecordingConsent'
@@ -51,10 +52,19 @@ export default function TrainingSessionPage() {
   const [transcriptAnalysis, setTranscriptAnalysis] = useState<any>(null)
   const [scenarioQuestions, setScenarioQuestions] = useState<any[]>([])
   const [questionsLoading, setQuestionsLoading] = useState(false)
+  const [recommendationQuestions, setRecommendationQuestions] = useState<any[]>([])
+  const [recommendationQuestionsLoading, setRecommendationQuestionsLoading] = useState(false)
 
   useEffect(() => {
     loadTrainingData()
   }, [assignmentId, user])
+
+  // Auto-set recording preference for recommendations scenarios
+  useEffect(() => {
+    if (currentScenario?.scenario_type === 'recommendations') {
+      setRecordingPreference('audio_video')
+    }
+  }, [currentScenario])
 
   const loadTrainingData = async () => {
     if (!user) return
@@ -105,6 +115,11 @@ export default function TrainingSessionPage() {
             if (selectedScenario.scenario_type === 'theory') {
               loadScenarioQuestions(selectedScenario.id, user?.id)
             }
+
+            // Load recommendation questions if it's a recommendations scenario
+            if (selectedScenario.scenario_type === 'recommendations' && selectedScenario.recommendation_question_ids?.length > 0) {
+              loadRecommendationQuestions(selectedScenario.recommendation_question_ids)
+            }
           } else {
             console.error('❌ Scenario not found:', scenarioId)
             // Fall back to default behavior
@@ -127,6 +142,11 @@ export default function TrainingSessionPage() {
             // Load scenario questions if it's a theory scenario
             if (firstScenario.scenario_type === 'theory') {
               loadScenarioQuestions(firstScenario.id, user?.id)
+            }
+
+            // Load recommendation questions if it's a recommendations scenario
+            if (firstScenario.scenario_type === 'recommendations' && firstScenario.recommendation_question_ids?.length > 0) {
+              loadRecommendationQuestions(firstScenario.recommendation_question_ids)
             }
           } else {
             console.error('❌ No scenarios found in assignment')
@@ -334,6 +354,33 @@ export default function TrainingSessionPage() {
     }
   }
 
+  const loadRecommendationQuestions = async (questionIds: string[]) => {
+    setRecommendationQuestionsLoading(true)
+
+    try {
+      const response = await fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_ids: questionIds })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setRecommendationQuestions(result.questions || [])
+        console.log(`✅ Loaded ${result.questions?.length || 0} recommendation questions`)
+      } else {
+        console.error('❌ Failed to load recommendation questions:', result.error)
+        setRecommendationQuestions([])
+      }
+    } catch (error) {
+      console.error('❌ Error loading recommendation questions:', error)
+      setRecommendationQuestions([])
+    } finally {
+      setRecommendationQuestionsLoading(false)
+    }
+  }
+
   const handleGetTranscriptAnalysis = async () => {
     if (!sessionData?.sessionId) {
       alert('No session data available for analysis')
@@ -414,31 +461,50 @@ export default function TrainingSessionPage() {
               You've successfully completed the training session. Your progress has been recorded.
             </p>
 
+            {/* Session Statistics */}
             <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {sessionData?.sessionType === 'recommendation_tts' ? (
+                // TTS Recommendation Session Stats - No scoring, just question count
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{questions.length}</div>
-                  <div className="text-sm text-gray-600">Questions Answered</div>
+                  <div className="text-3xl font-bold text-blue-600">{sessionData.questionsCompleted || 0}</div>
+                  <div className="text-lg text-gray-600">Questions Completed</div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Recommendation training focuses on practical skills - no right or wrong answers
+                  </p>
+                  {sessionData.savedSessionId && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-500">Session ID for debugging:</p>
+                      <p className="text-sm font-mono text-gray-700">{sessionData.savedSessionId}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {Object.values(scores).filter(score => score).length}
+              ) : (
+                // Theory Session Stats - Traditional scoring
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{questions.length}</div>
+                    <div className="text-sm text-gray-600">Questions Answered</div>
                   </div>
-                  <div className="text-sm text-gray-600">Correct Answers</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    {Object.values(scores).filter(score => !score).length}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {Object.values(scores).filter(score => score).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Correct Answers</div>
                   </div>
-                  <div className="text-sm text-gray-600">Factual Errors</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {Math.round((Object.values(scores).filter(score => score).length / questions.length) * 100)}%
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {Object.values(scores).filter(score => !score).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Factual Errors</div>
                   </div>
-                  <div className="text-sm text-gray-600">Factual Score</div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {Math.round((Object.values(scores).filter(score => score).length / questions.length) * 100)}%
+                    </div>
+                    <div className="text-sm text-gray-600">Factual Score</div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Transcript Analysis Results */}
@@ -498,7 +564,8 @@ export default function TrainingSessionPage() {
             )}
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              {sessionData && !transcriptAnalysis && (
+              {/* Only show transcript analysis for non-TTS sessions */}
+              {sessionData && sessionData.sessionType !== 'recommendation_tts' && !transcriptAnalysis && (
                 <button
                   onClick={handleGetTranscriptAnalysis}
                   disabled={isAnalyzingTranscript}
@@ -574,11 +641,18 @@ export default function TrainingSessionPage() {
                 {/* Session Configuration Header */}
                 <div className="mb-8">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                    {currentScenario.scenario_type === 'theory' ? '📖 Theory Q&A Session' : '🗣️ Service Practice Session'}
+                    {currentScenario.scenario_type === 'theory'
+                      ? '📖 Theory Q&A Session'
+                      : currentScenario.scenario_type === 'recommendations'
+                      ? '🎯 Product Recommendations Session'
+                      : '🗣️ Service Practice Session'
+                    }
                   </h1>
                   <p className="text-gray-600">
                     {currentScenario.scenario_type === 'theory'
                       ? 'Structured knowledge assessment - Answer questions accurately and concisely'
+                      : currentScenario.scenario_type === 'recommendations'
+                      ? 'Product recommendation training - Learn to suggest appropriate products and services'
                       : 'Interactive roleplay scenario - Practice real customer service situations'
                     }
                   </p>
@@ -590,7 +664,14 @@ export default function TrainingSessionPage() {
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
                     <h3 className="font-semibold text-gray-900 mb-2">⚙️ Session Configuration</h3>
                     <div className="text-gray-700 text-sm space-y-1">
-                      <p><strong>Training Mode:</strong> {currentScenario.scenario_type === 'theory' ? '📖 Theory Assessment' : '🗣️ Service Practice'}</p>
+                      <p><strong>Training Mode:</strong>
+                        {currentScenario.scenario_type === 'theory'
+                          ? '📖 Theory Assessment'
+                          : currentScenario.scenario_type === 'recommendations'
+                          ? '🎯 Product Recommendations'
+                          : '🗣️ Service Practice'
+                        }
+                      </p>
                       <p><strong>Scenario:</strong> {currentScenario.title}</p>
                       <p><strong>Company:</strong> {companyId}</p>
                     </div>
@@ -613,6 +694,13 @@ export default function TrainingSessionPage() {
                               ) : (
                                 'Strict Theory Examiner - Will ask knowledge-based questions'
                               )
+                            ) : currentScenario.scenario_type === 'recommendations' ? (
+                              <>
+                                <strong>Product Recommendation Specialist</strong> - Will engage in interactive training focused on product recommendations.
+                                {currentScenario.recommendation_question_ids?.length > 0 && (
+                                  <> Covers {currentScenario.recommendation_question_ids.length} specific recommendation scenarios.</>
+                                )}
+                              </>
                             ) : (
                               'Customer in Roleplay - Will act according to scenario behavior'
                             )}
@@ -655,6 +743,70 @@ export default function TrainingSessionPage() {
                               ) : (
                                 <p className="text-gray-600 text-xs">
                                   Will ask questions based on company knowledge base
+                                </p>
+                              )}
+                            </div>
+                          ) : currentScenario.scenario_type === 'recommendations' ? (
+                            <div className="space-y-2">
+                              <p className="text-gray-600 text-xs">
+                                <strong>Training Focus:</strong> {currentScenario.title}
+                              </p>
+                              {currentScenario.instructions && (
+                                <p className="text-gray-600 text-xs">
+                                  <strong>Instructions:</strong> {currentScenario.instructions}
+                                </p>
+                              )}
+                              {recommendationQuestionsLoading ? (
+                                <div className="flex items-center space-x-2">
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-purple-500"></div>
+                                  <span className="text-gray-600 text-xs">Loading recommendation questions...</span>
+                                </div>
+                              ) : recommendationQuestions.length > 0 ? (
+                                <div>
+                                  <p className="text-gray-600 text-xs mb-2">
+                                    Will cover {recommendationQuestions.length} specific recommendation questions:
+                                  </p>
+                                  <div className="max-h-32 overflow-y-auto space-y-1">
+                                    {recommendationQuestions.slice(0, 3).map((question, index) => (
+                                      <div key={question.id} className="text-xs">
+                                        <span className="inline-block w-2 h-2 rounded-full mr-2 bg-purple-400"></span>
+                                        <span className="text-gray-700">
+                                          {index + 1}. {question.question_text?.slice(0, 60) || question.title?.slice(0, 60) || 'Question'}
+                                          {((question.question_text?.length || 0) > 60 || (question.title?.length || 0) > 60) && '...'}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {recommendationQuestions.length > 3 && (
+                                      <p className="text-xs text-gray-500 italic">
+                                        + {recommendationQuestions.length - 3} more questions
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : currentScenario.recommendation_question_ids && currentScenario.recommendation_question_ids.length > 0 ? (
+                                <div>
+                                  <p className="text-gray-600 text-xs mb-2">
+                                    Will cover {currentScenario.recommendation_question_ids.length} specific recommendation scenarios:
+                                  </p>
+                                  <div className="max-h-32 overflow-y-auto space-y-1">
+                                    {currentScenario.recommendation_question_ids.slice(0, 3).map((questionId, index) => (
+                                      <div key={questionId} className="text-xs">
+                                        <span className="inline-block w-2 h-2 rounded-full mr-2 bg-purple-400"></span>
+                                        <span className="text-gray-700">
+                                          {index + 1}. Recommendation scenario #{questionId.slice(-8)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {currentScenario.recommendation_question_ids.length > 3 && (
+                                      <p className="text-xs text-gray-500 italic">
+                                        + {currentScenario.recommendation_question_ids.length - 3} more scenarios
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-gray-600 text-xs">
+                                  Interactive product recommendation training session with AI specialist
                                 </p>
                               )}
                             </div>
@@ -722,7 +874,10 @@ export default function TrainingSessionPage() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
                     <p className="text-gray-600 mb-4">
-                      Choose your recording preference for this training session.
+                      {currentScenario?.scenario_type === 'recommendations'
+                        ? 'This recommendation training requires video recording to capture your responses to spoken questions.'
+                        : 'Choose your recording preference for this training session.'
+                      }
                     </p>
 
                     <div className="relative inline-block text-left w-full max-w-xs">
@@ -730,10 +885,17 @@ export default function TrainingSessionPage() {
                         value={recordingPreference}
                         onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
                         className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                        disabled={currentScenario?.scenario_type === 'recommendations'}
                       >
-                        <option value="none">🚫 No Recording</option>
-                        <option value="audio">🎤 Audio Recording</option>
-                        <option value="audio_video">🎬 Audio + Video Recording</option>
+                        {currentScenario?.scenario_type === 'recommendations' ? (
+                          <option value="audio_video">🎬 Video Recording (Required)</option>
+                        ) : (
+                          <>
+                            <option value="none">🚫 No Recording</option>
+                            <option value="audio">🎤 Audio Recording</option>
+                            <option value="audio_video">🎬 Audio + Video Recording</option>
+                          </>
+                        )}
                       </select>
                       <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -852,8 +1014,28 @@ export default function TrainingSessionPage() {
               </div>
             )}
 
-            {/* Avatar Session - Shown Inline */}
-            {showAvatarSession && (
+            {/* Training Sessions - Conditional Rendering */}
+            {showAvatarSession && currentScenario.scenario_type === 'recommendations' && (
+              <div className="bg-white rounded-lg shadow-lg">
+                <RecommendationTTSSession
+                  companyId={companyId}
+                  scenarioId={currentScenario.id}
+                  scenario={currentScenario}
+                  questions={recommendationQuestions}
+                  language={selectedLanguage}
+                  assignmentId={assignmentId}
+                  onSessionEnd={(completedSessionData) => {
+                    console.log('✅ TTS recommendation session completed:', completedSessionData)
+                    setSessionData(completedSessionData)
+                    updateProgress()
+                    setSessionComplete(true)
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Avatar Session - For Theory and Service Practice */}
+            {showAvatarSession && currentScenario.scenario_type !== 'recommendations' && (
               <div className="bg-white rounded-lg shadow-lg">
                 <ElevenLabsAvatarSession
                   companyId={companyId}

@@ -65,9 +65,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { employee_id, scenario_id, assigned_by, notes } = body
 
+    console.log('📋 Creating scenario assignment:', { employee_id, scenario_id, assigned_by })
+
     if (!employee_id || !scenario_id || !assigned_by) {
       return NextResponse.json(
         { success: false, error: 'Employee ID, scenario ID, and assigned_by are required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify that the scenario exists in the database
+    const { data: existingScenario, error: scenarioError } = await supabaseAdmin
+      .from('scenarios')
+      .select('id')
+      .eq('id', scenario_id)
+      .single()
+
+    if (scenarioError || !existingScenario) {
+      console.log('🚫 Scenario not found in database:', scenario_id)
+      return NextResponse.json(
+        { success: false, error: 'Scenario not found. Please select a valid scenario.' },
         { status: 400 }
       )
     }
@@ -105,6 +122,8 @@ export async function POST(request: NextRequest) {
       console.error('Error creating scenario assignment:', error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
+
+    console.log('✅ Successfully created scenario assignment')
 
     return NextResponse.json({
       success: true,

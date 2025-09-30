@@ -28,6 +28,34 @@ export default function ScenarioAssignmentModal({
   const [loadingScenarios, setLoadingScenarios] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  // Helper function to get scenario type display name
+  const getScenarioTypeDisplay = (scenarioType: string) => {
+    switch (scenarioType) {
+      case 'theory':
+        return 'Theory Q&A'
+      case 'service_practice':
+        return 'Service Practice'
+      case 'recommendations':
+        return 'Recommendations'
+      default:
+        return scenarioType
+    }
+  }
+
+  // Helper function to get scenario type color
+  const getScenarioTypeColor = (scenarioType: string) => {
+    switch (scenarioType) {
+      case 'theory':
+        return 'bg-blue-200 text-blue-800'
+      case 'service_practice':
+        return 'bg-green-200 text-green-800'
+      case 'recommendations':
+        return 'bg-purple-200 text-purple-800'
+      default:
+        return 'bg-gray-200 text-gray-800'
+    }
+  }
+
   // Load available tracks
   const loadTracks = async () => {
     setLoading(true)
@@ -251,7 +279,7 @@ export default function ScenarioAssignmentModal({
                   <option value="">Choose a scenario...</option>
                   {scenarios.map((scenario) => (
                     <option key={scenario.id} value={scenario.id}>
-                      {scenario.title} ({scenario.scenario_type === 'theory' ? 'Theory' : 'Practice'} • {scenario.estimated_duration_minutes}min)
+                      {scenario.title} [ID: {scenario.id.slice(-8)}] ({getScenarioTypeDisplay(scenario.scenario_type)} • {scenario.estimated_duration_minutes}min)
                     </option>
                   ))}
                 </select>
@@ -269,12 +297,8 @@ export default function ScenarioAssignmentModal({
                     <h4 className="font-medium text-green-900">{selectedScenario.title}</h4>
                     <p className="text-sm text-green-700 mt-1">{selectedScenario.description}</p>
                     <div className="mt-2 flex items-center space-x-4 text-xs text-green-600">
-                      <span className={`px-2 py-1 rounded ${
-                        selectedScenario.scenario_type === 'theory'
-                          ? 'bg-blue-200 text-blue-800'
-                          : 'bg-green-200 text-green-800'
-                      }`}>
-                        {selectedScenario.scenario_type === 'theory' ? 'Theory' : 'Practice'}
+                      <span className={`px-2 py-1 rounded ${getScenarioTypeColor(selectedScenario.scenario_type)}`}>
+                        {getScenarioTypeDisplay(selectedScenario.scenario_type)}
                       </span>
                       <span>{selectedScenario.difficulty}</span>
                       <span>{selectedScenario.estimated_duration_minutes} min</span>

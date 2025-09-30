@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Calendar, Clock, MessageCircle, Brain } from 'lucide-react'
+import { Calendar, Clock, MessageCircle, Brain, Video, Target } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
 interface SessionCardProps {
@@ -63,16 +63,25 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
               <Calendar className="w-4 h-4 mr-1" />
               {formatDate(session.started_at)} at {formatTime(session.started_at)}
             </div>
+            <div className="text-xs text-gray-400 font-mono mt-1">
+              ID: {session.id}
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${
                 session.training_mode === 'theory'
                   ? 'bg-blue-100 text-blue-800'
+                  : session.training_mode === 'recommendation_tts'
+                  ? 'bg-purple-100 text-purple-800'
                   : 'bg-green-100 text-green-800'
               }`}
             >
-              {session.training_mode === 'theory' ? 'Theory Q&A' : 'Service Practice'}
+              {session.training_mode === 'theory'
+                ? 'Theory Q&A'
+                : session.training_mode === 'recommendation_tts'
+                ? 'Product Recommendations'
+                : 'Service Practice'}
             </span>
           </div>
         </div>
@@ -83,8 +92,17 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
             <span>{trainingSessionsService.formatDuration(session.session_duration_seconds)}</span>
           </div>
           <div className="flex items-center text-gray-600">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            <span>{session.conversation_transcript.length} messages</span>
+            {session.training_mode === 'recommendation_tts' ? (
+              <>
+                <Target className="w-4 h-4 mr-2" />
+                <span>{session.conversation_transcript.length} questions</span>
+              </>
+            ) : (
+              <>
+                <MessageCircle className="w-4 h-4 mr-2" />
+                <span>{session.conversation_transcript.length} messages</span>
+              </>
+            )}
           </div>
           <div className="flex items-center text-gray-600">
             <Brain className="w-4 h-4 mr-2" />
@@ -109,6 +127,25 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
                   +{session.knowledge_context.documents.length - 3} more
                 </span>
               )}
+            </div>
+          </div>
+        )}
+
+        {session.video_recording_url && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="text-xs text-gray-500 mb-2 flex items-center">
+              <Video className="w-3 h-3 mr-1" />
+              Video Recording:
+            </div>
+            <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              <video
+                src={session.video_recording_url}
+                controls
+                className="w-full h-full object-cover"
+                preload="metadata"
+              >
+                Your browser does not support video playback.
+              </video>
             </div>
           </div>
         )}
