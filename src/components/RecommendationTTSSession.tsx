@@ -71,6 +71,7 @@ export function RecommendationTTSSession({
   const ttsAudioSourceRef = useRef<MediaElementAudioSourceNode | null>(null)
   const recordingAudioRef = useRef<HTMLAudioElement | null>(null)
   const videoChunksRef = useRef<Blob[]>([])
+  const recordingMimeTypeRef = useRef<string>('video/webm')
 
   // Get duration in seconds from scenario (convert from minutes)
   const questionDurationSeconds = (scenario?.estimated_duration_minutes || 2) * 60
@@ -272,7 +273,27 @@ export function RecommendationTTSSession({
 
       console.log(`🎬 Combined stream created with ${combinedStream.getTracks().length} tracks (${combinedStream.getVideoTracks().length} video, ${combinedStream.getAudioTracks().length} audio)`)
 
-      const recorder = new MediaRecorder(combinedStream)
+      // Choose appropriate MIME type for the device
+      const getSupportedMimeType = () => {
+        const types = [
+          'video/mp4',           // iOS Safari requirement
+          'video/webm;codecs=vp8',
+          'video/webm'
+        ]
+
+        for (const type of types) {
+          if (MediaRecorder.isTypeSupported(type)) {
+            console.log(`📹 Using supported MIME type: ${type}`)
+            return type
+          }
+        }
+        console.warn('⚠️ No supported video MIME type found, falling back to video/webm')
+        return 'video/webm'
+      }
+
+      const mimeType = getSupportedMimeType()
+      recordingMimeTypeRef.current = mimeType
+      const recorder = new MediaRecorder(combinedStream, { mimeType })
       setMediaRecorder(recorder)
 
       // Clear any existing chunks
@@ -409,16 +430,25 @@ export function RecommendationTTSSession({
       // Upload video recording if available
       const chunks = videoChunksRef.current
       console.log(`📹 Video recording check: ${chunks.length} chunks available (from ref), ${recordedChunks.length} chunks in state`)
+      console.log(`📱 User agent: ${navigator.userAgent}`)
+      console.log(`📱 Is mobile device: ${/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)}`)
+
       if (chunks.length > 0) {
         console.log('📹 Uploading video recording...')
         try {
+          // Create video blob with the same MIME type used for recording
           const videoBlob = new Blob(chunks, {
-            type: 'video/webm'
+            type: recordingMimeTypeRef.current
           })
+
+          console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
+          console.log(`📹 First chunk type: ${chunks[0]?.type || 'unknown'}`)
 
           const formData = new FormData()
           formData.append('recording', videoBlob)
           formData.append('sessionId', savedSession)
+
+          console.log('📹 FormData prepared, starting upload...')
           formData.append('recordingType', 'video')
 
           console.log('🎯 DEBUG: Uploading video with sessionId:', savedSession, 'type:', typeof savedSession)
@@ -446,7 +476,9 @@ export function RecommendationTTSSession({
             sessionId: savedSession,
             recordingData
           })
-          await trainingSessionsService.updateSessionRecording(savedSession, recordingData)
+
+          const updateResponse = await trainingSessionsService.updateSessionRecording(savedSession, recordingData)
+          console.log('📝 Database update response:', updateResponse)
 
           console.log('✅ Session updated with video recording URL')
         } catch (error) {
