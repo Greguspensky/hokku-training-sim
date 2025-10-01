@@ -31,15 +31,33 @@ export async function POST(request: NextRequest) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`🔄 Attempt ${attempt}/${maxRetries} to fetch conversation transcript`)
 
-      transcriptResponse = await fetch(
-        `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
-        {
-          method: 'GET',
-          headers: {
-            'xi-api-key': elevenlabsApiKey,
+      try {
+        transcriptResponse = await fetch(
+          `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
+          {
+            method: 'GET',
+            headers: {
+              'xi-api-key': elevenlabsApiKey,
+            },
+            timeout: 10000 // 10 second timeout
           }
+        )
+      } catch (fetchError) {
+        console.error(`❌ Network error on attempt ${attempt}:`, fetchError.message)
+        if (attempt === maxRetries) {
+          return NextResponse.json(
+            {
+              error: 'Network error connecting to ElevenLabs API',
+              details: fetchError.message
+            },
+            { status: 503 }
+          )
         }
-      )
+        const delay = baseDelay * Math.pow(2, attempt - 1)
+        console.log(`⏳ Network error, retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        continue
+      }
 
       if (transcriptResponse.ok) {
         console.log('✅ Successfully fetched conversation transcript on attempt', attempt)
@@ -50,7 +68,11 @@ export async function POST(request: NextRequest) {
         const delay = baseDelay * Math.pow(2, attempt - 1) // Exponential backoff
         console.log(`⏳ Transcript not ready yet (404). Retrying in ${delay}ms...`)
         await new Promise(resolve => setTimeout(resolve, delay))
-      } else if (transcriptResponse.status !== 404) {
+      } else if (transcriptResponse.status === 401 && attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1) // Exponential backoff for auth errors
+        console.log(`🔑 Authentication error (401). Retrying in ${delay}ms... (attempt ${attempt}/${maxRetries})`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      } else if (transcriptResponse.status !== 404 && transcriptResponse.status !== 401) {
         // Non-404 errors should not be retried
         console.error('❌ ElevenLabs API error (non-retriable):', transcriptResponse.status, transcriptResponse.statusText)
         const errorText = await transcriptResponse.text()
