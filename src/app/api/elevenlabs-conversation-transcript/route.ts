@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('📝 Fetching conversation transcript from ElevenLabs:', conversationId)
+    console.log('🔑 API key configured:', !!elevenlabsApiKey, 'length:', elevenlabsApiKey?.length || 0)
 
     // Retry mechanism for ElevenLabs processing delays
     const maxRetries = 5
@@ -52,8 +53,15 @@ export async function POST(request: NextRequest) {
       } else if (transcriptResponse.status !== 404) {
         // Non-404 errors should not be retried
         console.error('❌ ElevenLabs API error (non-retriable):', transcriptResponse.status, transcriptResponse.statusText)
+        const errorText = await transcriptResponse.text()
+        console.error('❌ ElevenLabs error details:', errorText)
+        console.error('❌ Request details: conversationId =', conversationId, 'API key present =', !!elevenlabsApiKey)
         return NextResponse.json(
-          { error: `ElevenLabs API error: ${transcriptResponse.statusText}` },
+          {
+            error: `ElevenLabs API error: ${transcriptResponse.statusText}`,
+            details: errorText,
+            conversationId: conversationId
+          },
           { status: transcriptResponse.status }
         )
       }
