@@ -214,6 +214,12 @@ export async function POST(request: NextRequest) {
       const assessmentController = new AbortController()
       const assessmentTimeout = setTimeout(() => assessmentController.abort(), 45000) // 45 second timeout
 
+      // Make direct assessment call (avoid internal API issues)
+      const baseUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000'
+        : `https://${process.env.VERCEL_URL || request.headers.get('host') || 'hokku-training-sim.vercel.app'}`
+
+      console.log('🔗 Calling assessment API directly')
       const assessmentResponse = await fetch(`${baseUrl}/api/assess-theory-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -231,9 +237,14 @@ export async function POST(request: NextRequest) {
         assessmentResult = await assessmentResponse.json()
         console.log('✅ Assessment completed successfully')
       } else {
-        console.error('❌ Assessment failed with status:', assessmentResponse.status)
+        const errorText = await assessmentResponse.text()
+        console.error('❌ Assessment failed:', {
+          status: assessmentResponse.status,
+          statusText: assessmentResponse.statusText,
+          details: errorText
+        })
       }
-    } catch (assessmentError) {
+    } catch (assessmentError: any) {
       if (assessmentError.name === 'AbortError') {
         console.error('⏰ Assessment timed out after 45 seconds')
       } else {
