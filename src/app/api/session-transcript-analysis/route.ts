@@ -55,23 +55,29 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔄 Fetching transcript for session ${sessionId} with conversation ID: ${session.elevenlabs_conversation_id}`)
 
-    // Fetch transcript from ElevenLabs API
-    const baseUrl = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000'
-      : `https://${process.env.VERCEL_URL || request.headers.get('host') || 'hokku-training-sim.vercel.app'}`
+    // Fetch transcript directly from ElevenLabs API (bypass internal API call to avoid 401 issues)
+    const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY
+    if (!elevenlabsApiKey) {
+      console.error('❌ ElevenLabs API key not configured in environment variables')
+      return NextResponse.json({
+        success: false,
+        error: 'ElevenLabs API key not configured'
+      }, { status: 500 })
+    }
 
-    console.log(`🌐 Using baseUrl: ${baseUrl} (NODE_ENV: ${process.env.NODE_ENV})`)
+    console.log(`🔗 Calling ElevenLabs API directly for conversation: ${session.elevenlabs_conversation_id}`)
 
-    const transcriptResponse = await fetch(`${baseUrl}/api/elevenlabs-conversation-transcript`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversationId: session.elevenlabs_conversation_id
-      })
+    const transcriptResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${session.elevenlabs_conversation_id}`, {
+      method: 'GET',
+      headers: {
+        'xi-api-key': elevenlabsApiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     })
 
     if (!transcriptResponse.ok) {
-      console.error(`❌ Transcript fetch failed: ${transcriptResponse.status} ${transcriptResponse.statusText}`)
+      console.error(`❌ ElevenLabs API call failed: ${transcriptResponse.status} ${transcriptResponse.statusText}`)
       const errorText = await transcriptResponse.text()
       console.error(`❌ Error details: ${errorText}`)
       return NextResponse.json({
@@ -80,16 +86,45 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    const transcriptData = await transcriptResponse.json()
+    const conversationData = await transcriptResponse.json()
 
-    // Handle multiple possible transcript formats
-    const messages = transcriptData.transcript?.messages ||
-                    transcriptData.messages ||
-                    transcriptData.transcript ||
-                    []
+    // Transform ElevenLabs format to match expected format
+    const transcriptMessages = conversationData.transcript || []
+    const formattedTranscript = []
 
-    // Extract duration from transcript data
-    const durationSeconds = transcriptData.durationSeconds || 0
+    if (Array.isArray(transcriptMessages)) {
+      for (const msg of transcriptMessages) {
+        const role = msg.role === 'agent' ? 'assistant' : msg.role
+        const content = msg.message || ''
+        const timestamp = msg.time_in_call_secs * 1000
+
+        if (content.trim().length > 0) {
+          formattedTranscript.push({
+            role,
+            content,
+            timestamp
+          })
+        }
+      }
+    }
+
+    const durationSeconds = conversationData.metadata?.call_duration_secs || 0
+    const transcriptData = {
+      success: true,
+      conversationId: session.elevenlabs_conversation_id,
+      transcript: {
+        ...conversationData,
+        messages: formattedTranscript
+      },
+      messageCount: formattedTranscript.length,
+      durationSeconds: durationSeconds,
+      fetchedAt: new Date().toISOString()
+    }
+
+    console.log(`✅ Retrieved and formatted transcript with ${formattedTranscript.length} messages`)
+
+    // Use the formatted transcript messages
+    const messages = formattedTranscript
 
     if (!messages || messages.length === 0) {
       return NextResponse.json({
@@ -98,7 +133,6 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    console.log(`✅ Retrieved transcript with ${messages.length} messages`)
     console.log(`⏱️ Session duration: ${durationSeconds} seconds`)
 
     // Update the session with the fresh transcript and duration
