@@ -17,6 +17,7 @@ export default function SessionTranscriptPage() {
   const [audioLoading, setAudioLoading] = useState(false)
   const [audioError, setAudioError] = useState<string | null>(null)
   const [isAnalyzingTranscript, setIsAnalyzingTranscript] = useState(false)
+  const [isFetchingTranscript, setIsFetchingTranscript] = useState(false)
   const [transcriptAnalysis, setTranscriptAnalysis] = useState<any>(null)
 
   const sessionId = params.sessionId as string
@@ -53,6 +54,8 @@ export default function SessionTranscriptPage() {
       // Check for cached assessment results and load them immediately
       if (sessionData.assessment_status === 'completed' && sessionData.theory_assessment_results) {
         console.log('📊 Loading cached assessment results from database')
+        console.log('🔍 Assessment status:', sessionData.assessment_status)
+        console.log('🔍 Theory assessment results:', sessionData.theory_assessment_results)
 
         const cachedResults = {
           success: true,
@@ -70,7 +73,11 @@ export default function SessionTranscriptPage() {
         }
 
         setTranscriptAnalysis(cachedResults)
-        console.log('✅ Cached assessment results loaded successfully')
+        console.log('✅ Cached assessment results loaded successfully:', cachedResults)
+      } else {
+        console.log('🔍 No cached results found:')
+        console.log('  - assessment_status:', sessionData.assessment_status)
+        console.log('  - theory_assessment_results:', !!sessionData.theory_assessment_results)
       }
 
       // Check if we need to lazy load audio
@@ -130,6 +137,79 @@ export default function SessionTranscriptPage() {
       setAudioError('Failed to load audio recording')
     } finally {
       setAudioLoading(false)
+    }
+  }
+
+  const handleGetTranscript = async () => {
+    if (!session?.id || !session.elevenlabs_conversation_id) {
+      alert('No conversation ID available for transcript fetch')
+      return
+    }
+
+    setIsFetchingTranscript(true)
+
+    try {
+      const response = await fetch('/api/elevenlabs-conversation-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: session.elevenlabs_conversation_id
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('✅ Transcript fetched successfully')
+        // Refresh the session to get the updated transcript
+        await loadSession()
+      } else {
+        console.error('❌ Transcript fetch failed:', result.error || result.details)
+        alert(`Failed to fetch transcript: ${result.error || result.details}`)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching transcript:', error)
+      alert('Failed to fetch transcript')
+    } finally {
+      setIsFetchingTranscript(false)
+    }
+  }
+
+  const handleRunAnalysis = async (forceReAnalysis = false) => {
+    if (!session?.id) {
+      alert('No session data available for analysis')
+      return
+    }
+
+    setIsAnalyzingTranscript(true)
+
+    try {
+      const response = await fetch('/api/session-transcript-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: String(sessionId),
+          forceReAnalysis: Boolean(forceReAnalysis)
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setTranscriptAnalysis(result)
+        console.log('✅ Analysis completed successfully')
+
+        // Refresh the session to get the updated transcript
+        await loadSession()
+      } else {
+        console.error('❌ Analysis failed:', result.error)
+        alert(`Failed to run analysis: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('❌ Error running analysis:', error)
+      alert('Failed to run analysis')
+    } finally {
+      setIsAnalyzingTranscript(false)
     }
   }
 
@@ -447,28 +527,46 @@ export default function SessionTranscriptPage() {
             ) : session.conversation_transcript.length === 1 &&
                 session.conversation_transcript[0].content.includes('Get Transcript and Analysis') &&
                 !transcriptAnalysis ? (
-              /* Show button when transcript contains placeholder message and no cached results */
+              /* Show buttons when transcript contains placeholder message and no cached results */
               <div className="text-center py-8">
                 <div className="text-blue-600 text-4xl mb-4">📊</div>
                 <p className="text-gray-600 mb-4">
-                  This session transcript needs to be fetched from ElevenLabs for analysis.
+                  This session transcript needs to be fetched from ElevenLabs.
                 </p>
-                <button
-                  onClick={handleGetTranscriptAnalysis}
-                  disabled={isAnalyzingTranscript || !session.elevenlabs_conversation_id}
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {isAnalyzingTranscript ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Analyzing Transcript...
-                    </>
-                  ) : (
-                    <>
-                      📊 Get Transcript & Analysis
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                  <button
+                    onClick={handleGetTranscript}
+                    disabled={isFetchingTranscript || !session.elevenlabs_conversation_id}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {isFetchingTranscript ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Fetching Transcript...
+                      </>
+                    ) : (
+                      <>
+                        📝 Get Transcript
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleRunAnalysis}
+                    disabled={isAnalyzingTranscript || !session.elevenlabs_conversation_id}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {isAnalyzingTranscript ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Running Analysis...
+                      </>
+                    ) : (
+                      <>
+                        🧪 Get Analysis
+                      </>
+                    )}
+                  </button>
+                </div>
                 {!session.elevenlabs_conversation_id && (
                   <p className="text-red-500 text-sm mt-2">
                     No ElevenLabs conversation ID found for this session.
@@ -509,6 +607,35 @@ export default function SessionTranscriptPage() {
               </div>
             )}
           </div>
+
+          {/* Analysis Actions for existing transcripts */}
+          {session.conversation_transcript.length > 1 &&
+           session.training_mode === 'theory' &&
+           !transcriptAnalysis && (
+            <div className="mt-6 p-4 bg-gray-50 border-t">
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">
+                  Run analysis on this theory session to get detailed assessment results.
+                </p>
+                <button
+                  onClick={() => handleRunAnalysis(false)}
+                  disabled={isAnalyzingTranscript}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isAnalyzingTranscript ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Running Analysis...
+                    </>
+                  ) : (
+                    <>
+                      🧪 Run Analysis
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Theory Assessment Results */}
@@ -517,14 +644,34 @@ export default function SessionTranscriptPage() {
             {/* Assessment Summary */}
             {transcriptAnalysis.assessment?.summary && (
               <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center mb-4">
-                  <Brain className="w-6 h-6 text-blue-600 mr-3" />
-                  <h3 className="text-lg font-semibold text-gray-900">Theory Assessment Results</h3>
-                  {transcriptAnalysis.fromCache && (
-                    <span className="ml-auto text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                      📋 Cached
-                    </span>
-                  )}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <Brain className="w-6 h-6 text-blue-600 mr-3" />
+                    <h3 className="text-lg font-semibold text-gray-900">Theory Assessment Results</h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {transcriptAnalysis.fromCache && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                        📋 Cached
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleRunAnalysis(true)}
+                      disabled={isAnalyzingTranscript}
+                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      {isAnalyzingTranscript ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 mr-2"></div>
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          🔄 Redo Analysis
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

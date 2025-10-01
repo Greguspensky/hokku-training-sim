@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if analysis is already completed and cached (unless forced re-analysis)
+    console.log(`🔍 Checking cache status for session ${sessionId}:`)
+    console.log(`  - forceReAnalysis: ${forceReAnalysis}`)
+    console.log(`  - assessment_status: "${session.assessment_status}"`)
+    console.log(`  - theory_assessment_results exists: ${!!session.theory_assessment_results}`)
+
     if (!forceReAnalysis && session.assessment_status === 'completed' && session.theory_assessment_results) {
       console.log(`✅ Using cached assessment results for session ${sessionId}`)
 
@@ -217,6 +222,7 @@ export async function POST(request: NextRequest) {
       if (!process.env.OPENAI_API_KEY) {
         console.error('❌ OpenAI API key not configured')
         assessmentResult = {
+          assessmentResults: [],
           summary: { totalQuestions: 0, correctAnswers: 0, score: 0 },
           message: 'Assessment unavailable - OpenAI API key not configured'
         }
@@ -259,7 +265,8 @@ Return a JSON object with this structure:
   "assessments": [
     {
       "question": "question text",
-      "answer": "answer text",
+      "answer": "user's answer text",
+      "correctAnswer": "the correct answer",
       "score": 0-100,
       "feedback": "detailed feedback",
       "isCorrect": boolean
@@ -281,17 +288,55 @@ Return a JSON object with this structure:
           })
 
           try {
-            assessmentResult = JSON.parse(completion.choices[0].message.content || '{}')
+            const rawAssessment = JSON.parse(completion.choices[0].message.content || '{}')
+
+            // Transform the data structure to match UI expectations
+            const transformedAssessments = (rawAssessment.assessments || []).map((assessment, index) => ({
+              questionId: `q_${index + 1}`,
+              questionAsked: assessment.question || '',
+              userAnswer: assessment.answer || '',
+              correctAnswer: assessment.correctAnswer || 'Correct answer not provided',
+              isCorrect: assessment.isCorrect || false,
+              score: assessment.score || 0,
+              feedback: assessment.feedback || '',
+              topicName: assessment.topicName || 'General',
+              topicCategory: assessment.topicCategory || 'general',
+              difficultyLevel: assessment.difficultyLevel || 1
+            }))
+
+            // Calculate proper summary statistics from the transformed assessments
+            const correctAnswers = transformedAssessments.filter(a => a.isCorrect).length
+            const totalQuestions = transformedAssessments.length
+            const averageScore = totalQuestions > 0
+              ? Math.round(transformedAssessments.reduce((sum, a) => sum + a.score, 0) / totalQuestions)
+              : 0
+            const accuracy = totalQuestions > 0
+              ? Math.round((correctAnswers / totalQuestions) * 100)
+              : 0
+
+            assessmentResult = {
+              assessmentResults: transformedAssessments,
+              summary: {
+                totalQuestions,
+                correctAnswers,
+                incorrectAnswers: totalQuestions - correctAnswers,
+                averageScore,
+                accuracy,
+                score: averageScore  // Add this for UI compatibility
+              }
+            }
             console.log('✅ Assessment completed successfully with OpenAI')
           } catch (parseError) {
             console.error('❌ Error parsing OpenAI response:', parseError)
             assessmentResult = {
+              assessmentResults: [],
               summary: { totalQuestions: qaExchanges.length, correctAnswers: 0, averageScore: 0, accuracy: 0 },
               message: 'Assessment completed but response parsing failed'
             }
           }
         } else {
           assessmentResult = {
+            assessmentResults: [],
             summary: { totalQuestions: 0, correctAnswers: 0, averageScore: 0, accuracy: 0 },
             message: 'No Q&A exchanges found for assessment'
           }
@@ -300,6 +345,7 @@ Return a JSON object with this structure:
     } catch (assessmentError: any) {
       console.error('❌ Assessment error:', assessmentError.message)
       assessmentResult = {
+        assessmentResults: [],
         summary: { totalQuestions: 0, correctAnswers: 0, averageScore: 0, accuracy: 0 },
         message: `Assessment failed: ${assessmentError.message}`
       }
@@ -331,7 +377,10 @@ Return a JSON object with this structure:
 
     // Cache assessment results in database (with graceful failure)
     try {
-      const assessmentStatus = assessmentResult?.success ? 'completed' : 'failed'
+      // Assessment is considered successful if we have assessment results
+      const assessmentStatus = (assessmentResult && assessmentResult.assessmentResults && assessmentResult.assessmentResults.length > 0) ? 'completed' : 'failed'
+      console.log(`💾 Saving assessment with status: ${assessmentStatus}`)
+      console.log(`💾 Assessment has ${assessmentResult?.assessmentResults?.length || 0} results`)
 
       const { error: cacheError } = await supabaseAdmin
         .from('training_sessions')
