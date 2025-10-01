@@ -58,7 +58,9 @@ export async function POST(request: NextRequest) {
     // Fetch transcript from ElevenLabs API
     const baseUrl = process.env.NODE_ENV === 'development'
       ? 'http://localhost:3000'
-      : `https://${process.env.VERCEL_URL || 'localhost:3000'}`
+      : `https://${process.env.VERCEL_URL || request.headers.get('host') || 'hokku-training-sim.vercel.app'}`
+
+    console.log(`🌐 Using baseUrl: ${baseUrl} (NODE_ENV: ${process.env.NODE_ENV})`)
 
     const transcriptResponse = await fetch(`${baseUrl}/api/elevenlabs-conversation-transcript`, {
       method: 'POST',
@@ -69,9 +71,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (!transcriptResponse.ok) {
+      console.error(`❌ Transcript fetch failed: ${transcriptResponse.status} ${transcriptResponse.statusText}`)
+      const errorText = await transcriptResponse.text()
+      console.error(`❌ Error details: ${errorText}`)
       return NextResponse.json({
         success: false,
-        error: 'Failed to fetch transcript from ElevenLabs'
+        error: `Failed to fetch transcript from ElevenLabs: ${transcriptResponse.status}`
       }, { status: 500 })
     }
 
