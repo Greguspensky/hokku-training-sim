@@ -67,23 +67,81 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔗 Calling ElevenLabs API directly for conversation: ${session.elevenlabs_conversation_id}`)
 
-    const transcriptResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${session.elevenlabs_conversation_id}`, {
-      method: 'GET',
-      headers: {
-        'xi-api-key': elevenlabsApiKey,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    })
+    // Use the same retry logic as the transcript endpoint
+    let transcriptResponse: Response
+    const maxRetries = 3
 
-    if (!transcriptResponse.ok) {
-      console.error(`❌ ElevenLabs API call failed: ${transcriptResponse.status} ${transcriptResponse.statusText}`)
-      const errorText = await transcriptResponse.text()
-      console.error(`❌ Error details: ${errorText}`)
-      return NextResponse.json({
-        success: false,
-        error: `Failed to fetch transcript from ElevenLabs: ${transcriptResponse.status}`
-      }, { status: 500 })
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      console.log(`🔄 ElevenLabs API attempt ${attempt + 1}/${maxRetries}`)
+
+      try {
+        transcriptResponse = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${session.elevenlabs_conversation_id}`, {
+          method: 'GET',
+          headers: {
+            'xi-api-key': elevenlabsApiKey,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        })
+
+        if (transcriptResponse.ok) {
+          console.log(`✅ ElevenLabs API success on attempt ${attempt + 1}`)
+          break
+        }
+
+        // Enhanced logging for 401 errors
+        if (transcriptResponse.status === 401) {
+          console.error('🔑 Authentication failed:', {
+            attempt: attempt + 1,
+            conversationId: session.elevenlabs_conversation_id,
+            timestamp: new Date().toISOString(),
+            responseHeaders: Object.fromEntries(transcriptResponse.headers.entries()),
+            vercelRegion: process.env.VERCEL_REGION,
+            nodeEnv: process.env.NODE_ENV,
+            apiKeyConfigured: !!elevenlabsApiKey,
+            apiKeyLength: elevenlabsApiKey?.length,
+            apiKeyFormat: elevenlabsApiKey?.startsWith('sk-')
+          })
+
+          // Retry 401 errors as they can be intermittent
+          if (attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 1000
+            console.log(`⏳ Retrying 401 auth error in ${delay}ms...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+            continue
+          }
+        }
+
+        // Final attempt or non-retryable error
+        if (attempt === maxRetries - 1) {
+          const errorText = await transcriptResponse.text()
+          console.error(`❌ ElevenLabs API final error:`, {
+            status: transcriptResponse.status,
+            statusText: transcriptResponse.statusText,
+            details: errorText,
+            attempt: attempt + 1,
+            maxRetries
+          })
+          return NextResponse.json({
+            success: false,
+            error: `Failed to fetch transcript from ElevenLabs: ${transcriptResponse.status}`
+          }, { status: 500 })
+        }
+
+      } catch (fetchError: any) {
+        console.error(`❌ Network error on attempt ${attempt + 1}:`, fetchError.message)
+
+        if (attempt === maxRetries - 1) {
+          return NextResponse.json({
+            success: false,
+            error: `Network error after ${maxRetries} attempts: ${fetchError.message}`
+          }, { status: 500 })
+        }
+
+        const delay = Math.pow(2, attempt) * 1000
+        console.log(`⏳ Network error, retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
     }
 
     const conversationData = await transcriptResponse.json()
