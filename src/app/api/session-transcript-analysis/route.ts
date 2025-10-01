@@ -206,49 +206,102 @@ export async function POST(request: NextRequest) {
       console.error('⚠️ Failed to update session with new transcript:', updateError)
     }
 
-    // Run assessment on the transcript with timeout
-    console.log('🧪 Running assessment...')
+    // Run assessment on the transcript (direct integration to avoid API call issues)
+    console.log('🧪 Running assessment directly...')
     let assessmentResult = null
 
     try {
-      const assessmentController = new AbortController()
-      const assessmentTimeout = setTimeout(() => assessmentController.abort(), 45000) // 45 second timeout
+      // Import OpenAI and necessary dependencies
+      const OpenAI = (await import('openai')).default
 
-      // Make direct assessment call (avoid internal API issues)
-      const baseUrl = process.env.NODE_ENV === 'development'
-        ? 'http://localhost:3000'
-        : `https://${process.env.VERCEL_URL || request.headers.get('host') || 'hokku-training-sim.vercel.app'}`
-
-      console.log('🔗 Calling assessment API directly')
-      const assessmentResponse = await fetch(`${baseUrl}/api/assess-theory-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: sessionId,
-          userId: session.employee_id,
-          transcript: messages
-        }),
-        signal: assessmentController.signal
-      })
-
-      clearTimeout(assessmentTimeout)
-
-      if (assessmentResponse.ok) {
-        assessmentResult = await assessmentResponse.json()
-        console.log('✅ Assessment completed successfully')
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('❌ OpenAI API key not configured')
+        assessmentResult = {
+          summary: { totalQuestions: 0, correctAnswers: 0, score: 0 },
+          message: 'Assessment unavailable - OpenAI API key not configured'
+        }
       } else {
-        const errorText = await assessmentResponse.text()
-        console.error('❌ Assessment failed:', {
-          status: assessmentResponse.status,
-          statusText: assessmentResponse.statusText,
-          details: errorText
+        const openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY
         })
+
+        // Simple assessment using OpenAI directly
+        const qaExchanges = []
+        for (let i = 0; i < messages.length - 1; i++) {
+          const current = messages[i]
+          const next = messages[i + 1]
+
+          if (current.role === 'assistant' && next.role === 'user' &&
+              current.content.includes('?') && next.content.trim().length > 2) {
+            qaExchanges.push({
+              question: current.content.trim(),
+              answer: next.content.trim()
+            })
+          }
+        }
+
+        console.log(`🔍 Found ${qaExchanges.length} Q&A exchanges for assessment`)
+
+        if (qaExchanges.length > 0) {
+          // Use OpenAI to assess the Q&A exchanges
+          const assessmentPrompt = `Analyze these Q&A exchanges from a Russian coffee shop training session. For each question-answer pair, evaluate the quality and correctness of the answer on a scale of 0-100:
+
+${qaExchanges.map((qa, i) => `Q${i+1}: ${qa.question}\nA${i+1}: ${qa.answer}`).join('\n\n')}
+
+Expected knowledge includes:
+- Фейхоа пай consists of: сироп фейхоа, вода, эспрессо
+- Вишнёвый эрал contains: чайная заготовка, сок вишни, сироп инжир, вода
+- Горячая аранжата is: цитрусовый горячий кофе с лимонной яркостью
+- Аранжата ICE contains: заготовка аранжата, вода, лёд
+
+Return a JSON object with this structure:
+{
+  "assessments": [
+    {
+      "question": "question text",
+      "answer": "answer text",
+      "score": 0-100,
+      "feedback": "detailed feedback",
+      "isCorrect": boolean
+    }
+  ],
+  "summary": {
+    "totalQuestions": number,
+    "correctAnswers": number,
+    "averageScore": number,
+    "accuracy": decimal
+  }
+}`
+
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: assessmentPrompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.3
+          })
+
+          try {
+            assessmentResult = JSON.parse(completion.choices[0].message.content || '{}')
+            console.log('✅ Assessment completed successfully with OpenAI')
+          } catch (parseError) {
+            console.error('❌ Error parsing OpenAI response:', parseError)
+            assessmentResult = {
+              summary: { totalQuestions: qaExchanges.length, correctAnswers: 0, averageScore: 0, accuracy: 0 },
+              message: 'Assessment completed but response parsing failed'
+            }
+          }
+        } else {
+          assessmentResult = {
+            summary: { totalQuestions: 0, correctAnswers: 0, averageScore: 0, accuracy: 0 },
+            message: 'No Q&A exchanges found for assessment'
+          }
+        }
       }
     } catch (assessmentError: any) {
-      if (assessmentError.name === 'AbortError') {
-        console.error('⏰ Assessment timed out after 45 seconds')
-      } else {
-        console.error('❌ Assessment error:', assessmentError.message)
+      console.error('❌ Assessment error:', assessmentError.message)
+      assessmentResult = {
+        summary: { totalQuestions: 0, correctAnswers: 0, averageScore: 0, accuracy: 0 },
+        message: `Assessment failed: ${assessmentError.message}`
       }
     }
 
