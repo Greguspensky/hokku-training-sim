@@ -246,9 +246,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               id="track_id"
               value={formData.track_id}
               onChange={(e) => handleInputChange('track_id', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
-              disabled
             >
               {tracks.map((track) => (
                 <option key={track.id} value={track.id}>
@@ -256,6 +255,9 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-sm text-gray-500">
+              Change this to move the scenario to a different training track
+            </p>
           </div>
 
           <div>

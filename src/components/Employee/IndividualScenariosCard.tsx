@@ -10,6 +10,13 @@ interface KnowledgeTopic {
   difficulty_level: number
 }
 
+interface ScenarioStats {
+  attemptCount: number
+  lastAttempt: string | null
+  completionPercentage: number
+  isCompleted: boolean
+}
+
 interface ScenarioAssignment {
   id: string
   scenario_id: string
@@ -41,6 +48,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
   const [scenarioAssignments, setScenarioAssignments] = useState<ScenarioAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
+  const [scenarioStats, setScenarioStats] = useState<{[key: string]: ScenarioStats}>({})
 
   // Function to fetch topic details
   const loadTopics = async (topicIds: string[]) => {
@@ -65,6 +73,36 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
     }
   }
 
+  // Load statistics for all scenarios
+  const loadScenarioStats = async (assignments: ScenarioAssignment[]) => {
+    if (!employeeId) return
+
+    const statsPromises = assignments.map(async (assignment) => {
+      try {
+        const response = await fetch(`/api/scenario-stats?scenario_id=${assignment.scenario_id}&user_id=${employeeId}`)
+        const data = await response.json()
+
+        if (data.success) {
+          return { scenarioId: assignment.scenario_id, stats: data.stats }
+        }
+      } catch (error) {
+        console.error(`Failed to load stats for scenario ${assignment.scenario_id}:`, error)
+      }
+      return null
+    })
+
+    const results = await Promise.all(statsPromises)
+    const statsMap: {[key: string]: ScenarioStats} = {}
+
+    results.forEach(result => {
+      if (result) {
+        statsMap[result.scenarioId] = result.stats
+      }
+    })
+
+    setScenarioStats(statsMap)
+  }
+
   const loadScenarioAssignments = async () => {
     console.log('🎯 IndividualScenariosCard - employeeId:', employeeId)
 
@@ -85,8 +123,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
 
       if (data.success) {
         console.log('✅ Found scenario assignments:', data.assignments.length)
-        setScenarioAssignments(data.assignments || [])
+        const assignments = data.assignments || []
+        setScenarioAssignments(assignments)
 
+        // Load stats for all scenarios
+        if (assignments.length > 0) {
+          loadScenarioStats(assignments)
+        }
       } else {
         console.log('❌ API Error:', data.error)
       }
@@ -171,14 +214,41 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     assignment.scenarios.scenario_type === 'theory'
                       ? 'bg-purple-100 text-purple-800'
+                      : assignment.scenarios.scenario_type === 'recommendations'
+                      ? 'bg-orange-100 text-orange-800'
                       : 'bg-green-100 text-green-800'
                   }`}>
-                    {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' : 'Service Practice'}
+                    {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' :
+                     assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
+                     'Service Practice'}
                   </span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    {assignment.scenarios.difficulty}
-                  </span>
-                  <span>{assignment.scenarios.estimated_duration_minutes} min</span>
+
+                  {/* Progress/Completion Status */}
+                  {scenarioStats[assignment.scenario_id] && (
+                    <>
+                      {assignment.scenarios.scenario_type === 'theory' ? (
+                        <span className="text-xs text-blue-600 font-medium">
+                          Completed: {scenarioStats[assignment.scenario_id].completionPercentage}%
+                        </span>
+                      ) : (
+                        <span className={`text-xs font-medium ${scenarioStats[assignment.scenario_id].isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                          {scenarioStats[assignment.scenario_id].isCompleted ? '✓ Completed' : 'Not completed'}
+                        </span>
+                      )}
+
+                      {/* Attempts */}
+                      <span className="text-xs text-gray-600">
+                        Attempts: {scenarioStats[assignment.scenario_id].attemptCount}
+                      </span>
+
+                      {/* Last Attempt */}
+                      {scenarioStats[assignment.scenario_id].lastAttempt && (
+                        <span className="text-xs text-gray-500">
+                          Last: {new Date(scenarioStats[assignment.scenario_id].lastAttempt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
 
 

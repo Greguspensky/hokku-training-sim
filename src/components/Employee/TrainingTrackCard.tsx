@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { Scenario } from '@/lib/scenarios'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface KnowledgeTopic {
   id: string
@@ -13,16 +14,26 @@ interface KnowledgeTopic {
   difficulty_level: number
 }
 
+interface ScenarioStats {
+  attemptCount: number
+  lastAttempt: string | null
+  completionPercentage: number
+  isCompleted: boolean
+}
+
 interface TrainingTrackCardProps {
   assignment: AssignmentWithDetails
 }
 
 export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps) {
-  const [expanded, setExpanded] = useState(false)
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [scenariosLoading, setScenariosLoading] = useState(true)
   const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
+  const [scenarioStats, setScenarioStats] = useState<{[key: string]: ScenarioStats}>({})
   const router = useRouter()
+  const { user } = useAuth()
+
+  const userId = user?.id
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -86,6 +97,10 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
         if (data.success) {
           setScenarios(data.scenarios || [])
 
+          // Load stats for each scenario
+          if (userId && data.scenarios) {
+            loadScenarioStats(data.scenarios)
+          }
         }
       } catch (error) {
         console.error('Failed to load scenarios for track:', error)
@@ -95,7 +110,37 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
     }
 
     loadScenarios()
-  }, [assignment.track_id])
+  }, [assignment.track_id, userId])
+
+  // Load statistics for all scenarios
+  const loadScenarioStats = async (scenariosList: Scenario[]) => {
+    if (!userId) return
+
+    const statsPromises = scenariosList.map(async (scenario) => {
+      try {
+        const response = await fetch(`/api/scenario-stats?scenario_id=${scenario.id}&user_id=${userId}`)
+        const data = await response.json()
+
+        if (data.success) {
+          return { scenarioId: scenario.id, stats: data.stats }
+        }
+      } catch (error) {
+        console.error(`Failed to load stats for scenario ${scenario.id}:`, error)
+      }
+      return null
+    })
+
+    const results = await Promise.all(statsPromises)
+    const statsMap: {[key: string]: ScenarioStats} = {}
+
+    results.forEach(result => {
+      if (result) {
+        statsMap[result.scenarioId] = result.stats
+      }
+    })
+
+    setScenarioStats(statsMap)
+  }
 
   const handleStartTraining = () => {
     // Navigate to the training session
@@ -227,49 +272,64 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
             </div>
           ) : scenarios.length > 0 ? (
             <div className="space-y-2">
-              {scenarios.map((scenario) => (
-                <div key={scenario.id} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-lg">{getScenarioTypeIcon(scenario.scenario_type)}</span>
-                    <div>
-                      <h5 className="font-medium text-gray-900 text-sm">
-                        {scenario.title}
-                      </h5>
-                      <p className="text-xs text-gray-400 font-mono">ID: {scenario.id}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
-                          {getScenarioTypeLabel(scenario.scenario_type)}
-                        </span>
-                        {scenario.difficulty && (
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            scenario.difficulty === 'beginner' ? 'bg-green-100 text-green-700' :
-                            scenario.difficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {scenario.difficulty}
+              {scenarios.map((scenario) => {
+                const stats = scenarioStats[scenario.id]
+                return (
+                  <div key={scenario.id} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-lg">{getScenarioTypeIcon(scenario.scenario_type)}</span>
+                      <div>
+                        <h5 className="font-medium text-gray-900 text-sm">
+                          {scenario.title}
+                        </h5>
+                        <p className="text-xs text-gray-400 font-mono">ID: {scenario.id}</p>
+                        <div className="flex items-center space-x-3 mt-1">
+                          <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
+                            {getScenarioTypeLabel(scenario.scenario_type)}
                           </span>
-                        )}
-                        {scenario.estimated_duration_minutes && (
-                          <span className="text-xs text-gray-400">
-                            ~{scenario.estimated_duration_minutes}min
-                          </span>
-                        )}
+
+                          {/* Progress/Completion Status */}
+                          {stats && (
+                            <>
+                              {scenario.scenario_type === 'theory' ? (
+                                <span className="text-xs text-blue-600 font-medium">
+                                  Completed: {stats.completionPercentage}%
+                                </span>
+                              ) : (
+                                <span className={`text-xs font-medium ${stats.isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                                  {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                                </span>
+                              )}
+
+                              {/* Attempts */}
+                              <span className="text-xs text-gray-600">
+                                Attempts: {stats.attemptCount}
+                              </span>
+
+                              {/* Last Attempt */}
+                              {stats.lastAttempt && (
+                                <span className="text-xs text-gray-500">
+                                  Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
-
                     </div>
-                  </div>
 
-                  <button
-                    onClick={() => handleStartScenario(scenario)}
-                    className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Start
-                  </button>
-                </div>
-              ))}
+                    <button
+                      onClick={() => handleStartScenario(scenario)}
+                      className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Start
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-md border border-gray-200">
@@ -282,9 +342,9 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
         </div>
 
         {/* Action Buttons - Only show fallback buttons if no scenarios are available */}
-        <div className="flex items-center justify-between mt-6">
-          <div className="flex items-center space-x-3">
-            {!scenariosLoading && scenarios.length === 0 && assignment.status === 'assigned' && (
+        {!scenariosLoading && scenarios.length === 0 && (
+          <div className="flex items-center mt-6">
+            {assignment.status === 'assigned' && (
               <button
                 onClick={handleStartTraining}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -296,7 +356,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
               </button>
             )}
 
-            {!scenariosLoading && scenarios.length === 0 && assignment.status === 'in_progress' && (
+            {assignment.status === 'in_progress' && (
               <button
                 onClick={handleStartTraining}
                 className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -306,12 +366,6 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
                 </svg>
                 Continue Training
               </button>
-            )}
-
-            {scenarios.length > 0 && (
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{scenarios.length}</span> scenario{scenarios.length !== 1 ? 's' : ''} available
-              </div>
             )}
 
             {assignment.status === 'completed' && (
@@ -328,18 +382,7 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
               </div>
             )}
           </div>
-
-          {/* View Details Button */}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg className={`h-4 w-4 mr-2 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-            {expanded ? 'Hide Details' : 'View Details'}
-          </button>
-        </div>
+        )}
 
         {/* Assignment Notes */}
         {assignment.notes && (
@@ -356,63 +399,6 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
           </div>
         )}
       </div>
-
-      {/* Expanded Scenario Details */}
-      {expanded && (
-        <div className="border-t border-gray-200 bg-gray-50 p-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Training Scenarios</h4>
-
-          {assignment.scenario_progress && assignment.scenario_progress.length > 0 ? (
-            <div className="space-y-3">
-              {assignment.scenario_progress.map((progress) => (
-                <div key={progress.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-lg">{getScenarioStatusIcon(progress.status)}</span>
-                    <div>
-                      <h5 className="font-medium text-gray-900">
-                        {progress.scenario?.title || 'Unknown Scenario'}
-                      </h5>
-                      <p className="text-sm text-gray-500">
-                        {progress.scenario?.description || 'No description'}
-                      </p>
-                      {progress.scenario?.estimated_duration_minutes && (
-                        <p className="text-xs text-gray-400">
-                          Est. {progress.scenario.estimated_duration_minutes} minutes
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    {progress.score && (
-                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                        {progress.score}%
-                      </span>
-                    )}
-
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${
-                      progress.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : progress.status === 'in_progress'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {progress.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500">
-              <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p className="text-sm">No scenarios available yet</p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

@@ -122,6 +122,7 @@ export interface CreateScenarioData {
 }
 
 export interface UpdateScenarioData {
+  track_id?: string;
   title?: string;
   description?: string;
   client_behavior?: string;
@@ -318,6 +319,7 @@ class ScenarioService {
   async updateScenario(scenarioId: string, updates: UpdateScenarioData): Promise<Scenario> {
     // Filter out fields that don't exist in database schema - only use existing columns
     const updateData = {
+      track_id: updates.track_id,
       title: updates.title,
       description: updates.description,
       client_behavior: updates.client_behavior,
@@ -325,6 +327,7 @@ class ScenarioService {
       difficulty: updates.difficulty,
       estimated_duration_minutes: updates.estimated_duration_minutes,
       milestones: updates.milestones || [],
+      topic_ids: updates.topic_ids || [],
       recommendation_question_ids: updates.recommendation_question_ids,
       instructions: updates.instructions,
       updated_at: new Date().toISOString()

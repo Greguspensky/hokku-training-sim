@@ -285,28 +285,27 @@ export default function ManagerDashboard() {
     }
 
     try {
-      // First, check if this scenario has an explicit assignment
-      // If not, it might be using the legacy track_id relationship
+      // Check if this is a scenario-track assignment or a direct track_id relationship
       const response = await fetch(`/api/scenario-track-assignments?scenario_id=${scenarioId}&track_id=${selectedTrack.id}`)
       const result = await response.json()
 
       if (result.success && result.data.length > 0) {
-        // Assignment exists, remove it normally
-        await scenarioService.removeScenarioFromTrack(scenarioId, selectedTrack.id)
+        // Assignment exists - delete the assignment
+        const assignmentId = result.data[0].id
+        const deleteResponse = await fetch(`/api/scenario-track-assignments/${assignmentId}`, {
+          method: 'DELETE'
+        })
+
+        if (!deleteResponse.ok) {
+          throw new Error('Failed to remove scenario assignment')
+        }
+
         alert('Scenario successfully removed from track!')
       } else {
-        // No assignment found - this is a legacy scenario with direct track_id
-        // For legacy scenarios, we need to either:
-        // 1. Create an assignment first, then remove it, OR
-        // 2. Handle it differently
-
-        // Let's create the assignment first, then remove it
-        console.log('Legacy scenario detected - creating assignment first')
-        await scenarioService.assignScenarioToTrack(scenarioId, selectedTrack.id)
-
-        // Now remove it
-        await scenarioService.removeScenarioFromTrack(scenarioId, selectedTrack.id)
-        alert('Scenario successfully removed from track!')
+        // No assignment found - this scenario has a direct track_id
+        // We need to clear the track_id from the scenario
+        alert('This scenario uses the legacy track_id system. To remove it, please edit the scenario and change its track assignment.')
+        return
       }
 
       // Refresh the scenarios list for this track
@@ -314,14 +313,7 @@ export default function ManagerDashboard() {
 
     } catch (error) {
       console.error('Failed to remove scenario from track:', error)
-
-      // More specific error handling
-      const errorMessage = (error as Error).message
-      if (errorMessage.includes('Assignment not found')) {
-        alert('This scenario uses the legacy track system and cannot be removed. It is directly assigned to this track in the database.')
-      } else {
-        alert('Failed to remove scenario from track: ' + errorMessage)
-      }
+      alert('Failed to remove scenario from track: ' + (error as Error).message)
     }
   }
 

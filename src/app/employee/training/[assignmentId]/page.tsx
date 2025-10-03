@@ -54,6 +54,7 @@ export default function TrainingSessionPage() {
   const [questionsLoading, setQuestionsLoading] = useState(false)
   const [recommendationQuestions, setRecommendationQuestions] = useState<any[]>([])
   const [recommendationQuestionsLoading, setRecommendationQuestionsLoading] = useState(false)
+  const [preAuthorizedTabAudio, setPreAuthorizedTabAudio] = useState<MediaStream | null>(null)
 
   useEffect(() => {
     loadTrainingData()
@@ -379,6 +380,46 @@ export default function TrainingSessionPage() {
     } finally {
       setRecommendationQuestionsLoading(false)
     }
+  }
+
+  /**
+   * Pre-authorize tab audio capture for Safari compatibility
+   * This must be called from a direct user gesture (button click)
+   */
+  const handleStartSessionWithPreAuth = async () => {
+    console.log('🚀 Starting session with pre-authorization approach')
+
+    // Only try to pre-auth tab audio if video recording is enabled
+    if (recordingPreference === 'audio_video') {
+      try {
+        console.log('🔊 Pre-authorizing tab audio capture (Safari-compatible)...')
+        const tabAudioStream = await navigator.mediaDevices.getDisplayMedia({
+          video: false,
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            suppressLocalAudioPlayback: false
+          }
+        } as any)
+
+        if (tabAudioStream.getAudioTracks().length > 0) {
+          console.log('✅ Tab audio pre-authorized successfully!')
+          console.log('💡 This stream will be reused when recording starts')
+          setPreAuthorizedTabAudio(tabAudioStream)
+        } else {
+          console.warn('⚠️ No audio tracks in pre-authorized stream')
+        }
+      } catch (error) {
+        console.warn('⚠️ Tab audio pre-authorization failed:', error)
+        console.log('💡 Will continue without tab audio (microphone only)')
+        // Don't block - continue without tab audio
+      }
+    }
+
+    // Start the session
+    setShowRecordingConsent(false)
+    setShowAvatarSession(true)
   }
 
   const handleGetTranscriptAnalysis = async () => {
@@ -940,10 +981,7 @@ export default function TrainingSessionPage() {
                 {/* Start Session Button */}
                 <div className="mt-8 text-center">
                   <button
-                    onClick={() => {
-                      setShowRecordingConsent(false)
-                      setShowAvatarSession(true)
-                    }}
+                    onClick={handleStartSessionWithPreAuth}
                     className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
                   >
                     🚀 Start Training Session
@@ -1050,6 +1088,7 @@ export default function TrainingSessionPage() {
                   language={selectedLanguage}
                   agentId="agent_9301k5efjt1sf81vhzc3pjmw0fy9"
                   recordingPreference={recordingPreference}
+                  preAuthorizedTabAudio={preAuthorizedTabAudio}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ Avatar session completed:', completedSessionData)
                     setSessionData(completedSessionData)

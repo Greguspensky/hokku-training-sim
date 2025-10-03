@@ -74,6 +74,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     
     // Prepare update data - matching the filtering in scenarios service
     const updateData = {
+      track_id: body.track_id,
       title: body.title || '',
       description: body.description,
       client_behavior: body.client_behavior,

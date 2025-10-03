@@ -17,6 +17,7 @@ interface ElevenLabsAvatarSessionProps {
   language?: string
   agentId: string // ElevenLabs Agent ID
   recordingPreference?: RecordingPreference
+  preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
   onSessionEnd?: (sessionData: any) => void
   className?: string
 }
@@ -29,6 +30,7 @@ export function ElevenLabsAvatarSession({
   language = 'en',
   agentId,
   recordingPreference = 'none',
+  preAuthorizedTabAudio = null,
   onSessionEnd,
   className = ''
 }: ElevenLabsAvatarSessionProps) {
@@ -55,10 +57,19 @@ export function ElevenLabsAvatarSession({
   const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
   const [isLoadingSessionQuestions, setIsLoadingSessionQuestions] = useState(false)
 
-  // Session recording
+  // Session recording with advanced audio mixing
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
   const sessionStartTimeRef = useRef<number>(0)
+  const videoChunksRef = useRef<Blob[]>([])
+  const recordingMimeTypeRef = useRef<string>('video/webm')
+
+  // Audio mixing for TTS capture
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const recordingDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null)
+  const combinedStreamRef = useRef<MediaStream | null>(null)
+  const tabAudioStreamRef = useRef<MediaStream | null>(null)
 
   /**
    * Load structured questions from database for theory practice
@@ -506,59 +517,216 @@ Start the conversation by presenting your customer problem or situation.`
   }, [agentId, language, volume, conversationService, isInitialized])
 
   /**
-   * Start session recording based on user preference
+   * Start session recording with advanced TTS audio mixing
    */
   const startSessionRecording = useCallback(async () => {
     if (recordingPreference === 'none') return
 
     try {
-      console.log(`🎥 Starting HYBRID ${recordingPreference} recording...`)
+      console.log(`🎥 Starting ADVANCED ${recordingPreference} recording with TTS audio mixing...`)
 
       if (recordingPreference === 'audio') {
-        // Audio-only: No browser recording needed
-        // ElevenLabs conversation audio will be fetched after session ends
-        console.log('🎵 Audio-only session - will use ElevenLabs conversation audio')
+        // Audio-only: No video recording needed, just track audio
+        console.log('🎵 Audio-only session - ElevenLabs audio will be captured in conversation')
         setIsRecording(true)
         sessionStartTimeRef.current = Date.now()
         return
       }
 
-      // Video recording: Capture webcam only (no audio from browser)
-      console.log('📹 Requesting webcam access for video recording...')
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Video recording with TTS audio mixing
+      console.log('📹 Requesting camera and microphone access for video + audio recording...')
+      const micStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: 1280,
           height: 720,
           facingMode: 'user'
         },
-        audio: false // No audio from browser - using ElevenLabs API instead
+        audio: {
+          echoCancellation: false,  // Disable echo cancellation to capture system audio
+          noiseSuppression: false,  // Disable noise suppression
+          autoGainControl: false    // Disable auto gain control
+        }
       })
-      console.log('✅ Webcam access granted for video recording')
+      console.log('✅ Camera and microphone access granted')
 
-      setIsRecording(true)
+      // Create audio context for mixing ElevenLabs TTS with microphone
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      audioContextRef.current = audioContext
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-      })
+      // Ensure AudioContext is running (required for iOS and some browsers)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume()
+        console.log('🎵 AudioContext resumed from suspended state')
+      }
+      console.log(`🎵 AudioContext state: ${audioContext.state}`)
 
-      mediaRecorder.ondataavailable = (event) => {
-        console.log(`📊 Video chunk received: ${event.data.size} bytes`)
-        if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data)
-          console.log(`📦 Total video chunks collected: ${recordedChunksRef.current.length}`)
+      // Create audio sources and destination for mixing
+      const micSource = audioContext.createMediaStreamSource(micStream)
+      const destination = audioContext.createMediaStreamDestination()
+
+      micSourceRef.current = micSource
+      recordingDestinationRef.current = destination
+
+      // Connect microphone to recording destination
+      micSource.connect(destination)
+      console.log('🎧 Microphone connected to recording destination')
+
+      // Try to use pre-authorized tab audio OR request it now
+      if (preAuthorizedTabAudio && preAuthorizedTabAudio.getAudioTracks().length > 0) {
+        // Use pre-authorized stream (Safari-compatible!)
+        try {
+          console.log('✅ Using pre-authorized tab audio (Safari-compatible approach)')
+          tabAudioStreamRef.current = preAuthorizedTabAudio
+
+          const tabAudioSource = audioContext.createMediaStreamSource(new MediaStream([preAuthorizedTabAudio.getAudioTracks()[0]]))
+          const tabGain = audioContext.createGain()
+          tabGain.gain.value = 1.0
+
+          tabAudioSource.connect(tabGain)
+          tabGain.connect(destination)
+
+          console.log('🎵 Pre-authorized ElevenLabs audio is now being mixed into recording')
+          console.log('✅ Recording will contain both your voice AND AI trainer voice')
+        } catch (error) {
+          console.error('❌ Error using pre-authorized tab audio:', error)
+          console.log('💡 Will continue with microphone only')
+        }
+      } else {
+        // Try to request tab audio now (works in Chrome/Edge)
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
+        if (!isSafari) {
+          // Chrome/Edge support: Try to capture tab audio
+          try {
+            console.log('🔊 Requesting tab audio capture for ElevenLabs voice...')
+            console.log('💡 IMPORTANT: Check "Share tab audio" in the browser prompt!')
+
+            const displayStream = await navigator.mediaDevices.getDisplayMedia({
+              video: false,
+              audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+                suppressLocalAudioPlayback: false
+              }
+            } as any)
+
+            const audioTracks = displayStream.getAudioTracks()
+            if (audioTracks.length > 0) {
+              console.log('✅ Tab audio captured successfully!')
+              tabAudioStreamRef.current = displayStream
+
+              const tabAudioSource = audioContext.createMediaStreamSource(new MediaStream([audioTracks[0]]))
+              const tabGain = audioContext.createGain()
+              tabGain.gain.value = 1.0
+
+              tabAudioSource.connect(tabGain)
+              tabGain.connect(destination)
+
+              console.log('🎵 ElevenLabs audio is now being mixed into recording')
+              console.log('✅ Recording will contain both your voice AND AI trainer voice')
+
+              displayStream.getVideoTracks().forEach(track => track.stop())
+            } else {
+              console.warn('⚠️ No audio tracks - AI voice may not be recorded')
+            }
+          } catch (displayError: any) {
+            console.error('❌ Could not capture tab audio:', displayError)
+            console.log('⚠️ Recording will continue with microphone only')
+            console.log('💡 AI voice will NOT be in the recording')
+          }
+        } else {
+          // Safari: Tab audio capture not available in this context
+          console.log('🍎 Safari detected: No pre-authorized tab audio available')
+          console.log('💡 Safari limitation: Cannot capture ElevenLabs audio in recording')
+          console.log('💡 Recording will include your microphone only')
+          console.log('💡 Alternative: Use Chrome for full audio recording')
         }
       }
 
-      mediaRecorder.onstop = async () => {
+      // Create combined stream with video + mixed audio
+      const videoTrack = micStream.getVideoTracks()[0]
+      const mixedAudioTrack = destination.stream.getAudioTracks()[0]
+
+      console.log('🎬 Stream debug info:')
+      console.log(`  - Video track: ${videoTrack ? 'available' : 'missing'}`)
+      console.log(`  - Mixed audio track: ${mixedAudioTrack ? 'available' : 'missing'}`)
+      console.log(`  - Mixed audio track enabled: ${mixedAudioTrack?.enabled}`)
+      console.log(`  - Mixed audio track muted: ${mixedAudioTrack?.muted}`)
+
+      const combinedStream = new MediaStream([videoTrack, mixedAudioTrack])
+      combinedStreamRef.current = combinedStream
+
+      console.log(`🎬 Combined stream: ${combinedStream.getTracks().length} tracks (${combinedStream.getVideoTracks().length} video, ${combinedStream.getAudioTracks().length} audio)`)
+
+      // Dynamic MIME type detection for cross-platform compatibility
+      const getSupportedMimeType = () => {
+        const types = [
+          'video/mp4',                    // iOS Safari requirement
+          'video/webm;codecs=vp8,opus',  // Modern browsers with audio
+          'video/webm;codecs=vp8',       // Fallback without audio codec
+          'video/webm'                   // Legacy fallback
+        ]
+
+        for (const type of types) {
+          if (MediaRecorder.isTypeSupported(type)) {
+            console.log(`📹 Using supported MIME type: ${type}`)
+            return type
+          }
+        }
+        console.warn('⚠️ No supported video MIME type found, falling back to video/webm')
+        return 'video/webm'
+      }
+
+      const mimeType = getSupportedMimeType()
+      recordingMimeTypeRef.current = mimeType
+
+      const mediaRecorder = new MediaRecorder(combinedStream, { mimeType })
+      mediaRecorderRef.current = mediaRecorder
+
+      // Clear any existing chunks
+      videoChunksRef.current = []
+      recordedChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          videoChunksRef.current.push(event.data)
+          console.log(`📹 Video chunk recorded: ${event.data.size} bytes, total chunks: ${videoChunksRef.current.length}`)
+        } else {
+          console.log('⚠️ Video chunk is empty')
+        }
+      }
+
+      mediaRecorder.onstop = () => {
+        console.log(`🔄 Recording stopped, transferring ${videoChunksRef.current.length} chunks`)
+        recordedChunksRef.current = [...videoChunksRef.current]
         setIsRecording(false)
-        await saveSessionRecording()
+
+        // Clean up streams
+        micStream.getTracks().forEach(track => track.stop())
+        if (combinedStream) {
+          combinedStream.getTracks().forEach(track => track.stop())
+        }
+
+        // Clean up tab audio stream if it was captured
+        if (tabAudioStreamRef.current) {
+          tabAudioStreamRef.current.getTracks().forEach(track => track.stop())
+          tabAudioStreamRef.current = null
+        }
+
+        // Close audio context
+        if (audioContext.state !== 'closed') {
+          audioContext.close()
+        }
+
+        console.log('📹 Video recording stopped with mixed audio')
       }
 
       mediaRecorder.start(1000) // Record in 1-second chunks
-      mediaRecorderRef.current = mediaRecorder
+      setIsRecording(true)
       sessionStartTimeRef.current = Date.now()
 
-      console.log('✅ Webcam video recording started - audio will come from ElevenLabs API')
+      console.log('📹 Started video recording with TTS audio mixing capability')
 
     } catch (error) {
       console.error(`❌ Failed to start ${recordingPreference} recording:`, error)
@@ -568,23 +736,20 @@ Start the conversation by presenting your customer problem or situation.`
   }, [recordingPreference])
 
   /**
-   * Stop session recording
+   * Stop session recording with TTS audio
    */
   const stopSessionRecording = useCallback(() => {
     if (recordingPreference === 'none') return
 
-    console.log(`🛑 Stopping HYBRID ${recordingPreference} recording...`)
+    console.log(`🛑 Stopping ADVANCED ${recordingPreference} recording...`)
     setIsRecording(false)
 
-    // Stop any webcam recording for video sessions
+    // Stop MediaRecorder for video sessions
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      console.log('📹 Stopping webcam recording...')
+      console.log('📹 Stopping video + audio recording...')
       mediaRecorderRef.current.stop()
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      // Note: cleanup happens in mediaRecorder.onstop handler
     }
-
-    // Note: ElevenLabs conversation audio will be fetched in saveSessionRecording()
-    // which is called when the MediaRecorder stops or during session save
   }, [recordingPreference])
 
   /**
@@ -594,7 +759,7 @@ Start the conversation by presenting your customer problem or situation.`
     const currentSessionId = sessionIdRef.current
     const currentConversationId = conversationService?.getConversationId()
 
-    console.log(`🔍 HYBRID Recording debug - SessionId: ${currentSessionId}, ConversationId: ${currentConversationId}`)
+    console.log(`🔍 Recording debug - SessionId: ${currentSessionId}, ConversationId: ${currentConversationId}`)
 
     if (!currentSessionId) {
       console.log('❌ Session ID is missing')
@@ -603,7 +768,7 @@ Start the conversation by presenting your customer problem or situation.`
 
     try {
       if (recordingPreference === 'audio') {
-        // Audio-only: Fetch conversation audio from ElevenLabs API
+        // Audio-only: Conversation audio available via ElevenLabs
         if (!currentConversationId) {
           console.log('⚠️ No ElevenLabs conversation ID available for audio retrieval')
           return
@@ -611,19 +776,19 @@ Start the conversation by presenting your customer problem or situation.`
 
         console.log('🎵 Conversation ID stored for audio retrieval:', currentConversationId)
         console.log('💡 Audio will be available on transcript page via lazy loading')
-        // Note: We now use lazy loading on the transcript page instead of immediate fetching
-        // This prevents session completion delays and handles ElevenLabs processing time better
 
       } else if (recordingPreference === 'audio_video') {
-        // Video recording: Handle webcam video + ElevenLabs audio
+        // Video recording with TTS audio mixed in
 
-        // 1. Upload webcam video if we have chunks
         if (recordedChunksRef.current.length > 0) {
-          console.log('📹 Uploading webcam video...')
+          console.log('📹 Uploading video with mixed TTS audio...')
 
+          // Create video blob with the MIME type used during recording
           const videoBlob = new Blob(recordedChunksRef.current, {
-            type: 'video/webm'
+            type: recordingMimeTypeRef.current
           })
+
+          console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
 
           const formData = new FormData()
           formData.append('recording', videoBlob)
@@ -641,7 +806,7 @@ Start the conversation by presenting your customer problem or situation.`
           }
 
           const uploadResult = await response.json()
-          console.log('✅ Webcam video uploaded successfully:', uploadResult.path)
+          console.log('✅ Video with mixed TTS audio uploaded successfully:', uploadResult.path)
 
           // Update session with video data
           await trainingSessionsService.updateSessionRecording(currentSessionId, {
@@ -649,21 +814,25 @@ Start the conversation by presenting your customer problem or situation.`
             video_file_size: uploadResult.size,
             recording_duration_seconds: Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
           })
+
+          console.log('✅ Session updated with video recording URL')
+        } else {
+          console.log('⚠️ No video chunks to upload')
         }
 
-        // 2. Conversation audio will be available via lazy loading on transcript page
+        // Conversation ID also stored for transcript access
         if (currentConversationId) {
-          console.log('🎵 Conversation ID stored for video session:', currentConversationId)
-          console.log('💡 Audio will be available on transcript page via lazy loading')
-        } else {
-          console.log('⚠️ No conversation ID available for audio in video session')
+          console.log('🎵 Conversation ID stored for transcript access:', currentConversationId)
+          console.log('💡 Transcript will be available on session details page')
         }
       }
 
     } catch (error) {
-      console.error('❌ Failed to save hybrid recording:', error)
+      console.error('❌ Failed to save recording:', error)
     } finally {
+      // Clear all chunks after upload
       recordedChunksRef.current = []
+      videoChunksRef.current = []
     }
   }, [recordingPreference, conversationService])
 
