@@ -361,24 +361,46 @@ async function recordQuestionAttempt(
       ? question.knowledge_topics[0]
       : question.knowledge_topics
 
-    await supabaseAdmin
-      .from('question_attempts')
-      .insert({
-        user_id: userId,
-        topic_id: topic.id,
-        question_id: question.id,
-        question_asked: exchange.question,
-        user_answer: exchange.answer,
-        correct_answer: question.correct_answer,
-        is_correct: assessment.isCorrect,
-        points_earned: assessment.isCorrect ? 2 : 0,
-        time_spent_seconds: 30, // Estimate for voice answers
-        attempt_number: 1,
-        created_at: new Date().toISOString()
-      })
+    const attemptData = {
+      user_id: userId,
+      topic_id: topic.id,
+      question_id: question.id,
+      question_asked: exchange.question,
+      user_answer: exchange.answer,
+      correct_answer: question.correct_answer,
+      is_correct: assessment.isCorrect,
+      points_earned: assessment.isCorrect ? 2 : 0,
+      time_spent_seconds: 30, // Estimate for voice answers
+      attempt_number: 1,
+      created_at: new Date().toISOString()
+    }
 
-    console.log(`📝 Recorded attempt for question ${question.id}: ${assessment.isCorrect ? 'CORRECT' : 'INCORRECT'}`)
+    console.log('💾 Attempting to save question attempt:', {
+      question_id: question.id,
+      user_id: userId,
+      is_correct: assessment.isCorrect
+    })
+
+    const { data, error } = await supabaseAdmin
+      .from('question_attempts')
+      .insert(attemptData)
+      .select()
+
+    if (error) {
+      console.error('❌ Database error recording question attempt:', {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        attemptData
+      })
+      throw error
+    }
+
+    console.log(`✅ Recorded attempt for question ${question.id}: ${assessment.isCorrect ? 'CORRECT' : 'INCORRECT'}`)
   } catch (error) {
     console.error('❌ Error recording question attempt:', error)
+    // Don't re-throw to prevent breaking the assessment flow, but log clearly
+    console.error('⚠️ Question attempt was NOT saved to database - assessment will continue')
   }
 }

@@ -63,8 +63,11 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
               <Calendar className="w-4 h-4 mr-1" />
               {formatDate(session.started_at)} at {formatTime(session.started_at)}
             </div>
-            <div className="text-xs text-gray-400 font-mono mt-1">
-              ID: {session.id}
+            <div className="text-xs text-gray-400 font-mono mt-1 space-y-0.5">
+              <div>Attempt ID: {session.id}</div>
+              {session.scenario_id && (
+                <div>Scenario ID: {session.scenario_id}</div>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2">

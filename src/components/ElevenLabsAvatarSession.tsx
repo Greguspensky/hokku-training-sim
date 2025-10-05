@@ -17,6 +17,7 @@ interface ElevenLabsAvatarSessionProps {
   language?: string
   agentId: string // ElevenLabs Agent ID
   recordingPreference?: RecordingPreference
+  videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
   onSessionEnd?: (sessionData: any) => void
   className?: string
@@ -30,6 +31,7 @@ export function ElevenLabsAvatarSession({
   language = 'en',
   agentId,
   recordingPreference = 'none',
+  videoAspectRatio = '16:9',
   preAuthorizedTabAudio = null,
   onSessionEnd,
   className = ''
@@ -533,12 +535,31 @@ Start the conversation by presenting your customer problem or situation.`
         return
       }
 
+      // Calculate video dimensions based on aspect ratio
+      const getVideoDimensions = (ratio: string) => {
+        switch (ratio) {
+          case '16:9':
+            return { width: 1280, height: 720 }
+          case '9:16':
+            return { width: 720, height: 1280 }
+          case '4:3':
+            return { width: 640, height: 480 }
+          case '1:1':
+            return { width: 720, height: 720 }
+          default:
+            return { width: 1280, height: 720 }
+        }
+      }
+
+      const dimensions = getVideoDimensions(videoAspectRatio)
+
       // Video recording with TTS audio mixing
-      console.log('📹 Requesting camera and microphone access for video + audio recording...')
+      console.log(`📹 Requesting camera and microphone access for video + audio recording (${videoAspectRatio})...`)
       const micStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: 1280,
-          height: 720,
+          width: { ideal: dimensions.width },
+          height: { ideal: dimensions.height },
+          aspectRatio: { ideal: dimensions.width / dimensions.height },
           facingMode: 'user'
         },
         audio: {
@@ -914,6 +935,7 @@ Start the conversation by presenting your customer problem or situation.`
         employee_id: employeeId,
         assignment_id: scenarioId || 'unknown',
         company_id: companyId,
+        scenario_id: scenarioId || null, // Track scenario for attempt counting
         session_name: `${trainingMode === 'theory' ? 'Theory Q&A' : 'Service Practice'} Session - ${endTime.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',

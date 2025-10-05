@@ -6,11 +6,17 @@ import { supabase } from '@/lib/supabase'
 import { signOut as authSignOut } from '@/lib/auth'
 import { employeeService } from '@/lib/employees'
 
+interface ExtendedUser extends User {
+  role?: string
+  company_id?: string
+  employee_record_id?: string
+}
+
 interface AuthContextType {
-  user: User | null
+  user: ExtendedUser | null
   loading: boolean
   signOut: () => Promise<void>
-  setUser: (user: User | null) => void
+  setUser: (user: ExtendedUser | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -56,16 +62,43 @@ async function ensureUserRecord(authUser: User) {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Helper function to enrich user with database info
+  const enrichUserWithDbInfo = async (authUser: User): Promise<ExtendedUser> => {
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', authUser.id)
+        .single()
+
+      if (dbUser) {
+        console.log('✅ Enriched user with role:', dbUser.role)
+        return {
+          ...authUser,
+          role: dbUser.role
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user db info:', error)
+    }
+    return authUser
+  }
 
   useEffect(() => {
     console.log('AuthProvider: Starting simple auth check...')
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       console.log('AuthProvider: Initial session:', !!session)
-      setUser(session?.user ?? null)
+      if (session?.user) {
+        const enrichedUser = await enrichUserWithDbInfo(session.user)
+        setUser(enrichedUser)
+      } else {
+        setUser(null)
+      }
       setLoading(false)
     }).catch((error) => {
       console.error('AuthProvider: Error getting initial session:', error)
@@ -76,7 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('AuthProvider: Auth state changed:', event, !!session, 'email:', session?.user?.email, 'current path:', typeof window !== 'undefined' ? window.location.pathname : 'unknown')
-        setUser(session?.user ?? null)
+
+        if (session?.user) {
+          const enrichedUser = await enrichUserWithDbInfo(session.user)
+          setUser(enrichedUser)
+        } else {
+          setUser(null)
+        }
         setLoading(false)
 
         // Only redirect on sign-in if we're on the sign-in page

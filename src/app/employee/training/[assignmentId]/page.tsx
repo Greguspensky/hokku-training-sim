@@ -55,10 +55,33 @@ export default function TrainingSessionPage() {
   const [recommendationQuestions, setRecommendationQuestions] = useState<any[]>([])
   const [recommendationQuestionsLoading, setRecommendationQuestionsLoading] = useState(false)
   const [preAuthorizedTabAudio, setPreAuthorizedTabAudio] = useState<MediaStream | null>(null)
+  const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16' | '4:3' | '1:1'>('16:9')
 
   useEffect(() => {
     loadTrainingData()
   }, [assignmentId, user])
+
+  // Load default language from company settings
+  useEffect(() => {
+    const loadDefaultLanguage = async () => {
+      if (!user) return
+
+      const companyId = user.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
+
+      try {
+        const response = await fetch(`/api/company-settings?company_id=${companyId}`)
+        const data = await response.json()
+        if (data.success && data.settings?.default_training_language) {
+          console.log('✅ Loaded default training language:', data.settings.default_training_language)
+          setSelectedLanguage(data.settings.default_training_language as SupportedLanguageCode)
+        }
+      } catch (error) {
+        console.error('Failed to load default language:', error)
+      }
+    }
+
+    loadDefaultLanguage()
+  }, [user])
 
   // Auto-set recording preference for recommendations scenarios
   useEffect(() => {
@@ -878,38 +901,40 @@ export default function TrainingSessionPage() {
                     </div>
                   </div>
 
-                  {/* Language Selection */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
-                    <p className="text-gray-600 mb-4">
-                      Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
-                    </p>
+                  {/* Language Selection - Hide for recommendations */}
+                  {currentScenario?.scenario_type !== 'recommendations' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
+                      <p className="text-gray-600 mb-4">
+                        Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
+                      </p>
 
-                    <div className="relative inline-block text-left w-full max-w-xs">
-                      <select
-                        value={selectedLanguage}
-                        onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguageCode)}
-                        className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
-                      >
-                        {SUPPORTED_LANGUAGES.map((language) => (
-                          <option key={language.code} value={language.code}>
-                            {language.flag} {language.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                      <div className="relative inline-block text-left w-full max-w-xs">
+                        <select
+                          value={selectedLanguage}
+                          onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguageCode)}
+                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                        >
+                          {SUPPORTED_LANGUAGES.map((language) => (
+                            <option key={language.code} value={language.code}>
+                              {language.flag} {language.name}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
+                        </p>
                       </div>
                     </div>
-
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
-                      </p>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Recording Preferences - Simplified Dropdown */}
                   <div>
@@ -959,6 +984,43 @@ export default function TrainingSessionPage() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Video Aspect Ratio Selection - Show only if video recording is enabled */}
+                  {recordingPreference === 'audio_video' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">📐 Video Aspect Ratio</h3>
+                      <p className="text-gray-600 mb-4">
+                        Choose the video format that works best for your device and viewing preferences.
+                      </p>
+
+                      <div className="relative inline-block text-left w-full max-w-xs">
+                        <select
+                          value={videoAspectRatio}
+                          onChange={(e) => setVideoAspectRatio(e.target.value as '16:9' | '9:16' | '4:3' | '1:1')}
+                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                        >
+                          <option value="16:9">📺 16:9 Widescreen (Landscape)</option>
+                          <option value="9:16">📱 9:16 Vertical (Portrait)</option>
+                          <option value="4:3">📺 4:3 Standard</option>
+                          <option value="1:1">⬛ 1:1 Square</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <strong>Selected:</strong> {videoAspectRatio === '16:9' && '📺 16:9 Widescreen - Best for desktop viewing'}
+                          {videoAspectRatio === '9:16' && '📱 9:16 Portrait - Best for mobile devices'}
+                          {videoAspectRatio === '4:3' && '📺 4:3 Standard - Classic video format'}
+                          {videoAspectRatio === '1:1' && '⬛ 1:1 Square - Perfect for social media'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Privacy Notice */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1062,6 +1124,7 @@ export default function TrainingSessionPage() {
                   questions={recommendationQuestions}
                   language={selectedLanguage}
                   assignmentId={assignmentId}
+                  videoAspectRatio={videoAspectRatio}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ TTS recommendation session completed:', completedSessionData)
                     setSessionData(completedSessionData)
@@ -1088,6 +1151,7 @@ export default function TrainingSessionPage() {
                   language={selectedLanguage}
                   agentId="agent_9301k5efjt1sf81vhzc3pjmw0fy9"
                   recordingPreference={recordingPreference}
+                  videoAspectRatio={videoAspectRatio}
                   preAuthorizedTabAudio={preAuthorizedTabAudio}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ Avatar session completed:', completedSessionData)

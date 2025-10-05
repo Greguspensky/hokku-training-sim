@@ -20,6 +20,7 @@ interface RecommendationTTSSessionProps {
   questions: RecommendationQuestion[]
   language?: string
   assignmentId?: string
+  videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   onSessionEnd?: (sessionData: any) => void
   className?: string
 }
@@ -31,6 +32,7 @@ export function RecommendationTTSSession({
   questions,
   language = 'en',
   assignmentId,
+  videoAspectRatio = '16:9',
   onSessionEnd,
   className = ''
 }: RecommendationTTSSessionProps) {
@@ -62,6 +64,7 @@ export function RecommendationTTSSession({
   const [isRecording, setIsRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([])
+  const [isSavingVideo, setIsSavingVideo] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   // Audio mixing for recording TTS + microphone
@@ -73,12 +76,14 @@ export function RecommendationTTSSession({
   const videoChunksRef = useRef<Blob[]>([])
   const recordingMimeTypeRef = useRef<string>('video/webm')
 
-  // Get duration in seconds from scenario (convert from minutes)
-  const questionDurationSeconds = (scenario?.estimated_duration_minutes || 2) * 60
-
   // Current question
   const currentQuestion = questions[currentQuestionIndex]
   const isLastQuestion = currentQuestionIndex === questions.length - 1
+
+  // Get duration for current question from scenario settings (in seconds)
+  const questionDurationSeconds = currentQuestion
+    ? (scenario?.recommendation_question_durations?.[currentQuestion.id] || 30)
+    : 30
 
   // Initialize session
   useEffect(() => {
@@ -223,9 +228,31 @@ export function RecommendationTTSSession({
   const startVideoRecording = async () => {
     console.log('🎬 startVideoRecording called')
     try {
-      // Get microphone and camera stream
+      // Calculate video dimensions based on aspect ratio
+      const getVideoDimensions = (ratio: string) => {
+        switch (ratio) {
+          case '16:9':
+            return { width: 1280, height: 720 }
+          case '9:16':
+            return { width: 720, height: 1280 }
+          case '4:3':
+            return { width: 640, height: 480 }
+          case '1:1':
+            return { width: 720, height: 720 }
+          default:
+            return { width: 1280, height: 720 }
+        }
+      }
+
+      const dimensions = getVideoDimensions(videoAspectRatio)
+
+      // Get microphone and camera stream with specified aspect ratio
       const micStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: { ideal: dimensions.width },
+          height: { ideal: dimensions.height },
+          aspectRatio: { ideal: dimensions.width / dimensions.height }
+        },
         audio: true
       })
 
@@ -366,6 +393,7 @@ export function RecommendationTTSSession({
     stopVideoRecording()
     setIsSessionActive(false)
     setTimerActive(false)
+    setIsSavingVideo(true) // Show saving state
 
     // Stop and clean up audio
     if (audioRef.current) {
@@ -407,6 +435,7 @@ export function RecommendationTTSSession({
         employee_id: user?.employee_record_id || user?.id || 'unknown',
         assignment_id: assignmentId || 'unknown',
         company_id: companyId,
+        scenario_id: scenarioId, // Track scenario for attempt counting
         training_mode: 'recommendation_tts',
         language: language,
         agent_id: sessionId || 'tts-session',
@@ -548,6 +577,21 @@ export function RecommendationTTSSession({
     return 'text-red-600'
   }
 
+  // Show saving state when video is being processed
+  if (isSavingVideo) {
+    return (
+      <div className={`bg-white rounded-lg shadow-lg p-8 text-center ${className}`}>
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600"></div>
+          <h2 className="text-2xl font-bold text-gray-900">Saving video recording...</h2>
+          <p className="text-gray-600">
+            Please wait while we upload your training session video.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (!isSessionActive) {
     return (
       <div className={`bg-white rounded-lg shadow-lg p-8 text-center ${className}`}>
@@ -633,7 +677,7 @@ export function RecommendationTTSSession({
         </div>
 
         {/* Video Recording Display */}
-        <div className="bg-black rounded-lg mb-8 relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
+        <div className="bg-black rounded-lg mb-8 relative overflow-hidden" style={{ aspectRatio: videoAspectRatio }}>
           <video
             ref={videoRef}
             autoPlay

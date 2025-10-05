@@ -15,11 +15,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all sessions for this scenario and user
-    // Note: using session_data->>'scenario_id' to access JSON field
+    // Now using the dedicated scenario_id column
     const { data: sessions, error } = await supabaseAdmin
       .from('training_sessions')
       .select('*')
       .eq('employee_id', userId)
+      .eq('scenario_id', scenarioId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -30,11 +31,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Filter sessions by scenario_id from session_data
-    const scenarioSessions = sessions?.filter(session => {
-      const sessionScenarioId = session.session_data?.scenario_id || session.session_data?.scenarioId
-      return sessionScenarioId === scenarioId
-    }) || []
+    const scenarioSessions = sessions || []
 
     // Calculate statistics
     const attemptCount = scenarioSessions.length;

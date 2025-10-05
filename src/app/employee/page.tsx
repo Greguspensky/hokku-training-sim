@@ -8,6 +8,13 @@ import UserHeader from '@/components/UserHeader'
 import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
 import { useAuth } from '@/contexts/AuthContext'
 
+// Declare Weglot global type
+declare global {
+  interface Window {
+    Weglot: any
+  }
+}
+
 export default function EmployeeDashboard() {
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +49,33 @@ export default function EmployeeDashboard() {
     loadAssignments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId])
+
+  // Initialize Weglot translation widget
+  useEffect(() => {
+    // Load Weglot script
+    const script = document.createElement('script')
+    script.src = 'https://cdn.weglot.com/weglot.min.js'
+    script.async = true
+    script.onload = () => {
+      if (window.Weglot) {
+        window.Weglot.initialize({
+          api_key: 'wg_661e7afb61a7fc276bca9e69567c8d8e6'
+        })
+        console.log('✅ Weglot initialized successfully')
+      }
+    }
+    script.onerror = () => {
+      console.error('❌ Failed to load Weglot script')
+    }
+    document.head.appendChild(script)
+
+    // Cleanup on unmount
+    return () => {
+      if (script.parentNode) {
+        document.head.removeChild(script)
+      }
+    }
+  }, [])
 
   // Handle authentication timeout and redirect
   useEffect(() => {

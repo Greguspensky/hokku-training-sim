@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, TrendingUp, BookOpen, Target, Brain } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, TrendingUp, BookOpen, Target, Brain, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 
@@ -36,12 +36,26 @@ export default function QuestionProgressDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<string>('all')
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
   const userId = user?.id
 
   useEffect(() => {
     if (!userId) return
     loadQuestionProgress()
+  }, [userId])
+
+  // Auto-refresh when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && userId) {
+        console.log('👁️ Tab visible - refreshing progress data')
+        loadQuestionProgress()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [userId])
 
   const loadQuestionProgress = async () => {
@@ -51,12 +65,15 @@ export default function QuestionProgressDashboard() {
 
       console.log('📚 Loading question-level progress for user:', userId)
 
-      const response = await fetch(`/api/question-progress?user_id=${userId}`)
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = new Date().getTime()
+      const response = await fetch(`/api/question-progress?user_id=${userId}&_t=${timestamp}`)
       const data = await response.json()
 
       if (response.ok) {
         setQuestions(data.questions || [])
         setTopics(data.topics || [])
+        setLastRefresh(new Date())
         console.log('✅ Loaded progress:', { questions: data.questions?.length, topics: data.topics?.length })
       } else {
         setError(data.error || 'Failed to load progress')
@@ -167,6 +184,24 @@ export default function QuestionProgressDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header with Refresh Button */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Progress by Topic</h2>
+          <p className="text-sm text-gray-500">
+            Last updated: {lastRefresh.toLocaleTimeString()}
+          </p>
+        </div>
+        <button
+          onClick={loadQuestionProgress}
+          disabled={loading}
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6">

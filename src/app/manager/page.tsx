@@ -8,9 +8,11 @@ import ScenarioForm from '@/components/ScenarioForm'
 import EditScenarioForm from '@/components/EditScenarioForm'
 import AddScenariosDialog from '@/components/AddScenariosDialog'
 import UserHeader from '@/components/UserHeader'
+import SessionFeed from '@/components/Manager/SessionFeed'
 import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario, scenarioService } from '@/lib/scenarios'
 import { employeeService } from '@/lib/employees'
+import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
 
 // TopicTag component to display topic information
 interface TopicTagProps {
@@ -111,6 +113,9 @@ export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true)
   const [roleChecking, setRoleChecking] = useState(true)
   const [isEmployee, setIsEmployee] = useState(false)
+  const [activeTab, setActiveTab] = useState<'feed' | 'training' | 'knowledge' | 'employees'>('feed')
+  const [defaultLanguage, setDefaultLanguage] = useState('en')
+  const [savingLanguage, setSavingLanguage] = useState(false)
 
   // Get company ID from authenticated user
   const companyId = user?.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
@@ -155,6 +160,45 @@ export default function ManagerDashboard() {
     }
   }
 
+  const loadCompanySettings = async () => {
+    try {
+      const response = await fetch(`/api/company-settings?company_id=${companyId}`)
+      const data = await response.json()
+      if (data.success && data.settings) {
+        setDefaultLanguage(data.settings.default_training_language || 'en')
+      }
+    } catch (error) {
+      console.error('Failed to load company settings:', error)
+    }
+  }
+
+  const handleLanguageChange = async (languageCode: string) => {
+    setSavingLanguage(true)
+    try {
+      const response = await fetch('/api/company-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: companyId,
+          default_training_language: languageCode
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setDefaultLanguage(languageCode)
+        console.log('✅ Default training language updated to:', languageCode)
+      } else {
+        alert('Failed to update default language')
+      }
+    } catch (error) {
+      console.error('Failed to update default language:', error)
+      alert('Failed to update default language')
+    } finally {
+      setSavingLanguage(false)
+    }
+  }
+
   // Check user role on mount
   useEffect(() => {
     const checkUserRole = () => {
@@ -182,6 +226,7 @@ export default function ManagerDashboard() {
     if (!roleChecking && !isEmployee) {
       loadTracks()
       loadAllScenarios()
+      loadCompanySettings()
     }
   }, [roleChecking, isEmployee])
 
@@ -437,13 +482,27 @@ export default function ManagerDashboard() {
           )}
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs - Always visible */}
         <div className="mb-8">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
-                onClick={() => {}}
-                className="border-blue-500 text-blue-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+                onClick={() => setActiveTab('feed')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'feed'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Feed
+              </button>
+              <button
+                onClick={() => setActiveTab('training')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'training'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
                 Training
               </button>
@@ -464,14 +523,51 @@ export default function ManagerDashboard() {
         </div>
 
         {/* Main Content */}
-        {!selectedTrack ? (
-          /* Track Management View */
-          <div>
+        {activeTab === 'feed' ? (
+          /* Feed View */
+          <SessionFeed companyId={companyId} />
+        ) : activeTab === 'training' ? (
+          !selectedTrack ? (
+            /* Track Management View */
+            <div>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Training Tracks</h2>
-              <p className="text-gray-600 mb-4">
-                Create and manage training tracks for your team. Each track contains multiple scenarios.
-              </p>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Training Tracks</h2>
+                  <p className="text-gray-600">
+                    Create and manage training tracks for your team. Each track contains multiple scenarios.
+                  </p>
+                </div>
+
+                {/* Default Language Selector */}
+                <div className="ml-6 flex-shrink-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Training Language by Default
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={defaultLanguage}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
+                      disabled={savingLanguage}
+                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
+                    >
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                          {lang.flag} {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                    {savingLanguage && (
+                      <div className="absolute right-8 top-2.5">
+                        <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    This will be the default language for all employee training sessions
+                  </p>
+                </div>
+              </div>
             </div>
             <TrackList
               tracks={tracks}
@@ -602,10 +698,10 @@ export default function ManagerDashboard() {
                 )}
               </div>
             </div>
-          </div>
-        ) : (
-          /* Scenario Management View */
-          <div>
+            </div>
+          ) : (
+            /* Scenario Management View */
+            <div>
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -753,8 +849,9 @@ export default function ManagerDashboard() {
                 ))
               )}
             </div>
-          </div>
-        )}
+            </div>
+          )
+        ) : null}
 
         {/* Track Form Modal */}
         {showTrackForm && (

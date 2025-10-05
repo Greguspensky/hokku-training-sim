@@ -44,6 +44,7 @@ export interface CreateSessionData {
   employee_id: string
   assignment_id: string
   company_id: string
+  scenario_id?: string | null // Scenario being trained
   training_mode: 'theory' | 'service_practice' | 'recommendation_tts'
   language: string
   agent_id: string
@@ -51,6 +52,7 @@ export interface CreateSessionData {
   conversation_transcript: ConversationMessage[]
   started_at: Date
   ended_at: Date
+  session_duration_seconds?: number // Allow manual override
   // Recording data
   recording_preference: RecordingPreference
   recording_consent_timestamp?: Date | null
@@ -71,7 +73,7 @@ class TrainingSessionsService {
       sessionData.started_at
     )
 
-    const sessionDuration = Math.round(
+    const sessionDuration = sessionData.session_duration_seconds ?? Math.round(
       (sessionData.ended_at.getTime() - sessionData.started_at.getTime()) / 1000
     )
 
@@ -79,6 +81,7 @@ class TrainingSessionsService {
       employee_id: sessionData.employee_id,
       assignment_id: sessionData.assignment_id,
       company_id: sessionData.company_id,
+      scenario_id: sessionData.scenario_id || null, // Track which scenario was trained
       session_name: sessionName,
       training_mode: sessionData.training_mode,
       language: sessionData.language,

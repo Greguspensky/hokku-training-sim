@@ -231,6 +231,29 @@ export async function POST(request: NextRequest) {
           apiKey: process.env.OPENAI_API_KEY
         })
 
+        // Load actual questions from database for matching
+        console.log('📚 Loading questions from database for matching...')
+        const { data: dbQuestions, error: questionsError } = await supabaseAdmin
+          .from('topic_questions')
+          .select(`
+            id,
+            question_template,
+            correct_answer,
+            difficulty_level,
+            knowledge_topics!inner(
+              id,
+              name,
+              category
+            )
+          `)
+          .eq('is_active', true)
+
+        if (questionsError) {
+          console.error('❌ Error loading questions:', questionsError)
+        }
+
+        console.log(`✅ Loaded ${dbQuestions?.length || 0} questions from database`)
+
         // Simple assessment using OpenAI directly
         const qaExchanges = []
         for (let i = 0; i < messages.length - 1; i++) {
@@ -248,92 +271,137 @@ export async function POST(request: NextRequest) {
 
         console.log(`🔍 Found ${qaExchanges.length} Q&A exchanges for assessment`)
 
-        if (qaExchanges.length > 0) {
-          // Use OpenAI to assess the Q&A exchanges
-          const assessmentPrompt = `Analyze these Q&A exchanges from a Russian coffee shop training session. For each question-answer pair, evaluate the quality and correctness of the answer on a scale of 0-100:
+        if (qaExchanges.length > 0 && dbQuestions && dbQuestions.length > 0) {
+          // Match each Q&A exchange to a database question and assess it
+          const transformedAssessments = []
 
-${qaExchanges.map((qa, i) => `Q${i+1}: ${qa.question}\nA${i+1}: ${qa.answer}`).join('\n\n')}
+          for (const exchange of qaExchanges) {
+            try {
+              // Find matching question from database using AI
+              console.log(`🔎 Matching question: "${exchange.question.substring(0, 50)}..."`)
 
-Expected knowledge includes:
-- Фейхоа пай consists of: сироп фейхоа, вода, эспрессо
-- Вишнёвый эрал contains: чайная заготовка, сок вишни, сироп инжир, вода
-- Горячая аранжата is: цитрусовый горячий кофе с лимонной яркостью
-- Аранжата ICE contains: заготовка аранжата, вода, лёд
+              const matchPrompt = `Given this spoken question: "${exchange.question}"
 
-Return a JSON object with this structure:
+Find the best matching question from this list:
+${dbQuestions.map((q, i) => `${i + 1}. ${q.question_template}`).join('\n')}
+
+Return only the number (1-${dbQuestions.length}) of the best match, or "0" if no good match.`
+
+              const matchResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: matchPrompt }],
+                max_tokens: 10,
+                temperature: 0
+              })
+
+              const matchNumber = parseInt(matchResponse.choices[0]?.message?.content?.trim() || '0')
+
+              if (matchNumber > 0 && matchNumber <= dbQuestions.length) {
+                const matchedQuestion = dbQuestions[matchNumber - 1]
+                const topic = Array.isArray(matchedQuestion.knowledge_topics)
+                  ? matchedQuestion.knowledge_topics[0]
+                  : matchedQuestion.knowledge_topics
+
+                console.log(`✅ Matched to: ${matchedQuestion.question_template.substring(0, 50)}...`)
+
+                // Assess the answer using AI
+                const assessPrompt = `Question: ${exchange.question}
+User Answer: ${exchange.answer}
+Correct Answer: ${matchedQuestion.correct_answer}
+
+Evaluate if the user's answer is correct. Return JSON:
 {
-  "assessments": [
-    {
-      "question": "question text",
-      "answer": "user's answer text",
-      "correctAnswer": "the correct answer",
-      "score": 0-100,
-      "feedback": "detailed feedback",
-      "isCorrect": boolean
-    }
-  ],
-  "summary": {
-    "totalQuestions": number,
-    "correctAnswers": number,
-    "averageScore": number,
-    "accuracy": decimal
-  }
+  "isCorrect": boolean,
+  "score": 0-100,
+  "feedback": "explanation"
 }`
 
-          const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [{ role: "user", content: assessmentPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.3
-          })
+                const assessResponse = await openai.chat.completions.create({
+                  model: 'gpt-4o-mini',
+                  messages: [{ role: 'user', content: assessPrompt }],
+                  response_format: { type: "json_object" },
+                  temperature: 0.3
+                })
 
-          try {
-            const rawAssessment = JSON.parse(completion.choices[0].message.content || '{}')
+                const assessment = JSON.parse(assessResponse.choices[0].message.content || '{}')
 
-            // Transform the data structure to match UI expectations
-            const transformedAssessments = (rawAssessment.assessments || []).map((assessment, index) => ({
-              questionId: `q_${index + 1}`,
-              questionAsked: assessment.question || '',
-              userAnswer: assessment.answer || '',
-              correctAnswer: assessment.correctAnswer || 'Correct answer not provided',
-              isCorrect: assessment.isCorrect || false,
-              score: assessment.score || 0,
-              feedback: assessment.feedback || '',
-              topicName: assessment.topicName || 'General',
-              topicCategory: assessment.topicCategory || 'general',
-              difficultyLevel: assessment.difficultyLevel || 1
-            }))
+                const result = {
+                  questionId: matchedQuestion.id, // Real UUID!
+                  questionAsked: exchange.question,
+                  userAnswer: exchange.answer,
+                  correctAnswer: matchedQuestion.correct_answer,
+                  isCorrect: assessment.isCorrect || false,
+                  score: assessment.score || 0,
+                  feedback: assessment.feedback || '',
+                  topicName: topic.name,
+                  topicCategory: topic.category,
+                  difficultyLevel: matchedQuestion.difficulty_level
+                }
 
-            // Calculate proper summary statistics from the transformed assessments
-            const correctAnswers = transformedAssessments.filter(a => a.isCorrect).length
-            const totalQuestions = transformedAssessments.length
-            const averageScore = totalQuestions > 0
-              ? Math.round(transformedAssessments.reduce((sum, a) => sum + a.score, 0) / totalQuestions)
-              : 0
-            const accuracy = totalQuestions > 0
-              ? Math.round((correctAnswers / totalQuestions) * 100)
-              : 0
+                transformedAssessments.push(result)
 
-            assessmentResult = {
-              assessmentResults: transformedAssessments,
-              summary: {
-                totalQuestions,
-                correctAnswers,
-                incorrectAnswers: totalQuestions - correctAnswers,
-                averageScore,
-                accuracy,
-                score: averageScore  // Add this for UI compatibility
+                // Save to question_attempts table
+                try {
+                  const attemptData = {
+                    user_id: session.employee_id,
+                    topic_id: topic.id,
+                    question_id: matchedQuestion.id,
+                    question_asked: exchange.question,
+                    user_answer: exchange.answer,
+                    correct_answer: matchedQuestion.correct_answer,
+                    is_correct: assessment.isCorrect || false,
+                    points_earned: (assessment.isCorrect || false) ? 2 : 0,
+                    time_spent_seconds: 30,
+                    attempt_number: 1,
+                    created_at: session.created_at
+                  }
+
+                  console.log(`💾 Saving attempt: ${matchedQuestion.id} - ${assessment.isCorrect ? 'CORRECT' : 'INCORRECT'}`)
+
+                  const { error: insertError } = await supabaseAdmin
+                    .from('question_attempts')
+                    .insert(attemptData)
+
+                  if (insertError) {
+                    console.error(`❌ Failed to save attempt:`, insertError.message)
+                  } else {
+                    console.log(`✅ Attempt saved successfully`)
+                  }
+                } catch (saveError) {
+                  console.error(`❌ Error saving attempt:`, saveError)
+                }
+              } else {
+                console.log(`⚠️ No match found for question`)
               }
-            }
-            console.log('✅ Assessment completed successfully with OpenAI')
-          } catch (parseError) {
-            console.error('❌ Error parsing OpenAI response:', parseError)
-            assessmentResult = {
-              assessmentResults: [],
-              summary: { totalQuestions: qaExchanges.length, correctAnswers: 0, averageScore: 0, accuracy: 0 },
-              message: 'Assessment completed but response parsing failed'
+            } catch (matchError) {
+              console.error(`❌ Error processing exchange:`, matchError)
             }
           }
+
+          console.log(`📊 Processed ${transformedAssessments.length} / ${qaExchanges.length} Q&A exchanges`)
+
+          // Calculate proper summary statistics from the transformed assessments
+          const correctAnswers = transformedAssessments.filter(a => a.isCorrect).length
+          const totalQuestions = transformedAssessments.length
+          const averageScore = totalQuestions > 0
+            ? Math.round(transformedAssessments.reduce((sum, a) => sum + a.score, 0) / totalQuestions)
+            : 0
+          const accuracy = totalQuestions > 0
+            ? Math.round((correctAnswers / totalQuestions) * 100)
+            : 0
+
+          assessmentResult = {
+            assessmentResults: transformedAssessments,
+            summary: {
+              totalQuestions,
+              correctAnswers,
+              incorrectAnswers: totalQuestions - correctAnswers,
+              averageScore,
+              accuracy,
+              score: averageScore  // Add this for UI compatibility
+            }
+          }
+          console.log('✅ Assessment completed with database matching')
         } else {
           assessmentResult = {
             assessmentResults: [],

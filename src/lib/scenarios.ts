@@ -89,6 +89,7 @@ export interface Scenario {
   topic_ids?: string[];
   // Recommendations scenario support
   recommendation_question_ids?: string[];
+  recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
   // Avatar mode support
   avatar_mode?: boolean;
@@ -132,6 +133,7 @@ export interface UpdateScenarioData {
   milestones?: string[];
   topic_ids?: string[];
   recommendation_question_ids?: string[];
+  recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
 }
 
@@ -329,6 +331,7 @@ class ScenarioService {
       milestones: updates.milestones || [],
       topic_ids: updates.topic_ids || [],
       recommendation_question_ids: updates.recommendation_question_ids,
+      recommendation_question_durations: updates.recommendation_question_durations || {},
       instructions: updates.instructions,
       updated_at: new Date().toISOString()
     };
