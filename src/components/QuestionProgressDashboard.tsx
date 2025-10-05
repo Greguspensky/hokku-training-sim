@@ -39,16 +39,17 @@ export default function QuestionProgressDashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
   const userId = user?.id
+  const companyId = user?.company_id
 
   useEffect(() => {
     if (!userId) return
     loadQuestionProgress()
-  }, [userId])
+  }, [userId, companyId])
 
   // Auto-refresh when tab becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && userId) {
+      if (document.visibilityState === 'visible' && userId && companyId) {
         console.log('👁️ Tab visible - refreshing progress data')
         loadQuestionProgress()
       }
@@ -56,18 +57,19 @@ export default function QuestionProgressDashboard() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [userId])
+  }, [userId, companyId])
 
   const loadQuestionProgress = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      console.log('📚 Loading question-level progress for user:', userId)
+      console.log('📚 Loading question-level progress for user:', userId, 'company:', companyId)
 
       // Add cache-busting timestamp to ensure fresh data
       const timestamp = new Date().getTime()
-      const response = await fetch(`/api/question-progress?user_id=${userId}&_t=${timestamp}`)
+      const companyParam = companyId ? `&company_id=${companyId}` : ''
+      const response = await fetch(`/api/question-progress?user_id=${userId}${companyParam}&_t=${timestamp}`)
       const data = await response.json()
 
       if (response.ok) {

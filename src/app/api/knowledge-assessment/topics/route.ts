@@ -10,13 +10,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get topics with their questions
+    // Get topics with their questions for this company
     const { data: topics, error } = await supabaseAdmin
       .from('knowledge_topics')
       .select(`
         *,
         topic_questions (*)
       `)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false })
 
     if (error) {

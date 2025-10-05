@@ -17,14 +17,25 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
 
   const loadEmployees = async () => {
     try {
+      console.log('🔍 EmployeeManagement loadEmployees called with companyId:', companyId)
+
+      if (!companyId) {
+        console.warn('⚠️ No companyId provided to EmployeeManagement')
+        setLoading(false)
+        return
+      }
+
       let url = `/api/employees?company_id=${companyId}`
       if (searchQuery.trim()) {
         url += `&search=${encodeURIComponent(searchQuery)}`
       }
 
+      console.log('📡 Fetching employees from:', url)
       const response = await fetch(url)
       const data = await response.json()
-      
+
+      console.log('📊 Employees API response:', { success: data.success, count: data.count, employees: data.employees?.length })
+
       if (data.success) {
         setEmployees(data.employees || [])
       }

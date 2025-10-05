@@ -64,9 +64,9 @@ export default function TrainingSessionPage() {
   // Load default language from company settings
   useEffect(() => {
     const loadDefaultLanguage = async () => {
-      if (!user) return
+      if (!user || !user.company_id) return
 
-      const companyId = user.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
+      const companyId = user.company_id
 
       try {
         const response = await fetch(`/api/company-settings?company_id=${companyId}`)
@@ -115,11 +115,13 @@ export default function TrainingSessionPage() {
         setAssignment(assignmentData.assignment)
 
         // Load knowledge base documents for the company
-        const kbResponse = await fetch(`/api/knowledge-base/documents?company_id=${user.company_id || '01f773e2-1027-490e-8d36-279136700bbf'}`)
-        const kbData = await kbResponse.json()
+        if (user.company_id) {
+          const kbResponse = await fetch(`/api/knowledge-base/documents?company_id=${user.company_id}`)
+          const kbData = await kbResponse.json()
 
-        if (kbData.success) {
-          setKnowledgeDocuments(kbData.documents)
+          if (kbData.success) {
+            setKnowledgeDocuments(kbData.documents)
+          }
         }
 
         // Handle scenario-specific routing
@@ -212,7 +214,7 @@ export default function TrainingSessionPage() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                company_id: user?.company_id || '01f773e2-1027-490e-8d36-279136700bbf',
+                company_id: user?.company_id,
                 document_ids: scenarioDocuments.map(doc => doc.id),
                 question_count: 2,
                 difficulty: scenario.difficulty || 'beginner',
@@ -687,7 +689,7 @@ export default function TrainingSessionPage() {
   // If avatar mode is enabled, render unified single-screen interface
   if (isAvatarMode && currentScenario) {
     // Use the company ID to get the appropriate agent
-    const companyId = assignment.company_id || '01f773e2-1027-490e-8d36-279136700bbf' // Default to demo company
+    const companyId = assignment.company_id || user?.company_id
 
     return (
       <div className="min-h-screen bg-gray-50 py-8">

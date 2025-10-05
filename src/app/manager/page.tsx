@@ -117,8 +117,19 @@ export default function ManagerDashboard() {
   const [defaultLanguage, setDefaultLanguage] = useState('en')
   const [savingLanguage, setSavingLanguage] = useState(false)
 
+  // Read tab from URL query parameter
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const tab = urlParams.get('tab')
+      if (tab && (tab === 'feed' || tab === 'training' || tab === 'knowledge' || tab === 'employees')) {
+        setActiveTab(tab as 'feed' | 'training' | 'knowledge' | 'employees')
+      }
+    }
+  }, [])
+
   // Get company ID from authenticated user
-  const companyId = user?.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
+  const companyId = user?.company_id
 
   const loadTracks = async () => {
     try {
@@ -202,12 +213,12 @@ export default function ManagerDashboard() {
   // Check user role on mount
   useEffect(() => {
     const checkUserRole = () => {
-      if (user?.email) {
-        // Simple role detection based on email pattern
-        const isEmp = user.email.includes('emp')
+      if (user?.role) {
+        // Check actual role from database
+        const isEmp = user.role === 'employee'
         setIsEmployee(isEmp)
         if (isEmp) {
-          console.log('Manager page: Employee detected by email, redirecting to /employee')
+          console.log('Manager page: Employee detected by role, redirecting to /employee')
           router.push('/employee')
           return
         }
@@ -434,6 +445,23 @@ export default function ManagerDashboard() {
           >
             Go to Employee Dashboard
           </a>
+        </div>
+      </div>
+    )
+  }
+
+  // Guard: Require company_id to be present (after all hooks)
+  if (!companyId && !loading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <UserHeader />
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-red-800 mb-2">Company ID Missing</h2>
+              <p className="text-red-700">Your account is not associated with a company. Please contact your administrator.</p>
+            </div>
+          </div>
         </div>
       </div>
     )

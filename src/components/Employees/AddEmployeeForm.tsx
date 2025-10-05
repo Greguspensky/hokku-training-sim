@@ -16,26 +16,32 @@ export default function AddEmployeeForm({ companyId, onSuccess, onCancel }: AddE
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!name.trim()) {
       setError('Employee name is required')
       return
     }
 
+    console.log('📝 AddEmployeeForm - Creating invite with:', { name: name.trim(), company_id: companyId })
+
     setIsSubmitting(true)
     setError(null)
 
     try {
+      const payload = {
+        name: name.trim(),
+        company_id: companyId
+      }
+      console.log('📤 Sending POST to /api/employees with payload:', payload)
+
       const response = await fetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          company_id: companyId
-        })
+        body: JSON.stringify(payload)
       })
 
       const data = await response.json()
+      console.log('📥 API response:', data)
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to create employee invite')

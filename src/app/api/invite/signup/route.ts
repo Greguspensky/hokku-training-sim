@@ -57,17 +57,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate the invite token to get company_id
+    const inviteData = await employeeService.validateInviteToken(signupData.invite_token)
+
+    if (!inviteData || !inviteData.is_valid) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired invite token' },
+        { status: 400 }
+      )
+    }
+
     // Create user record in users table (for employee management)
     const client = supabaseAdmin || supabase
-    const role = signupData.email.includes('emp') ? 'employee' : 'manager'
+    // Anyone signing up through an invite link is an employee
+    const role = 'employee'
 
     const { error: userInsertError } = await client
       .from('users')
       .insert({
         id: authData.user.id,
         email: signupData.email,
-        name: signupData.email.split('@')[0],
+        name: inviteData.employee_name, // Use the name from the invite
         role: role,
+        company_id: inviteData.company_id,
         created_at: new Date().toISOString()
       })
 
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest) {
       console.error('Error creating user record:', userInsertError)
       // Continue anyway - the auth user exists, we just couldn't sync to users table
     } else {
-      console.log('✅ Created user record:', { email: signupData.email, role })
+      console.log('✅ Created user record:', { email: signupData.email, role, company_id: inviteData.company_id })
     }
 
     // Then complete the employee signup in the service

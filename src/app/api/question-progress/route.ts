@@ -4,16 +4,42 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const userId = searchParams.get('user_id')
+  const companyId = searchParams.get('company_id')
 
   if (!userId) {
     return NextResponse.json({ error: 'user_id is required' }, { status: 400 })
   }
 
-  console.log(`📚 Getting question-level progress for user: ${userId}`)
+  console.log(`📚 Getting question-level progress for user: ${userId}, company: ${companyId || 'not specified'}`)
 
   try {
-    // Get all questions with their topics
-    const { data: allQuestions, error: questionsError } = await supabaseAdmin
+    // If company_id is provided, first get topics for that company
+    let topicIds: string[] | null = null
+
+    if (companyId) {
+      console.log(`🏢 Filtering questions for company: ${companyId}`)
+      const { data: companyTopics, error: topicsError } = await supabaseAdmin
+        .from('knowledge_topics')
+        .select('id')
+        .eq('company_id', companyId)
+
+      if (topicsError) {
+        console.warn('⚠️ Error fetching company topics:', topicsError)
+      } else if (companyTopics && companyTopics.length > 0) {
+        topicIds = companyTopics.map(t => t.id)
+        console.log(`📋 Found ${topicIds.length} topics for company`)
+      } else {
+        console.log(`⚠️ No topics found for company ${companyId}`)
+        // Return empty result if no topics for this company
+        return NextResponse.json({
+          questions: [],
+          topics: []
+        })
+      }
+    }
+
+    // Build the query
+    let query = supabaseAdmin
       .from('topic_questions')
       .select(`
         id,
@@ -28,6 +54,13 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('is_active', true)
+
+    // Filter by topic IDs if we have them
+    if (topicIds && topicIds.length > 0) {
+      query = query.in('topic_id', topicIds)
+    }
+
+    const { data: allQuestions, error: questionsError} = await query
 
     if (questionsError) {
       console.error('❌ Error fetching questions:', questionsError)

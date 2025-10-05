@@ -10,6 +10,7 @@ import DocumentViewer from './DocumentViewer'
 import QuestionPoolView from './QuestionPoolView'
 import DocumentSelectionModal from './DocumentSelectionModal'
 import RecommendationQuestionsView from './RecommendationQuestionsView'
+import UserHeader from '@/components/UserHeader'
 
 interface KnowledgeBaseViewProps {
   companyId: string
@@ -221,20 +222,21 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+        {/* User Header with user info in top right */}
+        <UserHeader
+          title="Knowledge Base"
+          subtitle={
+            selectedCategory
+              ? `Viewing documents in: ${selectedCategory.name}`
+              : searchQuery
+                ? `Search results for: "${searchQuery}"`
+                : 'Organize and manage your company documentation'
+          }
+        />
+
+        {/* Action buttons */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Knowledge Base</h1>
-              <p className="text-gray-600 mt-2">
-                {selectedCategory 
-                  ? `Viewing documents in: ${selectedCategory.name}` 
-                  : searchQuery 
-                    ? `Search results for: "${searchQuery}"`
-                    : 'Organize and manage your company documentation'
-                }
-              </p>
-            </div>
+          <div className="flex items-center justify-end">
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowDocumentSelection(true)}
@@ -283,7 +285,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                 Feed
               </button>
               <button
-                onClick={() => router.push('/manager')}
+                onClick={() => router.push('/manager?tab=training')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
                 Training

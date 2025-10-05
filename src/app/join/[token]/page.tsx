@@ -89,7 +89,11 @@ export default function JoinPage({ params }: JoinPageProps) {
         throw new Error(data.error || 'Failed to create account')
       }
 
-      // Account created successfully - redirect to sign-in page with success message
+      // Account created successfully - sign out to clear any partial session, then redirect to sign-in page
+      const { supabase } = await import('@/lib/supabase')
+      await supabase.auth.signOut()
+
+      // Redirect to sign-in page with success message
       router.push('/signin?message=Account+created+successfully.+Please+sign+in.')
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to create account')

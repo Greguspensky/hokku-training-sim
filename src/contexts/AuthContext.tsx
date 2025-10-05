@@ -68,18 +68,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Helper function to enrich user with database info
   const enrichUserWithDbInfo = async (authUser: User): Promise<ExtendedUser> => {
     try {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', authUser.id)
-        .single()
+      // First ensure user record exists (creates if needed)
+      await ensureUserRecord(authUser)
+
+      // Then fetch the user data (with retry for new users)
+      let retries = 3
+      let dbUser = null
+
+      while (retries > 0 && !dbUser) {
+        const { data } = await supabase
+          .from('users')
+          .select('role, company_id')
+          .eq('id', authUser.id)
+          .single()
+
+        if (data) {
+          dbUser = data
+          break
+        }
+
+        // Wait a bit before retrying (for new user creation)
+        if (retries > 1) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+        retries--
+      }
 
       if (dbUser) {
-        console.log('✅ Enriched user with role:', dbUser.role)
+        console.log('✅ Enriched user with role and company_id:', dbUser.role, dbUser.company_id)
         return {
           ...authUser,
-          role: dbUser.role
+          role: dbUser.role,
+          company_id: dbUser.company_id
         }
+      } else {
+        console.warn('⚠️ Could not fetch user db info after retries')
       }
     } catch (error) {
       console.error('Error fetching user db info:', error)
@@ -146,8 +169,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signOut = async () => {
-    await authSignOut()
-    window.location.href = '/signin'
+    try {
+      console.log('🚪 Starting sign out...')
+      const result = await authSignOut()
+
+      if (result.success) {
+        console.log('✅ Sign out successful, redirecting...')
+        // Clear user state immediately
+        setUser(null)
+        // Redirect to signin
+        window.location.href = '/signin'
+      } else {
+        console.error('❌ Sign out failed:', result.error)
+        alert(`Sign out failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('❌ Sign out error:', error)
+      alert('An error occurred while signing out. Please try again.')
+    }
   }
 
   return (

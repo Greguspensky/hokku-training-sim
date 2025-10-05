@@ -12,17 +12,20 @@ export default function EmployeesPage() {
   const router = useRouter()
   const [roleChecking, setRoleChecking] = useState(true)
   const [isEmployee, setIsEmployee] = useState(false)
-  const companyId = user?.company_id || '01f773e2-1027-490e-8d36-279136700bbf'
+  const companyId = user?.company_id
+
+  console.log('👤 EmployeesPage - user:', { email: user?.email, company_id: user?.company_id, role: user?.role })
+  console.log('🏢 EmployeesPage - companyId being passed to EmployeeManagement:', companyId)
 
   // Check user role on mount
   useEffect(() => {
     const checkUserRole = () => {
-      if (user?.email) {
-        // Simple role detection based on email pattern
-        const isEmp = user.email.includes('emp')
+      if (user?.role) {
+        // Check actual role from database
+        const isEmp = user.role === 'employee'
         setIsEmployee(isEmp)
         if (isEmp) {
-          console.log('Manager employees page: Employee detected by email, redirecting to /employee')
+          console.log('Manager employees page: Employee detected by role, redirecting to /employee')
           router.push('/employee')
           return
         }
@@ -101,7 +104,7 @@ export default function EmployeesPage() {
                 Feed
               </button>
               <button
-                onClick={() => window.location.href = '/manager'}
+                onClick={() => window.location.href = '/manager?tab=training'}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
                 Training
