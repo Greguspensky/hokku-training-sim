@@ -249,47 +249,27 @@ export function RecommendationTTSSession({
       const dimensions = getVideoDimensions(videoAspectRatio)
       console.log('📐 Requested dimensions:', `${dimensions.width}x${dimensions.height}`)
 
-      // Build video constraints with mobile-specific handling
+      // Build video constraints - iOS Safari doesn't like exact dimensions
+      // Let the camera use its native resolution, we'll handle rotation via CSS
       const videoConstraints: MediaTrackConstraints = {
-        facingMode: 'user', // Front camera for selfie mode
-        aspectRatio: { ideal: dimensions.width / dimensions.height }
+        facingMode: 'user' // Front camera for selfie mode
       }
 
-      // For mobile, use exact constraints to force the aspect ratio
-      // For desktop, use ideal to allow fallback
-      if (isMobile) {
-        videoConstraints.width = { exact: dimensions.width }
-        videoConstraints.height = { exact: dimensions.height }
-        console.log('📱 Mobile: Using exact constraints to force aspect ratio')
-      } else {
+      // Only add dimension hints for desktop, iOS ignores them anyway
+      if (!isMobile) {
         videoConstraints.width = { ideal: dimensions.width }
         videoConstraints.height = { ideal: dimensions.height }
-        console.log('💻 Desktop: Using ideal constraints for flexibility')
+        videoConstraints.aspectRatio = { ideal: dimensions.width / dimensions.height }
+        console.log('💻 Desktop: Using ideal dimension constraints')
+      } else {
+        console.log('📱 Mobile: Using camera native resolution (no dimension constraints)')
       }
 
-      // Get microphone and camera stream with specified aspect ratio
-      let micStream: MediaStream
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: true
-        })
-      } catch (exactError) {
-        // If exact constraints fail on mobile, fallback to ideal
-        if (isMobile && (videoConstraints.width as any)?.exact) {
-          console.warn('⚠️ Exact constraints failed, retrying with ideal constraints:', exactError)
-          videoConstraints.width = { ideal: dimensions.width }
-          videoConstraints.height = { ideal: dimensions.height }
-
-          micStream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints,
-            audio: true
-          })
-          console.log('✅ Fallback to ideal constraints succeeded')
-        } else {
-          throw exactError
-        }
-      }
+      // Get microphone and camera stream
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: true
+      })
 
       // Log actual stream dimensions
       const videoTrack = micStream.getVideoTracks()[0]
@@ -305,15 +285,19 @@ export function RecommendationTTSSession({
       const requestedAspectRatio = dimensions.width / dimensions.height
       const aspectRatioDiff = Math.abs(actualAspectRatio - requestedAspectRatio)
 
-      // Detect if video needs rotation (e.g., portrait mode requested but got landscape)
-      const isPortraitRequested = dimensions.height > dimensions.width
+      // Detect if video needs rotation
+      // On mobile: If portrait mode (9:16) is selected, we need to rotate the landscape camera feed
+      const isPortraitMode = videoAspectRatio === '9:16'
       const isLandscapeStream = settings.width! > settings.height!
 
-      if (isPortraitRequested && isLandscapeStream) {
-        console.warn('🔄 Portrait mode requested but camera provided landscape - will apply CSS rotation')
+      if (isMobile && isPortraitMode && isLandscapeStream) {
+        console.warn('🔄 Mobile portrait mode: Camera gave landscape, will apply CSS rotation')
         setVideoNeedsRotation(true)
       } else {
         setVideoNeedsRotation(false)
+        if (isPortraitMode && !isLandscapeStream) {
+          console.log('✅ Camera provided portrait natively, no rotation needed')
+        }
       }
 
       if (aspectRatioDiff > 0.1) {
