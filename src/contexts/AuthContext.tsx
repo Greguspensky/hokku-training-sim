@@ -166,9 +166,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(loadingTimeout)
         console.warn('⚠️ AuthProvider: getUser() timed out or failed, will rely on auth state events:', error.message)
         if (isSubscribed) {
-          // Don't set loading to false yet - let auth state change events handle it
-          // This prevents the page from rendering with loading:false and user:false
           console.log('⏳ Waiting for auth state change events to update user state...')
+
+          // Fallback: If auth state event doesn't fire within 2 seconds, set loading to false anyway
+          setTimeout(() => {
+            if (isSubscribed) {
+              console.warn('⚠️ Auth state event did not fire, setting loading to false as fallback')
+              setLoading(false)
+            }
+          }, 2000)
         }
       }
     }
