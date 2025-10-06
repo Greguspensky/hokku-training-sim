@@ -168,13 +168,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isSubscribed) {
           console.log('⏳ Waiting for auth state change events to update user state...')
 
-          // Fallback: If auth state event doesn't fire within 2 seconds, set loading to false anyway
+          // Fallback: If auth state event doesn't fire within 3 seconds, set loading to false anyway
+          // Increased from 2s to 3s to allow time for user enrichment (up to 1.5s with retries)
           setTimeout(() => {
-            if (isSubscribed) {
-              console.warn('⚠️ Auth state event did not fire, setting loading to false as fallback')
+            if (isSubscribed && loading) {
+              console.warn('⚠️ Auth state event did not fire or complete, setting loading to false as fallback')
               setLoading(false)
             }
-          }, 2000)
+          }, 3000)
         }
       }
     }
