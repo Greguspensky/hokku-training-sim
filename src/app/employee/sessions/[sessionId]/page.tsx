@@ -469,15 +469,18 @@ export default function SessionTranscriptPage() {
                       </span>
                     )}
                   </div>
-                  <video
-                    controls
-                    className="w-full max-w-2xl rounded"
-                    preload="metadata"
-                  >
-                    <source src={session.video_recording_url} type="video/webm" />
-                    <source src={session.video_recording_url} type="video/mp4" />
-                    Your browser does not support the video element.
-                  </video>
+                  <div className="flex justify-center">
+                    <video
+                      controls
+                      className="rounded max-h-[600px]"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                      preload="metadata"
+                    >
+                      <source src={session.video_recording_url} type="video/webm" />
+                      <source src={session.video_recording_url} type="video/mp4" />
+                      Your browser does not support the video element.
+                    </video>
+                  </div>
                 </div>
               )}
 
