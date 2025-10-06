@@ -109,26 +109,53 @@ class TrainingSessionsService {
       // API uses service role which bypasses RLS and is faster
       console.log('🕐 Calling /api/save-training-session with 30s timeout...')
 
+      // Log the JSON string we're about to send to debug any serialization issues
+      let jsonString: string
+      try {
+        jsonString = JSON.stringify(sessionRecord)
+        console.log('📤 JSON payload size:', jsonString.length, 'characters')
+        console.log('📤 JSON payload preview:', jsonString.substring(0, 200) + '...')
+      } catch (stringifyError) {
+        console.error('❌ Failed to stringify session record:', stringifyError)
+        throw new Error('Failed to serialize session data: ' + (stringifyError instanceof Error ? stringifyError.message : 'Unknown error'))
+      }
+
       const apiPromise = fetch('/api/save-training-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sessionRecord)
+        body: jsonString
+      }).catch(fetchError => {
+        console.error('❌ Fetch call failed before reaching server:', fetchError)
+        throw fetchError
       })
 
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('API call timeout after 30 seconds')), 30000)
       )
 
+      console.log('⏳ Racing API call against timeout...')
       const response = await Promise.race([apiPromise, timeoutPromise]) as Response
+      console.log('✅ Got response with status:', response.status)
 
       if (!response.ok) {
-        const errorData = await response.json()
+        console.error('❌ Response not OK, status:', response.status)
+        let errorData
+        try {
+          errorData = await response.json()
+          console.error('❌ Error response data:', errorData)
+        } catch (jsonError) {
+          const textData = await response.text()
+          console.error('❌ Response was not JSON, raw text:', textData)
+          throw new Error(`API call failed with status ${response.status}: ${textData}`)
+        }
         throw new Error(errorData.error || 'API call failed')
       }
 
+      console.log('📥 Parsing successful response...')
       const result = await response.json()
 
       if (!result.success) {
+        console.error('❌ Result indicated failure:', result.error)
         throw new Error(result.error || 'Failed to save session')
       }
 
