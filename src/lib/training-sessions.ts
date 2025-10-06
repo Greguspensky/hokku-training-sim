@@ -105,27 +105,35 @@ class TrainingSessionsService {
     console.log('📝 Session record to save:', JSON.stringify(sessionRecord, null, 2))
 
     try {
-      // Add timeout to prevent infinite hanging (30 seconds)
-      const insertPromise = supabase
-        .from('training_sessions')
-        .insert(sessionRecord)
-        .select('id')
-        .single()
+      // Use API endpoint instead of direct Supabase client (better for mobile)
+      // API uses service role which bypasses RLS and is faster
+      console.log('🕐 Calling /api/save-training-session with 30s timeout...')
+
+      const apiPromise = fetch('/api/save-training-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionRecord)
+      })
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Database insert timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('API call timeout after 30 seconds')), 30000)
       )
 
-      console.log('🕐 Starting database insert with 30s timeout...')
-      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any
+      const response = await Promise.race([apiPromise, timeoutPromise]) as Response
 
-      if (error) {
-        console.error('❌ Failed to save training session:', error)
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'API call failed')
       }
 
-      console.log('✅ Training session saved successfully:', data.id)
-      return data.id
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save session')
+      }
+
+      console.log('✅ Training session saved successfully via API:', result.session.id)
+      return result.session.id
     } catch (error) {
       console.error('❌ Error saving training session:', error)
       if (error instanceof Error) {
