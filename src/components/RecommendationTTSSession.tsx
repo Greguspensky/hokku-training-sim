@@ -353,7 +353,7 @@ export function RecommendationTTSSession({
       // The TTS audio will be mixed into the recording stream
 
       // Create combined stream with video from camera and mixed audio
-      const videoTrack = micStream.getVideoTracks()[0]
+      // Note: videoTrack already obtained above when checking stream settings (line 295)
       const mixedAudioTrack = destination.stream.getAudioTracks()[0]
 
       console.log('🎬 Stream debug info:')
