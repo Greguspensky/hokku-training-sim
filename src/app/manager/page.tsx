@@ -234,12 +234,12 @@ export default function ManagerDashboard() {
   }, [user, router])
 
   useEffect(() => {
-    if (!roleChecking && !isEmployee) {
+    if (!roleChecking && !isEmployee && companyId) {
       loadTracks()
       loadAllScenarios()
       loadCompanySettings()
     }
-  }, [roleChecking, isEmployee])
+  }, [roleChecking, isEmployee, companyId])
 
   useEffect(() => {
     if (selectedTrack) {
