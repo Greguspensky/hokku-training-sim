@@ -317,7 +317,18 @@ export function RecommendationTTSSession({
 
       const mimeType = getSupportedMimeType()
       recordingMimeTypeRef.current = mimeType
-      const recorder = new MediaRecorder(combinedStream, { mimeType })
+
+      // Configure MediaRecorder with video bitrate to reduce file size
+      // Mobile: 1 Mbps, Desktop: 2.5 Mbps
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      const videoBitsPerSecond = isMobile ? 1000000 : 2500000 // 1 Mbps or 2.5 Mbps
+
+      console.log(`📹 Configuring MediaRecorder: ${isMobile ? 'Mobile' : 'Desktop'} mode, bitrate: ${videoBitsPerSecond / 1000000} Mbps`)
+
+      const recorder = new MediaRecorder(combinedStream, {
+        mimeType,
+        videoBitsPerSecond
+      })
       setMediaRecorder(recorder)
 
       // Clear any existing chunks
@@ -471,14 +482,24 @@ export function RecommendationTTSSession({
         formData.append('sessionId', tempSessionId)
         formData.append('recordingType', 'video')
 
-        console.log('📹 Starting video upload...')
-        const uploadResponse = await fetch('/api/upload-recording', {
+        console.log('📹 Starting video upload with 60s timeout...')
+
+        // Add timeout for video upload (60 seconds)
+        const uploadPromise = fetch('/api/upload-recording', {
           method: 'POST',
           body: formData
         })
 
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Video upload timeout after 60 seconds')), 60000)
+        )
+
+        const uploadResponse = await Promise.race([uploadPromise, timeoutPromise]) as Response
+
         if (!uploadResponse.ok) {
-          throw new Error('Video upload failed')
+          const errorText = await uploadResponse.text()
+          console.error('❌ Upload response not OK:', uploadResponse.status, errorText)
+          throw new Error(`Video upload failed: ${uploadResponse.status} ${errorText}`)
         }
 
         videoUploadResult = await uploadResponse.json()
