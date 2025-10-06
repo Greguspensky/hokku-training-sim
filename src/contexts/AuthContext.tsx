@@ -24,14 +24,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // Helper function to ensure user record exists in database
 async function ensureUserRecord(authUser: User) {
   try {
-    // Check if user record exists
-    const { data: existingUser } = await supabase
+    console.log('🔍 Checking if user record exists in database...')
+
+    // Check if user record exists (with 2s timeout)
+    const checkPromise = supabase
       .from('users')
       .select('*')
       .eq('id', authUser.id)
       .single()
 
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('ensureUserRecord timeout')), 2000)
+    )
+
+    const { data: existingUser } = await Promise.race([checkPromise, timeoutPromise]) as any
+
     if (!existingUser) {
+      console.log('📝 User record does not exist, creating...')
       // Determine role based on email - employees have "emp" in their email
       const role = authUser.email?.includes('emp') ? 'employee' : 'manager'
 
@@ -44,20 +53,21 @@ async function ensureUserRecord(authUser: User) {
       })
 
       if (error) {
-        console.error('Error calling create_user_record function:', error)
+        console.error('❌ Error calling create_user_record function:', error)
       } else if (result?.success) {
         console.log('✅ Created user record on sign-in:', {
           email: authUser.email,
           role: role
         })
       } else {
-        console.error('Database function returned error:', result?.error)
+        console.error('❌ Database function returned error:', result?.error)
       }
     } else {
-      console.log('User record already exists:', existingUser.email, existingUser.role)
+      console.log('✅ User record already exists:', existingUser.email, existingUser.role)
     }
   } catch (error) {
-    console.error('Error ensuring user record:', error)
+    console.error('❌ Error ensuring user record (continuing anyway):', error)
+    // Don't throw - we can continue even if this fails
   }
 }
 
@@ -83,24 +93,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       while (retries > 0 && !dbUser) {
         console.log(`🔄 Fetching user data from database (attempt ${4 - retries}/3)...`)
-        const { data, error } = await supabase
+
+        // Add 1s timeout to database query
+        const queryPromise = supabase
           .from('users')
           .select('role, company_id')
           .eq('id', authUser.id)
           .single()
 
-        if (error) {
-          console.warn('⚠️ Database query error:', error.message)
-        }
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database query timeout')), 1000)
+        )
 
-        if (data) {
-          dbUser = data
-          console.log('✅ Found user data in database')
-          break
+        try {
+          const { data, error } = await Promise.race([queryPromise, timeout]) as any
+
+          if (error) {
+            console.warn('⚠️ Database query error:', error.message)
+          }
+
+          if (data) {
+            dbUser = data
+            console.log('✅ Found user data in database')
+            break
+          }
+        } catch (timeoutError) {
+          console.warn('⚠️ Database query timed out')
         }
 
         // Wait a bit before retrying (for new user creation)
-        if (retries > 1) {
+        if (retries > 1 && !dbUser) {
           console.log('⏳ Waiting 500ms before retry...')
           await new Promise(resolve => setTimeout(resolve, 500))
         }
