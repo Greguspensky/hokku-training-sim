@@ -69,28 +69,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Helper function to enrich user with database info
   const enrichUserWithDbInfo = async (authUser: User): Promise<ExtendedUser> => {
+    console.log('🔍 Starting user enrichment for:', authUser.email, 'id:', authUser.id)
+
     try {
       // First ensure user record exists (creates if needed)
+      console.log('📝 Ensuring user record exists...')
       await ensureUserRecord(authUser)
+      console.log('✅ User record ensured')
 
       // Then fetch the user data (with retry for new users)
       let retries = 3
       let dbUser = null
 
       while (retries > 0 && !dbUser) {
-        const { data } = await supabase
+        console.log(`🔄 Fetching user data from database (attempt ${4 - retries}/3)...`)
+        const { data, error } = await supabase
           .from('users')
           .select('role, company_id')
           .eq('id', authUser.id)
           .single()
 
+        if (error) {
+          console.warn('⚠️ Database query error:', error.message)
+        }
+
         if (data) {
           dbUser = data
+          console.log('✅ Found user data in database')
           break
         }
 
         // Wait a bit before retrying (for new user creation)
         if (retries > 1) {
+          console.log('⏳ Waiting 500ms before retry...')
           await new Promise(resolve => setTimeout(resolve, 500))
         }
         retries--
@@ -98,17 +109,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (dbUser) {
         console.log('✅ Enriched user with role and company_id:', dbUser.role, dbUser.company_id)
-        return {
+        const enrichedUser = {
           ...authUser,
           role: dbUser.role,
           company_id: dbUser.company_id
         }
+        console.log('✅ Enrichment complete, returning user with id:', enrichedUser.id)
+        return enrichedUser
       } else {
-        console.warn('⚠️ Could not fetch user db info after retries')
+        console.warn('⚠️ Could not fetch user db info after retries, returning basic auth user')
       }
     } catch (error) {
-      console.error('Error fetching user db info:', error)
+      console.error('❌ Error during enrichment:', error)
     }
+
+    console.log('⚠️ Returning unenriched user')
     return authUser
   }
 
@@ -196,16 +211,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           console.log('🔄 Enriching user from auth state change...')
           const enrichedUser = await enrichUserWithDbInfo(session.user)
+          console.log('🔄 Enrichment returned, enriched user id:', enrichedUser.id, 'email:', enrichedUser.email)
 
           // Only update if user changed to prevent infinite loops
           setUser(prevUser => {
+            console.log('🔍 setUser callback - prevUser id:', prevUser?.id, 'enrichedUser id:', enrichedUser.id)
             if (prevUser?.id === enrichedUser.id) {
               console.log('✅ User unchanged, skipping state update')
               return prevUser
             }
-            console.log('✅ User changed, updating state to:', enrichedUser.email)
+            console.log('✅ User changed, updating state to:', enrichedUser.email, 'with id:', enrichedUser.id)
             return enrichedUser
           })
+          console.log('🔄 setUser called, state should update shortly')
         } else {
           console.log('⚠️ No user in session, setting user to null')
           setUser(null)
