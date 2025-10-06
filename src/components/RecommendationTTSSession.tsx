@@ -247,7 +247,7 @@ export function RecommendationTTSSession({
       }
 
       const dimensions = getVideoDimensions(videoAspectRatio)
-      console.log('📐 Requested dimensions:', dimensions)
+      console.log('📐 Requested dimensions:', `${dimensions.width}x${dimensions.height}`)
 
       // Build video constraints with mobile-specific handling
       const videoConstraints: MediaTrackConstraints = {
@@ -294,12 +294,11 @@ export function RecommendationTTSSession({
       // Log actual stream dimensions
       const videoTrack = micStream.getVideoTracks()[0]
       const settings = videoTrack.getSettings()
-      console.log('✅ Actual stream dimensions:', {
-        width: settings.width,
-        height: settings.height,
-        aspectRatio: settings.aspectRatio,
-        facingMode: settings.facingMode
-      })
+      console.log('✅ Actual stream dimensions:')
+      console.log(`   Width: ${settings.width}`)
+      console.log(`   Height: ${settings.height}`)
+      console.log(`   Aspect Ratio: ${settings.aspectRatio}`)
+      console.log(`   Facing Mode: ${settings.facingMode}`)
 
       // Check if stream dimensions match requested aspect ratio
       const actualAspectRatio = settings.width! / settings.height!
