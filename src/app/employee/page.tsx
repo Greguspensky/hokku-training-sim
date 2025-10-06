@@ -77,16 +77,16 @@ export default function EmployeeDashboard() {
     }
   }, [])
 
-  // Handle authentication timeout and redirect
+  // Handle authentication - only redirect if definitely not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      // Set a small timeout before redirecting to allow auth state to stabilize
+      // Give more time for auth to stabilize, especially when opening multiple tabs
       const timeout = setTimeout(() => {
-        console.log('Employee page - no user after timeout, redirecting to signin')
+        console.log('Employee page - no user after extended timeout, redirecting to signin')
         if (typeof window !== 'undefined') {
           window.location.href = '/signin'
         }
-      }, 1000) // 1 second delay
+      }, 6000) // 6 second delay to allow auth state to fully stabilize
 
       setRedirectTimeout(timeout)
       return () => clearTimeout(timeout)

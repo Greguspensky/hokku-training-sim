@@ -65,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
 
+  console.log('🔵 AuthProvider: Component rendered, loading:', loading, 'user:', !!user)
+
   // Helper function to enrich user with database info
   const enrichUserWithDbInfo = async (authUser: User): Promise<ExtendedUser> => {
     try {
@@ -111,57 +113,120 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    console.log('AuthProvider: Starting simple auth check...')
+    console.log('🔵 AuthProvider: useEffect started - checking auth state')
+    let isSubscribed = true
 
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('AuthProvider: Initial session:', !!session)
-      if (session?.user) {
-        const enrichedUser = await enrichUserWithDbInfo(session.user)
-        setUser(enrichedUser)
-      } else {
-        setUser(null)
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⚠️ AuthProvider: Session check timeout (5s), setting loading to false')
+      if (isSubscribed) {
+        setLoading(false)
       }
-      setLoading(false)
-    }).catch((error) => {
-      console.error('AuthProvider: Error getting initial session:', error)
-      setLoading(false)
-    })
+    }, 5000) // 5 second timeout
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthProvider: Auth state changed:', event, !!session, 'email:', session?.user?.email, 'current path:', typeof window !== 'undefined' ? window.location.pathname : 'unknown')
+    // Get initial session - using getUser() for better reliability
+    const checkAuth = async () => {
+      try {
+        console.log('🔍 AuthProvider: Calling supabase.auth.getUser()...')
 
-        if (session?.user) {
-          const enrichedUser = await enrichUserWithDbInfo(session.user)
+        // Race the getUser() call against the timeout
+        const getUserPromise = supabase.auth.getUser()
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('getUser timeout')), 4000)
+        )
+
+        const { data: { user: authUser }, error } = await Promise.race([
+          getUserPromise,
+          timeoutPromise
+        ]) as any
+
+        if (!isSubscribed) {
+          console.log('⚠️ AuthProvider: Component unmounted, skipping auth check')
+          return
+        }
+
+        clearTimeout(loadingTimeout) // Clear timeout if check completes
+
+        if (error) {
+          console.error('❌ AuthProvider: Error getting user:', error)
+          setUser(null)
+          setLoading(false)
+          return
+        }
+
+        console.log('✅ AuthProvider: getUser() completed:', !!authUser, 'email:', authUser?.email)
+        if (authUser) {
+          const enrichedUser = await enrichUserWithDbInfo(authUser)
           setUser(enrichedUser)
         } else {
           setUser(null)
         }
         setLoading(false)
+      } catch (error: any) {
+        clearTimeout(loadingTimeout)
+        console.warn('⚠️ AuthProvider: getUser() timed out or failed, will rely on auth state events:', error.message)
+        if (isSubscribed) {
+          // Don't set loading to false yet - let auth state change events handle it
+          // This prevents the page from rendering with loading:false and user:false
+          console.log('⏳ Waiting for auth state change events to update user state...')
+        }
+      }
+    }
 
-        // Only redirect on sign-in if we're on the sign-in page
-        if (event === 'SIGNED_IN' && session?.user) {
-          if (typeof window !== 'undefined' && window.location.pathname === '/signin') {
-            console.log('AuthProvider: User signed in, determining role...')
+    checkAuth()
 
-            // Simple role determination based on email
-            const isEmployeeUser = session.user.email?.includes('emp') || false
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔔 AuthProvider: Auth state changed:', event, 'has session:', !!session, 'has user:', !!session?.user, 'email:', session?.user?.email, 'current path:', typeof window !== 'undefined' ? window.location.pathname : 'unknown')
 
-            if (isEmployeeUser) {
-              console.log('AuthProvider: Employee detected by email, redirecting to /employee')
-              window.location.href = '/employee'
-            } else {
-              console.log('AuthProvider: Manager detected by email, redirecting to /manager')
-              window.location.href = '/manager'
+        if (!isSubscribed) {
+          console.log('⚠️ AuthProvider: Component unmounted, ignoring auth change')
+          return
+        }
+
+        // Only update user state if the user ID actually changed
+        if (session?.user) {
+          console.log('🔄 Enriching user from auth state change...')
+          const enrichedUser = await enrichUserWithDbInfo(session.user)
+
+          // Only update if user changed to prevent infinite loops
+          setUser(prevUser => {
+            if (prevUser?.id === enrichedUser.id) {
+              console.log('✅ User unchanged, skipping state update')
+              return prevUser
             }
+            console.log('✅ User changed, updating state to:', enrichedUser.email)
+            return enrichedUser
+          })
+        } else {
+          console.log('⚠️ No user in session, setting user to null')
+          setUser(null)
+        }
+
+        console.log('📍 Setting loading to false after auth state change')
+        setLoading(false)
+
+        // Handle role-based redirect only on successful sign-in
+        if (event === 'SIGNED_IN' && session?.user && typeof window !== 'undefined') {
+          const currentPath = window.location.pathname
+          console.log('🔐 SIGNED_IN on path:', currentPath)
+
+          // Only redirect if on signin page
+          if (currentPath === '/signin') {
+            const isEmployeeUser = session.user.email?.includes('emp') || false
+            const targetPath = isEmployeeUser ? '/employee' : '/manager'
+            console.log('🚀 Redirecting from signin to', targetPath)
+            window.location.href = targetPath
           }
         }
       }
     )
 
     return () => {
+      console.log('🧹 AuthProvider: Cleaning up useEffect')
+      isSubscribed = false
+      clearTimeout(loadingTimeout) // Clean up timeout on unmount
       if (subscription?.unsubscribe) {
         subscription.unsubscribe()
       }

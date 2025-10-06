@@ -1,15 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from '@/lib/auth'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function SignIn() {
+  const { user, loading: authLoading } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Redirect if already signed in
+  useEffect(() => {
+    if (!authLoading && user) {
+      console.log('✅ Already signed in, redirecting...')
+      const isEmployeeUser = user.email?.includes('emp') || false
+      const redirectPath = isEmployeeUser ? '/employee' : '/manager'
+      window.location.href = redirectPath
+    }
+  }, [authLoading, user])
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -32,8 +44,14 @@ export default function SignIn() {
       const result = await signIn(formData.email, formData.password)
 
       if (result.success) {
-        console.log('🔄 SIGNIN: Success! Supabase will handle redirect.')
-        // AuthContext will handle the redirect automatically
+        console.log('✅ SIGNIN: Success! Redirecting based on email...')
+
+        // Determine redirect based on email
+        const isEmployeeUser = formData.email.includes('emp')
+        const redirectPath = isEmployeeUser ? '/employee' : '/manager'
+
+        console.log('🚀 SIGNIN: Redirecting to', redirectPath)
+        window.location.href = redirectPath
       } else {
         console.error('🔄 SIGNIN: Failed:', result.error)
         setError(result.error || 'Invalid email or password')

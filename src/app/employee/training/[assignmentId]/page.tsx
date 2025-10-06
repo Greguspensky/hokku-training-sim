@@ -26,8 +26,9 @@ interface TrainingQuestion {
 export default function TrainingSessionPage() {
   const params = useParams()
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const assignmentId = params.assignmentId as string
+  const [redirectTimeout, setRedirectTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const [assignment, setAssignment] = useState<AssignmentWithDetails | null>(null)
   const [knowledgeDocuments, setKnowledgeDocuments] = useState<KnowledgeBaseDocument[]>([])
@@ -56,6 +57,26 @@ export default function TrainingSessionPage() {
   const [recommendationQuestionsLoading, setRecommendationQuestionsLoading] = useState(false)
   const [preAuthorizedTabAudio, setPreAuthorizedTabAudio] = useState<MediaStream | null>(null)
   const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16' | '4:3' | '1:1'>('16:9')
+
+  // Handle authentication - redirect if not authenticated after timeout
+  useEffect(() => {
+    if (!authLoading && !user) {
+      const timeout = setTimeout(() => {
+        console.log('Training page - no user after timeout, redirecting to signin')
+        if (typeof window !== 'undefined') {
+          window.location.href = '/signin'
+        }
+      }, 6000) // 6 second delay to allow auth state to stabilize
+
+      setRedirectTimeout(timeout)
+      return () => clearTimeout(timeout)
+    } else if (user) {
+      if (redirectTimeout) {
+        clearTimeout(redirectTimeout)
+        setRedirectTimeout(null)
+      }
+    }
+  }, [authLoading, user])
 
   useEffect(() => {
     loadTrainingData()
