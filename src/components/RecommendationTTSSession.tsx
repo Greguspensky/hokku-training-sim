@@ -798,7 +798,7 @@ export function RecommendationTTSSession({
             autoPlay
             muted
             playsInline
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             style={videoNeedsRotation ? {
               transform: 'rotate(90deg) scale(1.33)',
               transformOrigin: 'center center'
