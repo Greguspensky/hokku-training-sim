@@ -390,8 +390,7 @@ export function RecommendationTTSSession({
       recordingMimeTypeRef.current = mimeType
 
       // Configure MediaRecorder with video bitrate to reduce file size
-      // Mobile: 1 Mbps, Desktop: 2.5 Mbps
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      // Mobile: 1 Mbps, Desktop: 2.5 Mbps (isMobile already declared at function start)
       const videoBitsPerSecond = isMobile ? 1000000 : 2500000 // 1 Mbps or 2.5 Mbps
 
       console.log(`📹 Configuring MediaRecorder: ${isMobile ? 'Mobile' : 'Desktop'} mode, bitrate: ${videoBitsPerSecond / 1000000} Mbps`)
