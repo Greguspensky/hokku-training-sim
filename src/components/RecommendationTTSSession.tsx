@@ -103,11 +103,8 @@ export function RecommendationTTSSession({
       loadQuestionTTS()
       startQuestionTimer()
 
-      // Only start video recording for the first question
-      if (currentQuestionIndex === 0) {
-        console.log('🎬 Starting video recording for first question only')
-        startVideoRecording()
-      }
+      // Video recording is now started in startSession() from user gesture
+      // No automatic video start here (iOS requires user gesture)
     }
   }, [currentQuestionIndex, isSessionActive])
 
@@ -589,8 +586,13 @@ export function RecommendationTTSSession({
     }
   }
 
-  const startSession = () => {
+  const startSession = async () => {
+    console.log('🚀 Starting session from user button click (user gesture)')
     setIsSessionActive(true)
+
+    // Start video recording immediately from user gesture (required for iOS)
+    console.log('🎬 Starting video recording from user gesture')
+    await startVideoRecording()
   }
 
   // Format timer display
