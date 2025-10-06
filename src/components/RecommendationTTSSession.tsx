@@ -445,20 +445,67 @@ export function RecommendationTTSSession({
       timestamp: sessionStartTime ? new Date(sessionStartTime.getTime() + (index * 60000)).toISOString() : new Date().toISOString()
     }))
 
+    // NEW APPROACH: Upload video FIRST, then save session with video URL
+    // This prevents losing video if database save times out
+    let videoUploadResult = null
+
+    try {
+      // Check if we have video to upload
+      const chunks = videoChunksRef.current
+      console.log(`📹 Pre-upload video check: ${chunks.length} chunks available`)
+
+      if (chunks.length > 0) {
+        console.log('📹 Uploading video recording BEFORE saving session...')
+
+        // Create temporary session ID for upload
+        const tempSessionId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`
+
+        const videoBlob = new Blob(chunks, {
+          type: recordingMimeTypeRef.current
+        })
+
+        console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
+
+        const formData = new FormData()
+        formData.append('recording', videoBlob)
+        formData.append('sessionId', tempSessionId)
+        formData.append('recordingType', 'video')
+
+        console.log('📹 Starting video upload...')
+        const uploadResponse = await fetch('/api/upload-recording', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error('Video upload failed')
+        }
+
+        videoUploadResult = await uploadResponse.json()
+        console.log('✅ Video uploaded successfully:', videoUploadResult.path)
+      } else {
+        console.warn('⚠️ No video chunks to upload')
+      }
+    } catch (error) {
+      console.error('❌ Failed to upload video:', error)
+      // Continue anyway - we'll save session without video
+    }
+
     try {
       console.log('🔄 About to save session with data:', {
         employee_id: user?.employee_record_id || user?.id || 'unknown',
         assignment_id: assignmentId || 'unknown',
         company_id: companyId,
-        training_mode: 'recommendation_tts'
+        training_mode: 'recommendation_tts',
+        has_video: !!videoUploadResult
       })
 
-      // Save session to database
+      // Save session to database WITH video URL if available
       const savedSession = await trainingSessionsService.saveSession({
         employee_id: user?.employee_record_id || user?.id || 'unknown',
         assignment_id: assignmentId || 'unknown',
         company_id: companyId,
-        scenario_id: scenarioId, // Track scenario for attempt counting
+        scenario_id: scenarioId,
         training_mode: 'recommendation_tts',
         language: language,
         agent_id: sessionId || 'tts-session',
@@ -473,83 +520,13 @@ export function RecommendationTTSSession({
         ended_at: sessionEndTime,
         recording_preference: 'audio_video',
         recording_consent_timestamp: sessionStartTime,
-        // Note: Video will be uploaded separately after session creation
+        // Include video data if upload succeeded
+        video_recording_url: videoUploadResult?.url || null,
+        video_file_size: videoUploadResult?.size || null,
+        recording_duration_seconds: Math.round(totalSessionTime)
       })
 
-      console.log('💾 Session saved to database:', savedSession)
-      console.log('🔍 DEBUG: savedSession type:', typeof savedSession, 'value:', JSON.stringify(savedSession))
-
-      // Upload video recording if available
-      console.log('🎥 About to check video chunks...')
-      const chunks = videoChunksRef.current
-      console.log(`📹 Video recording check: ${chunks.length} chunks available (from ref), ${recordedChunks.length} chunks in state`)
-      console.log(`📹 videoChunksRef.current:`, videoChunksRef.current)
-      console.log(`📱 User agent: ${navigator.userAgent}`)
-      console.log(`📱 Is mobile device: ${/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)}`)
-      console.log(`📱 Platform: ${navigator.platform}`)
-      console.log(`📱 MediaRecorder state before upload: ${mediaRecorder?.state || 'no recorder'}`)
-      console.log(`📱 Is recording flag: ${isRecording}`)
-
-      if (chunks.length === 0) {
-        console.warn('⚠️ No video chunks recorded! This could mean:')
-        console.warn('  1. MediaRecorder never started')
-        console.warn('  2. MediaRecorder failed silently')
-        console.warn('  3. No data was captured')
-        console.warn('  4. Recording was stopped too quickly')
-      }
-
-      if (chunks.length > 0) {
-        console.log('📹 Uploading video recording...')
-        try {
-          // Create video blob with the same MIME type used for recording
-          const videoBlob = new Blob(chunks, {
-            type: recordingMimeTypeRef.current
-          })
-
-          console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
-          console.log(`📹 First chunk type: ${chunks[0]?.type || 'unknown'}`)
-
-          const formData = new FormData()
-          formData.append('recording', videoBlob)
-          formData.append('sessionId', savedSession)
-
-          console.log('📹 FormData prepared, starting upload...')
-          formData.append('recordingType', 'video')
-
-          console.log('🎯 DEBUG: Uploading video with sessionId:', savedSession, 'type:', typeof savedSession)
-
-          const uploadResponse = await fetch('/api/upload-recording', {
-            method: 'POST',
-            body: formData
-          })
-
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json()
-            throw new Error(errorData.error || 'Video upload failed')
-          }
-
-          const uploadResult = await uploadResponse.json()
-          console.log('✅ Video uploaded successfully:', uploadResult.path)
-
-          // Update session with video URL
-          const recordingData = {
-            video_recording_url: uploadResult.url,
-            video_file_size: uploadResult.size,
-            recording_duration_seconds: Math.round(totalSessionTime)
-          }
-          console.log('🔄 Calling updateSessionRecording with:', {
-            sessionId: savedSession,
-            recordingData
-          })
-
-          const updateResponse = await trainingSessionsService.updateSessionRecording(savedSession, recordingData)
-          console.log('📝 Database update response:', updateResponse)
-
-          console.log('✅ Session updated with video recording URL')
-        } catch (error) {
-          console.error('❌ Failed to upload video recording:', error)
-        }
-      }
+      console.log('💾 Session saved to database:', savedSession, 'with video:', !!videoUploadResult)
 
       const sessionData = {
         id: savedSession,
