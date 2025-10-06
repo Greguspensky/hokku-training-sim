@@ -65,6 +65,7 @@ export function RecommendationTTSSession({
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([])
   const [isSavingVideo, setIsSavingVideo] = useState(false)
+  const [videoNeedsRotation, setVideoNeedsRotation] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   // Audio mixing for recording TTS + microphone
@@ -304,6 +305,17 @@ export function RecommendationTTSSession({
       const actualAspectRatio = settings.width! / settings.height!
       const requestedAspectRatio = dimensions.width / dimensions.height
       const aspectRatioDiff = Math.abs(actualAspectRatio - requestedAspectRatio)
+
+      // Detect if video needs rotation (e.g., portrait mode requested but got landscape)
+      const isPortraitRequested = dimensions.height > dimensions.width
+      const isLandscapeStream = settings.width! > settings.height!
+
+      if (isPortraitRequested && isLandscapeStream) {
+        console.warn('🔄 Portrait mode requested but camera provided landscape - will apply CSS rotation')
+        setVideoNeedsRotation(true)
+      } else {
+        setVideoNeedsRotation(false)
+      }
 
       if (aspectRatioDiff > 0.1) {
         console.warn(`⚠️ Aspect ratio mismatch: requested ${requestedAspectRatio.toFixed(2)}, got ${actualAspectRatio.toFixed(2)}`)
@@ -788,11 +800,20 @@ export function RecommendationTTSSession({
             muted
             playsInline
             className="w-full h-full object-cover"
+            style={videoNeedsRotation ? {
+              transform: 'rotate(90deg) scale(1.33)',
+              transformOrigin: 'center center'
+            } : undefined}
           />
           {isRecording && (
             <div className="absolute top-4 right-4 flex items-center bg-red-600 text-white px-3 py-1 rounded-full text-sm">
               <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
               Recording
+            </div>
+          )}
+          {videoNeedsRotation && (
+            <div className="absolute bottom-4 left-4 bg-blue-600 text-white px-3 py-1 rounded text-xs">
+              📱 Rotated for portrait mode
             </div>
           )}
         </div>
