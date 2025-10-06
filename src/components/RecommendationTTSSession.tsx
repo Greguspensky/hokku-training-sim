@@ -407,7 +407,13 @@ export function RecommendationTTSSession({
   }
 
   const handleEndSession = async () => {
+    console.log('🛑 handleEndSession called, stopping recording...')
     stopVideoRecording()
+
+    // Wait for MediaRecorder to finish and chunks to be ready
+    console.log('⏳ Waiting 1 second for recording to fully stop and chunks to be ready...')
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
     setIsSessionActive(false)
     setTimerActive(false)
     setIsSavingVideo(true) // Show saving state
@@ -474,8 +480,10 @@ export function RecommendationTTSSession({
       console.log('🔍 DEBUG: savedSession type:', typeof savedSession, 'value:', JSON.stringify(savedSession))
 
       // Upload video recording if available
+      console.log('🎥 About to check video chunks...')
       const chunks = videoChunksRef.current
       console.log(`📹 Video recording check: ${chunks.length} chunks available (from ref), ${recordedChunks.length} chunks in state`)
+      console.log(`📹 videoChunksRef.current:`, videoChunksRef.current)
       console.log(`📱 User agent: ${navigator.userAgent}`)
       console.log(`📱 Is mobile device: ${/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)}`)
       console.log(`📱 Platform: ${navigator.platform}`)
@@ -559,12 +567,18 @@ export function RecommendationTTSSession({
 
       console.log('📊 TTS Session completed:', sessionData)
 
+      // Always turn off saving state before calling onSessionEnd
+      setIsSavingVideo(false)
+
       if (onSessionEnd) {
         onSessionEnd(sessionData)
       }
     } catch (error) {
       console.error('❌ Failed to save session:', error)
       console.error('❌ Full error details:', JSON.stringify(error, null, 2))
+
+      // Turn off saving state on error too
+      setIsSavingVideo(false)
 
       // Fallback - still call onSessionEnd with basic data
       const sessionData = {
