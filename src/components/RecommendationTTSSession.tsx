@@ -349,12 +349,32 @@ export function RecommendationTTSSession({
         console.log('📹 Video recording stopped with mixed audio')
       }
 
+      recorder.onerror = (event: any) => {
+        console.error('❌ MediaRecorder error:', event)
+        console.error('❌ MediaRecorder error details:', {
+          error: event.error,
+          name: event.error?.name,
+          message: event.error?.message
+        })
+      }
+
+      recorder.onstart = () => {
+        console.log('✅ MediaRecorder started successfully')
+      }
+
+      console.log('📹 Calling recorder.start()...')
       recorder.start()
       setIsRecording(true)
       console.log('📹 Started video recording with audio mixing capability')
 
     } catch (error) {
       console.error('❌ Video recording error:', error)
+      if (error instanceof Error) {
+        console.error('❌ Error name:', error.name)
+        console.error('❌ Error message:', error.message)
+        console.error('❌ Error stack:', error.stack)
+      }
+      alert(`Failed to start video recording: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -461,6 +481,17 @@ export function RecommendationTTSSession({
       console.log(`📹 Video recording check: ${chunks.length} chunks available (from ref), ${recordedChunks.length} chunks in state`)
       console.log(`📱 User agent: ${navigator.userAgent}`)
       console.log(`📱 Is mobile device: ${/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)}`)
+      console.log(`📱 Platform: ${navigator.platform}`)
+      console.log(`📱 MediaRecorder state before upload: ${mediaRecorder?.state || 'no recorder'}`)
+      console.log(`📱 Is recording flag: ${isRecording}`)
+
+      if (chunks.length === 0) {
+        console.warn('⚠️ No video chunks recorded! This could mean:')
+        console.warn('  1. MediaRecorder never started')
+        console.warn('  2. MediaRecorder failed silently')
+        console.warn('  3. No data was captured')
+        console.warn('  4. Recording was stopped too quickly')
+      }
 
       if (chunks.length > 0) {
         console.log('📹 Uploading video recording...')
