@@ -102,13 +102,22 @@ class TrainingSessionsService {
     }
 
     console.log('💾 Saving training session:', sessionName)
+    console.log('📝 Session record to save:', JSON.stringify(sessionRecord, null, 2))
 
     try {
-      const { data, error } = await supabase
+      // Add timeout to prevent infinite hanging (30 seconds)
+      const insertPromise = supabase
         .from('training_sessions')
         .insert(sessionRecord)
         .select('id')
         .single()
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Database insert timeout after 30 seconds')), 30000)
+      )
+
+      console.log('🕐 Starting database insert with 30s timeout...')
+      const { data, error } = await Promise.race([insertPromise, timeoutPromise]) as any
 
       if (error) {
         console.error('❌ Failed to save training session:', error)
@@ -119,7 +128,10 @@ class TrainingSessionsService {
       return data.id
     } catch (error) {
       console.error('❌ Error saving training session:', error)
-      throw new Error('Failed to save training session')
+      if (error instanceof Error) {
+        console.error('❌ Error details:', error.message, error.stack)
+      }
+      throw new Error(`Failed to save training session: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
