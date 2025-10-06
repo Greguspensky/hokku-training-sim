@@ -266,10 +266,32 @@ export function RecommendationTTSSession({
       }
 
       // Get microphone and camera stream
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: true
-      })
+      // iOS Safari workaround: Request video and audio separately to avoid conflicts
+      let micStream: MediaStream
+
+      if (isMobile) {
+        console.log('📱 iOS workaround: Requesting video only first')
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints
+        })
+
+        console.log('🎤 Now requesting audio separately')
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: true
+        })
+
+        // Combine video from first stream with audio from second
+        const videoTrack = videoStream.getVideoTracks()[0]
+        const audioTrack = audioStream.getAudioTracks()[0]
+        micStream = new MediaStream([videoTrack, audioTrack])
+        console.log('✅ Combined video + audio streams successfully')
+      } else {
+        // Desktop: Request both together
+        micStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: true
+        })
+      }
 
       // Log actual stream dimensions
       const videoTrack = micStream.getVideoTracks()[0]
