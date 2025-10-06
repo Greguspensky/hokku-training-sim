@@ -326,6 +326,17 @@ export function RecommendationTTSSession({
 
       if (videoRef.current) {
         videoRef.current.srcObject = micStream
+
+        // Wait for video metadata to load and log actual video dimensions
+        videoRef.current.onloadedmetadata = () => {
+          const video = videoRef.current!
+          console.log('📹 Video element dimensions after metadata loaded:')
+          console.log(`  - videoWidth: ${video.videoWidth}`)
+          console.log(`  - videoHeight: ${video.videoHeight}`)
+          console.log(`  - Calculated aspect ratio: ${(video.videoWidth / video.videoHeight).toFixed(2)}`)
+          console.log(`  - Expected for portrait (9:16): ${(9/16).toFixed(2)} = 0.56`)
+          console.log(`  - Expected for landscape (16:9): ${(16/9).toFixed(2)} = 1.78`)
+        }
       }
 
       // Create audio context for mixing
@@ -792,7 +803,14 @@ export function RecommendationTTSSession({
         </div>
 
         {/* Video Recording Display */}
-        <div className="bg-black rounded-lg mb-8 relative overflow-hidden" style={{ aspectRatio: videoAspectRatio }}>
+        <div
+          className="bg-black rounded-lg mb-8 relative overflow-hidden mx-auto"
+          style={{
+            aspectRatio: videoAspectRatio,
+            maxWidth: videoAspectRatio === '9:16' ? '360px' : '100%',
+            width: '100%'
+          }}
+        >
           <video
             ref={videoRef}
             autoPlay
