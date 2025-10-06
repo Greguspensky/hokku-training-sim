@@ -225,6 +225,10 @@ export function RecommendationTTSSession({
   const startVideoRecording = async () => {
     console.log('🎬 startVideoRecording called')
     try {
+      // Detect if mobile device
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      console.log('📱 Device type:', isMobile ? 'Mobile' : 'Desktop')
+
       // Calculate video dimensions based on aspect ratio
       const getVideoDimensions = (ratio: string) => {
         switch (ratio) {
@@ -242,16 +246,71 @@ export function RecommendationTTSSession({
       }
 
       const dimensions = getVideoDimensions(videoAspectRatio)
+      console.log('📐 Requested dimensions:', dimensions)
+
+      // Build video constraints with mobile-specific handling
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: 'user', // Front camera for selfie mode
+        aspectRatio: { ideal: dimensions.width / dimensions.height }
+      }
+
+      // For mobile, use exact constraints to force the aspect ratio
+      // For desktop, use ideal to allow fallback
+      if (isMobile) {
+        videoConstraints.width = { exact: dimensions.width }
+        videoConstraints.height = { exact: dimensions.height }
+        console.log('📱 Mobile: Using exact constraints to force aspect ratio')
+      } else {
+        videoConstraints.width = { ideal: dimensions.width }
+        videoConstraints.height = { ideal: dimensions.height }
+        console.log('💻 Desktop: Using ideal constraints for flexibility')
+      }
 
       // Get microphone and camera stream with specified aspect ratio
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: dimensions.width },
-          height: { ideal: dimensions.height },
-          aspectRatio: { ideal: dimensions.width / dimensions.height }
-        },
-        audio: true
+      let micStream: MediaStream
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: true
+        })
+      } catch (exactError) {
+        // If exact constraints fail on mobile, fallback to ideal
+        if (isMobile && (videoConstraints.width as any)?.exact) {
+          console.warn('⚠️ Exact constraints failed, retrying with ideal constraints:', exactError)
+          videoConstraints.width = { ideal: dimensions.width }
+          videoConstraints.height = { ideal: dimensions.height }
+
+          micStream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints,
+            audio: true
+          })
+          console.log('✅ Fallback to ideal constraints succeeded')
+        } else {
+          throw exactError
+        }
+      }
+
+      // Log actual stream dimensions
+      const videoTrack = micStream.getVideoTracks()[0]
+      const settings = videoTrack.getSettings()
+      console.log('✅ Actual stream dimensions:', {
+        width: settings.width,
+        height: settings.height,
+        aspectRatio: settings.aspectRatio,
+        facingMode: settings.facingMode
       })
+
+      // Check if stream dimensions match requested aspect ratio
+      const actualAspectRatio = settings.width! / settings.height!
+      const requestedAspectRatio = dimensions.width / dimensions.height
+      const aspectRatioDiff = Math.abs(actualAspectRatio - requestedAspectRatio)
+
+      if (aspectRatioDiff > 0.1) {
+        console.warn(`⚠️ Aspect ratio mismatch: requested ${requestedAspectRatio.toFixed(2)}, got ${actualAspectRatio.toFixed(2)}`)
+        console.warn('📱 Mobile camera may not support this exact aspect ratio. Recording will continue with available dimensions.')
+      } else {
+        console.log('✅ Aspect ratio matches request')
+      }
 
       if (videoRef.current) {
         videoRef.current.srcObject = micStream
