@@ -38,6 +38,8 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
   const [editAnswer, setEditAnswer] = useState('')
   const [deletingQuestion, setDeletingQuestion] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped')
+  const [editingTopic, setEditingTopic] = useState<string | null>(null)
+  const [editTopicName, setEditTopicName] = useState('')
 
   useEffect(() => {
     loadTopics()
@@ -158,6 +160,47 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     } catch (error) {
       console.error('Error updating answer:', error)
       alert('Failed to update answer. Please try again.')
+    }
+  }
+
+  const startEditTopic = (topicId: string, currentName: string) => {
+    setEditingTopic(topicId)
+    setEditTopicName(currentName)
+  }
+
+  const cancelEditTopic = () => {
+    setEditingTopic(null)
+    setEditTopicName('')
+  }
+
+  const saveTopicName = async (topicId: string) => {
+    if (!editTopicName.trim()) {
+      alert('Topic name cannot be empty')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/knowledge-assessment/topics/${topicId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: editTopicName.trim() })
+      })
+
+      if (response.ok) {
+        // Reload topics to refresh the UI
+        await loadTopics()
+        setEditingTopic(null)
+        setEditTopicName('')
+        alert('Topic name updated successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to update topic name: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating topic name:', error)
+      alert('Failed to update topic name. Please try again.')
     }
   }
 
@@ -315,26 +358,77 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
         <div className="space-y-4">
           {filteredTopics.map(topic => (
             <div key={topic.id} className="bg-white rounded-lg shadow-sm border">
-              <div
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => toggleTopic(topic.id)}
-              >
+              <div className="p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                  <div
+                    className="flex-1 cursor-pointer hover:bg-gray-50 transition-colors -m-4 p-4"
+                    onClick={() => editingTopic !== topic.id && toggleTopic(topic.id)}
+                  >
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="font-medium text-gray-900">{topic.name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(topic.category)}`}>
-                        {topic.category}
-                      </span>
+                      {editingTopic === topic.id ? (
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={editTopicName}
+                            onChange={(e) => setEditTopicName(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base font-medium"
+                            placeholder="Topic name"
+                          />
+                          <div className="flex items-center space-x-2 mt-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                saveTopicName(topic.id)
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                cancelEditTopic()
+                              }}
+                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className="font-medium text-gray-900">{topic.name}</h3>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(topic.category)}`}>
+                            {topic.category}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              startEditTopic(topic.id, topic.name)
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm ml-2"
+                            title="Edit topic name"
+                          >
+                            ✏️
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
-                    <div className="text-sm text-gray-500">
-                      {topic.topic_questions?.length || 0} questions
+                    {editingTopic !== topic.id && (
+                      <>
+                        <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
+                        <div className="text-sm text-gray-500">
+                          {topic.topic_questions?.length || 0} questions
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {editingTopic !== topic.id && (
+                    <div className="text-gray-400">
+                      {expandedTopics.has(topic.id) ? '▼' : '▶'}
                     </div>
-                  </div>
-                  <div className="text-gray-400">
-                    {expandedTopics.has(topic.id) ? '▼' : '▶'}
-                  </div>
+                  )}
                 </div>
               </div>
 

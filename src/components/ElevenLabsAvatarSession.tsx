@@ -73,6 +73,9 @@ export function ElevenLabsAvatarSession({
   const combinedStreamRef = useRef<MediaStream | null>(null)
   const tabAudioStreamRef = useRef<MediaStream | null>(null)
 
+  // Recording stop promise resolver
+  const recordingStopResolverRef = useRef<(() => void) | null>(null)
+
   /**
    * Load structured questions from database for theory practice
    */
@@ -443,7 +446,7 @@ Start the conversation by presenting your customer problem or situation.`
         setIsConnected(false)
         setConnectionStatus('disconnected')
         setIsSessionActive(false)
-        stopSessionRecording()
+        // Note: stopSessionRecording() is now handled explicitly in stopSession()
       })
 
       service.on('agentMessage', (message: ConversationMessage) => {
@@ -497,7 +500,7 @@ Start the conversation by presenting your customer problem or situation.`
         setIsConnected(false)
         setIsAgentSpeaking(false)
         setIsListening(false)
-        stopSessionRecording()
+        // Note: stopSessionRecording() is now handled explicitly in stopSession()
       })
 
       // Initialize the service
@@ -741,6 +744,13 @@ Start the conversation by presenting your customer problem or situation.`
         }
 
         console.log('📹 Video recording stopped with mixed audio')
+
+        // Resolve the stop promise if one is waiting
+        if (recordingStopResolverRef.current) {
+          console.log('✅ Resolving recording stop promise')
+          recordingStopResolverRef.current()
+          recordingStopResolverRef.current = null
+        }
       }
 
       mediaRecorder.start(1000) // Record in 1-second chunks
@@ -758,9 +768,10 @@ Start the conversation by presenting your customer problem or situation.`
 
   /**
    * Stop session recording with TTS audio
+   * Returns a promise that resolves when recording has fully stopped
    */
-  const stopSessionRecording = useCallback(() => {
-    if (recordingPreference === 'none') return
+  const stopSessionRecording = useCallback((): Promise<void> => {
+    if (recordingPreference === 'none') return Promise.resolve()
 
     console.log(`🛑 Stopping ADVANCED ${recordingPreference} recording...`)
     setIsRecording(false)
@@ -768,9 +779,20 @@ Start the conversation by presenting your customer problem or situation.`
     // Stop MediaRecorder for video sessions
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       console.log('📹 Stopping video + audio recording...')
+
+      // Create a promise that will resolve when recording stops
+      const stopPromise = new Promise<void>((resolve) => {
+        recordingStopResolverRef.current = resolve
+        console.log('⏳ Created promise to wait for recording stop...')
+      })
+
       mediaRecorderRef.current.stop()
-      // Note: cleanup happens in mediaRecorder.onstop handler
+      // Note: cleanup happens in mediaRecorder.onstop handler which will resolve the promise
+
+      return stopPromise
     }
+
+    return Promise.resolve()
   }, [recordingPreference])
 
   /**
@@ -895,6 +917,13 @@ Start the conversation by presenting your customer problem or situation.`
       setIsInitialized(false)
       setIsSessionActive(false)
 
+      // IMPORTANT: Wait for recording to fully stop before saving
+      if (recordingPreference !== 'none') {
+        console.log('⏳ Waiting for recording to stop completely...')
+        await stopSessionRecording()
+        console.log('✅ Recording stopped successfully')
+      }
+
       // Skip automatic transcript fetching - user will trigger it manually
       console.log('ℹ️ Skipping automatic transcript fetching - user can trigger it manually from completion page')
 
@@ -966,17 +995,31 @@ Start the conversation by presenting your customer problem or situation.`
         recording_duration_seconds: recordingPreference !== 'none' ? Math.round((endTime.getTime() - startTime.getTime()) / 1000) : null
       }
 
-      // Insert the session record directly
-      const { error } = await supabase
-        .from('training_sessions')
-        .insert(sessionRecord)
+      // Save session via API endpoint (bypasses RLS issues)
+      console.log('📤 Saving session via API endpoint...')
+      console.log('📝 Session record:', {
+        id: sessionRecord.id,
+        employee_id: sessionRecord.employee_id,
+        training_mode: sessionRecord.training_mode,
+        recording_preference: sessionRecord.recording_preference
+      })
 
-      if (error) {
-        console.error('❌ Failed to save training session:', error)
-        throw error
+      const saveResponse = await fetch('/api/save-training-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sessionRecord),
+      })
+
+      const saveResult = await saveResponse.json()
+
+      if (!saveResult.success) {
+        console.error('❌ API returned error:', saveResult.error)
+        throw new Error(saveResult.error || 'Failed to save session')
       }
 
-      console.log('✅ Session saved successfully')
+      console.log('✅ Session saved successfully via API')
 
       // Save recording using hybrid approach (ElevenLabs API + webcam if applicable)
       if (recordingPreference !== 'none') {
@@ -988,12 +1031,14 @@ Start the conversation by presenting your customer problem or situation.`
       // Redirect to the transcript page
       router.push(`/employee/sessions/${sessionId}`)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to save training session:', error)
+      const errorMessage = error?.message || 'Unknown error'
+      console.error('Error details:', errorMessage)
       // Still allow the user to continue, just show an error
-      alert('Failed to save training session. Please try again or contact support.')
+      alert(`Failed to save training session: ${errorMessage}\n\nPlease try again or contact support.`)
     }
-  }, [conversationService, user, scenarioContext, scenarioId, companyId, language, agentId, knowledgeContext, router, sessionId, recordingPreference, saveSessionRecording])
+  }, [conversationService, user, scenarioContext, scenarioId, companyId, language, agentId, knowledgeContext, router, sessionId, recordingPreference, saveSessionRecording, stopSessionRecording])
 
   /**
    * Handle volume change

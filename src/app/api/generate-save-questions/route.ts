@@ -9,32 +9,47 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
   console.log('🤖 Starting AI Question Generation AND Database Save...')
 
-  const companyId = '01f773e2-1027-490e-8d36-279136700bbf'
-
   try {
     // 1. Get selected documents from request body
     const body = await request.json()
-    const { selectedDocuments } = body
+    const { selectedDocuments, companyId } = body
 
     if (!selectedDocuments || selectedDocuments.length === 0) {
       console.error('❌ No documents selected')
       return NextResponse.json({ error: 'No documents selected' }, { status: 400 })
     }
 
-    console.log(`✅ Processing ${selectedDocuments.length} selected documents`)
+    if (!companyId) {
+      console.error('❌ No company ID provided')
+      return NextResponse.json({ error: 'Company ID is required' }, { status: 400 })
+    }
+
+    console.log(`✅ Processing ${selectedDocuments.length} selected documents for company: ${companyId}`)
     const documents = selectedDocuments
 
-    // 2. Clear existing AI-generated questions and topics
-    console.log('🗑️ Clearing existing AI-generated content...')
-    await supabaseAdmin
-      .from('topic_questions')
-      .delete()
-      .neq('id', 0) // Delete all rows
+    // 2. Clear existing AI-generated questions and topics for this company
+    console.log('🗑️ Clearing existing AI-generated content for this company...')
 
+    // First get all topic IDs for this company
+    const { data: existingTopics } = await supabaseAdmin
+      .from('knowledge_topics')
+      .select('id')
+      .eq('company_id', companyId)
+
+    // Delete questions associated with these topics
+    if (existingTopics && existingTopics.length > 0) {
+      const topicIds = existingTopics.map(t => t.id)
+      await supabaseAdmin
+        .from('topic_questions')
+        .delete()
+        .in('topic_id', topicIds)
+    }
+
+    // Delete topics for this company
     await supabaseAdmin
       .from('knowledge_topics')
       .delete()
-      .neq('id', 0) // Delete all rows
+      .eq('company_id', companyId)
 
     const savedTopics = []
     const savedQuestions = []
@@ -54,6 +69,7 @@ export async function POST(request: NextRequest) {
       const { data: savedTopic, error: topicError } = await supabaseAdmin
         .from('knowledge_topics')
         .insert({
+          company_id: companyId,
           name: doc.title,
           description: `Learn about the content and information in ${doc.title}`,
           category: documentCategory,

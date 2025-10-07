@@ -182,6 +182,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          companyId: companyId,
           selectedDocuments: selectedDocuments.map(doc => ({
             id: doc.id,
             title: doc.title,
@@ -197,6 +198,8 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
 
         // Switch to questions view to show the new questions
         setCurrentView('questions')
+        // Force reload by triggering a key change or re-render
+        window.location.reload()
       } else {
         alert('❌ Failed to generate questions: ' + (data.error || 'Unknown error'))
       }
