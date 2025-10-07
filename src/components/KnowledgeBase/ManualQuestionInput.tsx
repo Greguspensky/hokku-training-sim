@@ -21,9 +21,17 @@ export default function ManualQuestionInput({ companyId, onQuestionsAdded }: Man
       return
     }
 
+    if (!companyId) {
+      alert('Error: Company ID is not available. Please refresh the page and try again.')
+      console.error('ManualQuestionInput: companyId is missing:', companyId)
+      return
+    }
+
     try {
       setLoading(true)
       setResults(null)
+
+      console.log('📤 Submitting manual questions with companyId:', companyId)
 
       const response = await fetch('/api/add-manual-questions', {
         method: 'POST',
