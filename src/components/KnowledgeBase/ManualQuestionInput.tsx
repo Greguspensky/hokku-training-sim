@@ -13,8 +13,6 @@ export default function ManualQuestionInput({ companyId, onQuestionsAdded }: Man
   const [showInput, setShowInput] = useState(false)
   const [results, setResults] = useState<any>(null)
 
-  console.log('🔍 ManualQuestionInput rendered with companyId:', companyId)
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -25,15 +23,12 @@ export default function ManualQuestionInput({ companyId, onQuestionsAdded }: Man
 
     if (!companyId) {
       alert('Error: Company ID is not available. Please refresh the page and try again.')
-      console.error('ManualQuestionInput: companyId is missing:', companyId)
       return
     }
 
     try {
       setLoading(true)
       setResults(null)
-
-      console.log('📤 Submitting manual questions with companyId:', companyId)
 
       const response = await fetch('/api/add-manual-questions', {
         method: 'POST',

@@ -29,8 +29,6 @@ interface QuestionPoolViewProps {
 }
 
 export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
-  console.log('🔍 QuestionPoolView rendered with companyId:', companyId)
-
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set())
