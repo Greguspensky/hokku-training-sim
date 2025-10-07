@@ -157,13 +157,13 @@ export function RecommendationTTSSession({
 
       if (response.ok) {
         const audioBlob = await response.blob()
-        const audioUrl = URL.createObjectURL(audioBlob)
-        setAudioUrl(audioUrl)
+        const newAudioUrl = URL.createObjectURL(audioBlob)
+        setAudioUrl(newAudioUrl)
 
-        // Auto-play the TTS
-        setTimeout(() => playTTS(), 500)
+        console.log('✅ TTS loaded, auto-playing immediately...')
 
-        console.log('✅ TTS loaded and playing automatically')
+        // Auto-play the TTS immediately with the new URL (not relying on state)
+        playTTSWithUrl(newAudioUrl)
       } else {
         throw new Error('TTS generation failed')
       }
@@ -175,10 +175,12 @@ export function RecommendationTTSSession({
     }
   }
 
-  const playTTS = async () => {
-    if (audioUrl && audioRef.current) {
+  const playTTSWithUrl = async (urlToPlay: string) => {
+    if (urlToPlay && audioRef.current) {
+      console.log('🔊 Playing TTS audio with URL:', urlToPlay.substring(0, 50))
+
       // Set up main audio for user playback
-      audioRef.current.src = audioUrl
+      audioRef.current.src = urlToPlay
       audioRef.current.volume = volume
 
       // If recording is active, use AudioBuffer approach for TTS audio mixing
@@ -187,7 +189,7 @@ export function RecommendationTTSSession({
           console.log('🎵 Fetching TTS audio for AudioBuffer mixing approach')
 
           // Fetch the audio data as ArrayBuffer
-          const response = await fetch(audioUrl)
+          const response = await fetch(urlToPlay)
           const arrayBuffer = await response.arrayBuffer()
           console.log(`🎵 Fetched audio data: ${arrayBuffer.byteLength} bytes`)
 
@@ -211,8 +213,25 @@ export function RecommendationTTSSession({
 
       // Play main audio for user
       audioRef.current.play()
-        .then(() => setIsPlaying(true))
-        .catch(error => console.error('Audio play error:', error))
+        .then(() => {
+          console.log('✅ TTS audio playing successfully')
+          setIsPlaying(true)
+        })
+        .catch(error => {
+          console.error('❌ Audio play error:', error)
+          console.error('Error details:', error.name, error.message)
+        })
+    } else {
+      console.warn('⚠️ Cannot play TTS - missing URL or audio ref')
+    }
+  }
+
+  const playTTS = async () => {
+    // Legacy function - now calls playTTSWithUrl with state audioUrl
+    if (audioUrl) {
+      await playTTSWithUrl(audioUrl)
+    } else {
+      console.warn('⚠️ Cannot play TTS - no audioUrl in state')
     }
   }
 
