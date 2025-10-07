@@ -3,10 +3,11 @@
 import { useState } from 'react'
 
 interface ManualQuestionInputProps {
+  companyId: string
   onQuestionsAdded: () => void
 }
 
-export default function ManualQuestionInput({ onQuestionsAdded }: ManualQuestionInputProps) {
+export default function ManualQuestionInput({ companyId, onQuestionsAdded }: ManualQuestionInputProps) {
   const [questions, setQuestions] = useState('')
   const [loading, setLoading] = useState(false)
   const [showInput, setShowInput] = useState(false)
@@ -29,7 +30,10 @@ export default function ManualQuestionInput({ onQuestionsAdded }: ManualQuestion
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ questions: questions.trim() })
+        body: JSON.stringify({
+          questions: questions.trim(),
+          companyId: companyId
+        })
       })
 
       const data = await response.json()

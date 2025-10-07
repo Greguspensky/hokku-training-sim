@@ -253,7 +253,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
           <p className="text-gray-600 mb-6">Click "🤖 Generate Questions" to create an AI-powered question pool from your documents.</p>
         </div>
 
-        <ManualQuestionInput onQuestionsAdded={loadTopics} />
+        <ManualQuestionInput companyId={companyId} onQuestionsAdded={loadTopics} />
       </div>
     )
   }

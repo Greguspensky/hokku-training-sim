@@ -9,14 +9,19 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
   console.log('✋ Starting Manual Question Processing...')
 
-  const companyId = '01f773e2-1027-490e-8d36-279136700bbf'
-
   try {
-    const { questions } = await request.json()
+    const { questions, companyId } = await request.json()
 
     if (!questions || typeof questions !== 'string') {
       return NextResponse.json({ error: 'Questions text is required' }, { status: 400 })
     }
+
+    if (!companyId) {
+      console.error('❌ No company ID provided')
+      return NextResponse.json({ error: 'Company ID is required' }, { status: 400 })
+    }
+
+    console.log(`✅ Processing manual questions for company: ${companyId}`)
 
     // 1. Get all knowledge base documents to use for finding answers
     console.log('📚 Loading knowledge base documents...')
@@ -38,7 +43,7 @@ Document: "${doc.title}"
 Content: ${doc.content}
 `).join('\n---\n')
 
-    // 2. Create or find the "Added Manually" topic
+    // 2. Create or find the "Added Manually" topic for this company
     console.log('📝 Creating "Added Manually" topic...')
 
     let manualTopic
@@ -47,15 +52,17 @@ Content: ${doc.content}
       .select('*')
       .eq('name', 'Added Manually')
       .eq('category', 'manual')
+      .eq('company_id', companyId)
       .single()
 
     if (existingTopic) {
       manualTopic = existingTopic
-      console.log('✅ Using existing "Added Manually" topic')
+      console.log('✅ Using existing "Added Manually" topic for this company')
     } else {
       const { data: newTopic, error: topicError } = await supabaseAdmin
         .from('knowledge_topics')
         .insert({
+          company_id: companyId,
           name: 'Added Manually',
           description: 'Questions that were manually added by the user',
           category: 'manual',
@@ -70,7 +77,7 @@ Content: ${doc.content}
       }
 
       manualTopic = newTopic
-      console.log('✅ Created new "Added Manually" topic')
+      console.log('✅ Created new "Added Manually" topic for this company')
     }
 
     // 3. Parse and process questions
