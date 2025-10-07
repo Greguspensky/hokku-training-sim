@@ -340,7 +340,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
       </div>
 
       {/* Manual Question Input */}
-      <ManualQuestionInput onQuestionsAdded={loadTopics} />
+      <ManualQuestionInput companyId={companyId} onQuestionsAdded={loadTopics} />
 
       {/* Conditional View Rendering */}
       {viewMode === 'flat' ? (
