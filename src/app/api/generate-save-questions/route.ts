@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Get selected documents from request body
     const body = await request.json()
-    const { selectedDocuments, companyId } = body
+    const { selectedDocuments, companyId, questionCount = 8 } = body
 
     if (!selectedDocuments || selectedDocuments.length === 0) {
       console.error('❌ No documents selected')
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Processing ${selectedDocuments.length} selected documents for company: ${companyId}`)
+    console.log(`📊 Generating ${questionCount} questions per document`)
     const documents = selectedDocuments
 
     // 2. Clear existing AI-generated questions and topics for this company
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
         console.log(`  🤔 Generating questions for: ${doc.title}`)
 
         const questionsPrompt = `
-STRICT INSTRUCTION: Create ONLY 5-8 UNIQUE simple question and answer pairs based on the EXACT document content. NO multiple choice, NO true/false, NO options.
+STRICT INSTRUCTION: Create ONLY ${questionCount} UNIQUE simple question and answer pairs based on the EXACT document content. NO multiple choice, NO true/false, NO options.
 
 Document: "${doc.title}"
 Document Category: ${documentCategory}
@@ -106,7 +107,7 @@ For DRINKS_INFO documents, ask:
 - "What does [drink name] consist of?"
 - "What are the ingredients in [drink name]?"
 
-IMPORTANT: Generate 5-8 COMPLETELY UNIQUE questions. Each question must be about a DIFFERENT drink or DIFFERENT aspect. NO DUPLICATES ALLOWED.
+IMPORTANT: Generate EXACTLY ${questionCount} COMPLETELY UNIQUE questions. Each question must be about a DIFFERENT drink or DIFFERENT aspect. NO DUPLICATES ALLOWED.
 
 Return as JSON array with simple structure:
 [

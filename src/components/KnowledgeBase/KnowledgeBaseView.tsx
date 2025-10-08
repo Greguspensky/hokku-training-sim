@@ -171,7 +171,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
     setDocuments([])
   }
 
-  const handleGenerateQuestions = async (selectedDocuments: KnowledgeBaseDocument[]) => {
+  const handleGenerateQuestions = async (selectedDocuments: KnowledgeBaseDocument[], questionCount: number) => {
     setGeneratingQuestions(true)
     setShowDocumentSelection(false)
 
@@ -183,6 +183,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
         },
         body: JSON.stringify({
           companyId: companyId,
+          questionCount: questionCount,
           selectedDocuments: selectedDocuments.map(doc => ({
             id: doc.id,
             title: doc.title,

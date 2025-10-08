@@ -6,7 +6,7 @@ import { KnowledgeBaseDocument, KnowledgeBaseCategory } from '@/lib/knowledge-ba
 interface DocumentSelectionModalProps {
   isOpen: boolean
   onClose: () => void
-  onGenerate: (selectedDocuments: KnowledgeBaseDocument[]) => void
+  onGenerate: (selectedDocuments: KnowledgeBaseDocument[], questionCount: number) => void
   companyId: string
   isGenerating?: boolean
 }
@@ -24,6 +24,7 @@ export default function DocumentSelectionModal({
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [questionCount, setQuestionCount] = useState<number>(8)
 
   useEffect(() => {
     if (isOpen) {
@@ -95,7 +96,7 @@ export default function DocumentSelectionModal({
     const documentsToGenerate = allDocuments.filter(doc =>
       selectedDocuments.has(doc.id)
     )
-    onGenerate(documentsToGenerate)
+    onGenerate(documentsToGenerate, questionCount)
   }
 
   const getCategoryName = (categoryId: string) => {
@@ -165,6 +166,29 @@ export default function DocumentSelectionModal({
                   >
                     {selectedDocuments.size === filteredDocuments.length ? 'Deselect All' : 'Select All'}
                   </button>
+                </div>
+              </div>
+
+              {/* Question Count Input */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="questionCount" className="text-sm font-medium text-purple-900">
+                    Questions per document:
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      id="questionCount"
+                      type="number"
+                      min="3"
+                      max="20"
+                      value={questionCount}
+                      onChange={(e) => setQuestionCount(Math.max(3, Math.min(20, parseInt(e.target.value) || 8)))}
+                      className="w-20 px-3 py-2 border border-purple-300 rounded-md focus:ring-purple-500 focus:border-purple-500 text-center font-medium"
+                    />
+                    <span className="text-xs text-purple-600">
+                      Total: <span className="font-semibold">{selectedDocuments.size * questionCount}</span> questions
+                    </span>
+                  </div>
                 </div>
               </div>
 
