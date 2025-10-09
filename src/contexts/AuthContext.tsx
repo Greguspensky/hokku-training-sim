@@ -1,10 +1,9 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { signOut as authSignOut } from '@/lib/auth'
-import { employeeService } from '@/lib/employees'
 
 interface ExtendedUser extends User {
   role?: string
@@ -21,53 +20,76 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Helper function to ensure user record exists in database
-async function ensureUserRecord(authUser: User) {
+/**
+ * Consolidated user enrichment - single DB call with upsert
+ * Replaces ensureUserRecord + enrichUserWithDbInfo
+ */
+async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
   try {
-    console.log('🔍 Checking if user record exists in database...')
+    console.log('🔍 Getting/creating user data for:', authUser.email)
 
-    // Check if user record exists (with 2s timeout)
-    const checkPromise = supabase
+    // Determine role based on email
+    const role = authUser.email?.includes('emp') ? 'employee' : 'manager'
+
+    // Try to get existing user data first (fast path)
+    const { data: existingUser, error: fetchError } = await supabase
       .from('users')
-      .select('*')
+      .select('role, company_id')
+      .eq('id', authUser.id)
+      .maybeSingle()
+
+    if (existingUser) {
+      console.log('✅ Found existing user:', existingUser.role)
+      return {
+        ...authUser,
+        role: existingUser.role,
+        company_id: existingUser.company_id
+      }
+    }
+
+    // User doesn't exist - create via RPC (bypasses RLS)
+    console.log('📝 Creating new user record via RPC...')
+    const { data: result, error: rpcError } = await supabase.rpc('create_user_record', {
+      user_id: authUser.id,
+      user_email: authUser.email || '',
+      user_name: authUser.email?.split('@')[0] || 'Unknown',
+      user_role: role
+    })
+
+    if (rpcError) {
+      console.error('❌ RPC error:', rpcError.message)
+      throw rpcError
+    }
+
+    if (!result?.success) {
+      console.error('❌ User creation failed:', result?.error)
+      throw new Error(result?.error || 'User creation failed')
+    }
+
+    console.log('✅ Created new user:', role)
+
+    // Fetch the newly created user data
+    const { data: newUser } = await supabase
+      .from('users')
+      .select('role, company_id')
       .eq('id', authUser.id)
       .single()
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('ensureUserRecord timeout')), 2000)
-    )
-
-    const { data: existingUser } = await Promise.race([checkPromise, timeoutPromise]) as any
-
-    if (!existingUser) {
-      console.log('📝 User record does not exist, creating...')
-      // Determine role based on email - employees have "emp" in their email
-      const role = authUser.email?.includes('emp') ? 'employee' : 'manager'
-
-      // Use database function to create user record (bypasses RLS)
-      const { data: result, error } = await supabase.rpc('create_user_record', {
-        user_id: authUser.id,
-        user_email: authUser.email || '',
-        user_name: authUser.email?.split('@')[0] || 'Unknown',
-        user_role: role
-      })
-
-      if (error) {
-        console.error('❌ Error calling create_user_record function:', error)
-      } else if (result?.success) {
-        console.log('✅ Created user record on sign-in:', {
-          email: authUser.email,
-          role: role
-        })
-      } else {
-        console.error('❌ Database function returned error:', result?.error)
+    if (newUser) {
+      return {
+        ...authUser,
+        role: newUser.role,
+        company_id: newUser.company_id
       }
-    } else {
-      console.log('✅ User record already exists:', existingUser.email, existingUser.role)
     }
+
+    // Fallback - return user with determined role
+    return { ...authUser, role }
+
   } catch (error) {
-    console.error('❌ Error ensuring user record (continuing anyway):', error)
-    // Don't throw - we can continue even if this fails
+    console.error('❌ Error in getOrCreateUserData:', error)
+    // Graceful degradation - return basic auth user
+    return authUser
   }
 }
 
@@ -75,221 +97,143 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<ExtendedUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  console.log('🔵 AuthProvider: Component rendered, loading:', loading, 'user:', !!user)
-
-  // Helper function to enrich user with database info
-  const enrichUserWithDbInfo = async (authUser: User): Promise<ExtendedUser> => {
-    console.log('🔍 Starting user enrichment for:', authUser.email, 'id:', authUser.id)
-
-    try {
-      // First ensure user record exists (creates if needed)
-      console.log('📝 Ensuring user record exists...')
-      await ensureUserRecord(authUser)
-      console.log('✅ User record ensured')
-
-      // Then fetch the user data (with retry for new users)
-      let retries = 3
-      let dbUser = null
-
-      while (retries > 0 && !dbUser) {
-        console.log(`🔄 Fetching user data from database (attempt ${4 - retries}/3)...`)
-
-        // Add 1s timeout to database query
-        const queryPromise = supabase
-          .from('users')
-          .select('role, company_id')
-          .eq('id', authUser.id)
-          .single()
-
-        const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Database query timeout')), 1000)
-        )
-
-        try {
-          const { data, error } = await Promise.race([queryPromise, timeout]) as any
-
-          if (error) {
-            console.warn('⚠️ Database query error:', error.message)
-          }
-
-          if (data) {
-            dbUser = data
-            console.log('✅ Found user data in database')
-            break
-          }
-        } catch (timeoutError) {
-          console.warn('⚠️ Database query timed out')
-        }
-
-        // Wait a bit before retrying (for new user creation)
-        if (retries > 1 && !dbUser) {
-          console.log('⏳ Waiting 500ms before retry...')
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
-        retries--
-      }
-
-      if (dbUser) {
-        console.log('✅ Enriched user with role and company_id:', dbUser.role, dbUser.company_id)
-        const enrichedUser = {
-          ...authUser,
-          role: dbUser.role,
-          company_id: dbUser.company_id
-        }
-        console.log('✅ Enrichment complete, returning user with id:', enrichedUser.id)
-        return enrichedUser
-      } else {
-        console.warn('⚠️ Could not fetch user db info after retries, returning basic auth user')
-      }
-    } catch (error) {
-      console.error('❌ Error during enrichment:', error)
-    }
-
-    console.log('⚠️ Returning unenriched user')
-    return authUser
-  }
+  // Track enrichment to prevent duplicates
+  const enrichmentInProgress = useRef(false)
+  const currentUserId = useRef<string | null>(null)
 
   useEffect(() => {
-    console.log('🔵 AuthProvider: useEffect started - checking auth state')
-    let isSubscribed = true
+    console.log('🔵 AuthProvider: Initializing')
+    let mounted = true
 
-    // Set a timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      console.warn('⚠️ AuthProvider: Session check timeout (5s), setting loading to false')
-      if (isSubscribed) {
+    // Single master timeout for entire auth initialization
+    const masterTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('⚠️ Auth initialization timeout (10s), proceeding without auth')
         setLoading(false)
       }
-    }, 5000) // 5 second timeout
+    }, 10000)
 
-    // Get initial session - using getUser() for better reliability
-    const checkAuth = async () => {
+    async function initialize() {
       try {
-        console.log('🔍 AuthProvider: Calling supabase.auth.getUser()...')
+        // Get current user from Supabase
+        const { data: { user: authUser }, error } = await supabase.auth.getUser()
 
-        // Race the getUser() call against the timeout
-        const getUserPromise = supabase.auth.getUser()
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('getUser timeout')), 4000)
-        )
+        if (!mounted) return
 
-        const { data: { user: authUser }, error } = await Promise.race([
-          getUserPromise,
-          timeoutPromise
-        ]) as any
-
-        if (!isSubscribed) {
-          console.log('⚠️ AuthProvider: Component unmounted, skipping auth check')
-          return
-        }
-
-        clearTimeout(loadingTimeout) // Clear timeout if check completes
-
-        if (error) {
-          console.error('❌ AuthProvider: Error getting user:', error)
+        if (error || !authUser) {
+          console.log('ℹ️ No authenticated user')
           setUser(null)
           setLoading(false)
+          clearTimeout(masterTimeout)
           return
         }
 
-        console.log('✅ AuthProvider: getUser() completed:', !!authUser, 'email:', authUser?.email)
-        if (authUser) {
-          const enrichedUser = await enrichUserWithDbInfo(authUser)
-          setUser(enrichedUser)
-        } else {
-          setUser(null)
-        }
-        setLoading(false)
-      } catch (error: any) {
-        clearTimeout(loadingTimeout)
-        console.warn('⚠️ AuthProvider: getUser() timed out or failed, will rely on auth state events:', error.message)
-        if (isSubscribed) {
-          console.log('⏳ Waiting for auth state change events to update user state...')
+        console.log('✅ Auth user found:', authUser.email)
 
-          // Fallback: If auth state event doesn't fire within 3 seconds, set loading to false anyway
-          // Increased from 2s to 3s to allow time for user enrichment (up to 1.5s with retries)
-          setTimeout(() => {
-            if (isSubscribed && loading) {
-              console.warn('⚠️ Auth state event did not fire or complete, setting loading to false as fallback')
-              setLoading(false)
-            }
-          }, 3000)
+        // Enrich with database info (only if not already in progress)
+        if (!enrichmentInProgress.current) {
+          enrichmentInProgress.current = true
+          currentUserId.current = authUser.id
+
+          const enrichedUser = await getOrCreateUserData(authUser)
+
+          if (mounted) {
+            setUser(enrichedUser)
+            setLoading(false)
+            clearTimeout(masterTimeout)
+          }
+
+          enrichmentInProgress.current = false
+        }
+
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error)
+        if (mounted) {
+          setUser(null)
+          setLoading(false)
+          clearTimeout(masterTimeout)
         }
       }
     }
 
-    checkAuth()
+    initialize()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔔 AuthProvider: Auth state changed:', event, 'has session:', !!session, 'has user:', !!session?.user, 'email:', session?.user?.email, 'current path:', typeof window !== 'undefined' ? window.location.pathname : 'unknown')
+        console.log('🔔 Auth state change:', event, '- user:', session?.user?.email)
 
-        if (!isSubscribed) {
-          console.log('⚠️ AuthProvider: Component unmounted, ignoring auth change')
+        if (!mounted) return
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setLoading(false)
+          currentUserId.current = null
           return
         }
 
-        // Only update user state if the user ID actually changed
         if (session?.user) {
-          console.log('🔄 Enriching user from auth state change...')
-          const enrichedUser = await enrichUserWithDbInfo(session.user)
-          console.log('🔄 Enrichment returned, enriched user id:', enrichedUser.id, 'email:', enrichedUser.email)
+          const userId = session.user.id
 
-          // Only update if user changed to prevent infinite loops
-          setUser(prevUser => {
-            console.log('🔍 setUser callback - prevUser id:', prevUser?.id, 'enrichedUser id:', enrichedUser.id)
-            if (prevUser?.id === enrichedUser.id) {
-              console.log('✅ User unchanged, skipping state update')
-              return prevUser
-            }
-            console.log('✅ User changed, updating state to:', enrichedUser.email, 'with id:', enrichedUser.id)
-            return enrichedUser
-          })
-          console.log('🔄 setUser called, state should update shortly')
-        } else {
-          console.log('⚠️ No user in session, setting user to null')
-          setUser(null)
-        }
-
-        console.log('📍 Setting loading to false after auth state change')
-        setLoading(false)
-
-        // Handle role-based redirect only on successful sign-in
-        if (event === 'SIGNED_IN' && session?.user && typeof window !== 'undefined') {
-          const currentPath = window.location.pathname
-          console.log('🔐 SIGNED_IN on path:', currentPath)
-
-          // Only redirect if on signin page
-          if (currentPath === '/signin') {
-            const isEmployeeUser = session.user.email?.includes('emp') || false
-            const targetPath = isEmployeeUser ? '/employee' : '/manager'
-            console.log('🚀 Redirecting from signin to', targetPath)
-            window.location.href = targetPath
+          // Skip enrichment if same user and already enriched
+          if (userId === currentUserId.current && user?.role) {
+            console.log('ℹ️ Same user, skipping re-enrichment')
+            return
           }
+
+          // Prevent duplicate enrichment calls
+          if (enrichmentInProgress.current) {
+            console.log('ℹ️ Enrichment in progress, skipping')
+            return
+          }
+
+          enrichmentInProgress.current = true
+          currentUserId.current = userId
+
+          try {
+            const enrichedUser = await getOrCreateUserData(session.user)
+
+            if (mounted) {
+              setUser(enrichedUser)
+              setLoading(false)
+
+              // Handle role-based redirect on sign-in
+              if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
+                const currentPath = window.location.pathname
+                if (currentPath === '/signin') {
+                  const targetPath = enrichedUser.role === 'employee' ? '/employee' : '/manager'
+                  console.log('🚀 Redirecting to', targetPath)
+                  window.location.href = targetPath
+                }
+              }
+            }
+          } finally {
+            enrichmentInProgress.current = false
+          }
+        } else {
+          setUser(null)
+          setLoading(false)
+          currentUserId.current = null
         }
       }
     )
 
     return () => {
-      console.log('🧹 AuthProvider: Cleaning up useEffect')
-      isSubscribed = false
-      clearTimeout(loadingTimeout) // Clean up timeout on unmount
-      if (subscription?.unsubscribe) {
-        subscription.unsubscribe()
-      }
+      console.log('🧹 AuthProvider: Cleanup')
+      mounted = false
+      clearTimeout(masterTimeout)
+      subscription?.unsubscribe()
     }
-  }, [])
+  }, []) // Empty deps - only run once
 
   const signOut = async () => {
     try {
-      console.log('🚪 Starting sign out...')
+      console.log('🚪 Signing out...')
       const result = await authSignOut()
 
       if (result.success) {
-        console.log('✅ Sign out successful, redirecting...')
-        // Clear user state immediately
         setUser(null)
-        // Redirect to signin
+        currentUserId.current = null
         window.location.href = '/signin'
       } else {
         console.error('❌ Sign out failed:', result.error)
@@ -297,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('❌ Sign out error:', error)
-      alert('An error occurred while signing out. Please try again.')
+      alert('An error occurred while signing out')
     }
   }
 
