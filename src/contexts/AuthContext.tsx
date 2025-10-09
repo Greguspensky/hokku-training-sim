@@ -21,6 +21,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 /**
+ * Helper to add timeout to any promise
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutError: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutError)), timeoutMs)
+    )
+  ])
+}
+
+/**
  * Consolidated user enrichment - single DB call with upsert
  * Replaces ensureUserRecord + enrichUserWithDbInfo
  */
@@ -31,12 +43,18 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     // Determine role based on email
     const role = authUser.email?.includes('emp') ? 'employee' : 'manager'
 
-    // Try to get existing user data first (fast path)
-    const { data: existingUser, error: fetchError } = await supabase
+    // Try to get existing user data first (fast path) with 3s timeout
+    const fetchPromise = supabase
       .from('users')
       .select('role, company_id')
       .eq('id', authUser.id)
       .maybeSingle()
+
+    const { data: existingUser, error: fetchError } = await withTimeout(
+      fetchPromise,
+      3000,
+      'Database fetch timeout'
+    )
 
     if (existingUser) {
       console.log('✅ Found existing user:', existingUser.role)
@@ -47,14 +65,20 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
       }
     }
 
-    // User doesn't exist - create via RPC (bypasses RLS)
+    // User doesn't exist - create via RPC (bypasses RLS) with 3s timeout
     console.log('📝 Creating new user record via RPC...')
-    const { data: result, error: rpcError } = await supabase.rpc('create_user_record', {
+    const rpcPromise = supabase.rpc('create_user_record', {
       user_id: authUser.id,
       user_email: authUser.email || '',
       user_name: authUser.email?.split('@')[0] || 'Unknown',
       user_role: role
     })
+
+    const { data: result, error: rpcError } = await withTimeout(
+      rpcPromise,
+      3000,
+      'User creation timeout'
+    )
 
     if (rpcError) {
       console.error('❌ RPC error:', rpcError.message)
@@ -68,12 +92,18 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     console.log('✅ Created new user:', role)
 
-    // Fetch the newly created user data
-    const { data: newUser } = await supabase
+    // Fetch the newly created user data with 2s timeout
+    const newUserPromise = supabase
       .from('users')
       .select('role, company_id')
       .eq('id', authUser.id)
       .single()
+
+    const { data: newUser } = await withTimeout(
+      newUserPromise,
+      2000,
+      'New user fetch timeout'
+    )
 
     if (newUser) {
       return {
@@ -86,10 +116,17 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     // Fallback - return user with determined role
     return { ...authUser, role }
 
-  } catch (error) {
-    console.error('❌ Error in getOrCreateUserData:', error)
-    // Graceful degradation - return basic auth user
-    return authUser
+  } catch (error: any) {
+    const isTimeout = error?.message?.includes('timeout')
+    if (isTimeout) {
+      console.warn('⚠️ Database timeout, using fallback role from email')
+    } else {
+      console.error('❌ Error in getOrCreateUserData:', error)
+    }
+
+    // Graceful degradation - return auth user with inferred role
+    const fallbackRole = authUser.email?.includes('emp') ? 'employee' : 'manager'
+    return { ...authUser, role: fallbackRole }
   }
 }
 
