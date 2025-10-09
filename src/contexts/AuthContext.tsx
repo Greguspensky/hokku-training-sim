@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Single master timeout for entire auth initialization
     const masterTimeout = setTimeout(() => {
-      if (mounted && loading) {
+      if (mounted && loading && !enrichmentInProgress.current) {
         console.warn('⚠️ Auth initialization timeout (10s), proceeding without auth')
         setLoading(false)
       }
