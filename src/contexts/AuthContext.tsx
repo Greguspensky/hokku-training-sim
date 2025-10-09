@@ -176,8 +176,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (mounted) {
             setUser(enrichedUser)
-            setLoading(false)
-            clearTimeout(masterTimeout)
+
+            // Only stop loading if we have complete user data (including company_id)
+            // or if this is an employee (employees don't need company_id for some pages)
+            const hasCompleteData = enrichedUser.company_id || enrichedUser.role === 'employee'
+            if (hasCompleteData) {
+              setLoading(false)
+              clearTimeout(masterTimeout)
+            } else {
+              console.warn('⚠️ User enriched but missing company_id, keeping loading state')
+            }
           }
 
           enrichmentInProgress.current = false
@@ -232,7 +240,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (mounted) {
               setUser(enrichedUser)
-              setLoading(false)
+
+              // Only stop loading if we have complete user data
+              const hasCompleteData = enrichedUser.company_id || enrichedUser.role === 'employee'
+              if (hasCompleteData) {
+                setLoading(false)
+              } else {
+                console.warn('⚠️ User enriched but missing company_id, keeping loading state')
+              }
 
               // Handle role-based redirect on sign-in
               if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
