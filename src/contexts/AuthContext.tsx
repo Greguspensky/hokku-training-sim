@@ -47,13 +47,7 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     // Try to get existing user data first (fast path) with 3s timeout
     const fetchPromise = supabase
       .from('users')
-      .select(`
-        role,
-        company_id,
-        companies (
-          name
-        )
-      `)
+      .select('role, company_id')
       .eq('id', authUser.id)
       .maybeSingle()
 
@@ -65,9 +59,21 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     if (existingUser) {
       console.log('✅ Found existing user:', existingUser.role)
-      const companyName = Array.isArray(existingUser.companies)
-        ? existingUser.companies[0]?.name
-        : existingUser.companies?.name
+
+      // Fetch company name separately if company_id exists
+      let companyName: string | undefined
+      if (existingUser.company_id) {
+        try {
+          const { data: company } = await supabase
+            .from('companies')
+            .select('name')
+            .eq('id', existingUser.company_id)
+            .single()
+          companyName = company?.name
+        } catch (err) {
+          console.warn('Could not load company name:', err)
+        }
+      }
 
       return {
         ...authUser,
@@ -107,13 +113,7 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     // Fetch the newly created user data with 2s timeout
     const newUserPromise = supabase
       .from('users')
-      .select(`
-        role,
-        company_id,
-        companies (
-          name
-        )
-      `)
+      .select('role, company_id')
       .eq('id', authUser.id)
       .single()
 
@@ -124,9 +124,20 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     )
 
     if (newUser) {
-      const companyName = newUser.companies
-        ? (Array.isArray(newUser.companies) ? newUser.companies[0]?.name : newUser.companies?.name)
-        : undefined
+      // Fetch company name separately if company_id exists
+      let companyName: string | undefined
+      if (newUser.company_id) {
+        try {
+          const { data: company } = await supabase
+            .from('companies')
+            .select('name')
+            .eq('id', newUser.company_id)
+            .single()
+          companyName = company?.name
+        } catch (err) {
+          console.warn('Could not load company name:', err)
+        }
+      }
 
       return {
         ...authUser,
