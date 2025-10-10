@@ -429,39 +429,15 @@ export default function TrainingSessionPage() {
   }
 
   /**
-   * Pre-authorize tab audio capture for Safari compatibility
-   * This must be called from a direct user gesture (button click)
+   * Start training session with recording consent
+   * ElevenLabs audio is captured via WebRTC (works on all platforms)
    */
   const handleStartSessionWithPreAuth = async () => {
-    console.log('🚀 Starting session with pre-authorization approach')
+    console.log('🚀 Starting session with cross-platform WebRTC approach')
 
-    // Only try to pre-auth tab audio if video recording is enabled
-    if (recordingPreference === 'audio_video') {
-      try {
-        console.log('🔊 Pre-authorizing tab audio capture (Safari-compatible)...')
-        const tabAudioStream = await navigator.mediaDevices.getDisplayMedia({
-          video: false,
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-            suppressLocalAudioPlayback: false
-          }
-        } as any)
-
-        if (tabAudioStream.getAudioTracks().length > 0) {
-          console.log('✅ Tab audio pre-authorized successfully!')
-          console.log('💡 This stream will be reused when recording starts')
-          setPreAuthorizedTabAudio(tabAudioStream)
-        } else {
-          console.warn('⚠️ No audio tracks in pre-authorized stream')
-        }
-      } catch (error) {
-        console.warn('⚠️ Tab audio pre-authorization failed:', error)
-        console.log('💡 Will continue without tab audio (microphone only)')
-        // Don't block - continue without tab audio
-      }
-    }
+    // ElevenLabs audio will be captured via WebRTC (cross-platform compatible)
+    console.log('💡 ElevenLabs audio will be captured via WebRTC')
+    console.log('   ✅ Works on: Desktop (Chrome/Safari) + Mobile (iOS/Android)')
 
     // Start the session
     setShowRecordingConsent(false)
@@ -710,7 +686,7 @@ export default function TrainingSessionPage() {
   // If avatar mode is enabled, render unified single-screen interface
   if (isAvatarMode && currentScenario) {
     // Use the company ID to get the appropriate agent
-    const companyId = assignment.company_id || user?.company_id
+    const companyId = assignment?.track?.company_id || user?.company_id
 
     return (
       <div className="min-h-screen bg-gray-50 py-8">

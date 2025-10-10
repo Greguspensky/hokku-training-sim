@@ -16,11 +16,22 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📤 Uploading ${recordingType} recording for session:`, sessionId)
+    console.log(`📋 File type: ${file.type}, size: ${file.size} bytes`)
 
-    // Create file path
-    const fileExtension = recordingType === 'audio' ? 'webm' : 'webm'
+    // Detect file extension from MIME type (iOS uses mp4, others use webm)
+    let fileExtension = 'webm'
+    if (file.type.includes('mp4')) {
+      fileExtension = 'mp4'
+    } else if (file.type.includes('webm')) {
+      fileExtension = 'webm'
+    } else if (recordingType === 'audio') {
+      fileExtension = 'webm'
+    }
+
     const fileName = `${sessionId}-${recordingType}-${Date.now()}.${fileExtension}`
     const filePath = `recordings/${recordingType}/${fileName}`
+
+    console.log(`📁 Upload path: ${filePath}`)
 
     // Convert File to ArrayBuffer then to Buffer
     const arrayBuffer = await file.arrayBuffer()
