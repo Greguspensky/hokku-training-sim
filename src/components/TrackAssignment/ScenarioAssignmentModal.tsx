@@ -133,6 +133,13 @@ export default function ScenarioAssignmentModal({
       return
     }
 
+    console.log('📤 Submitting scenario assignment with employee:', {
+      employee_id: employee.id,
+      employee_name: employee.name,
+      employee_email: employee.email,
+      scenario_id: selectedScenarioId
+    })
+
     setSubmitting(true)
     try {
       const response = await fetch('/api/scenario-assignments', {
