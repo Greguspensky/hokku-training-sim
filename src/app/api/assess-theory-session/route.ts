@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
         assessmentResults.push(result)
 
         // Record the attempt in the database
-        await recordQuestionAttempt(userId, matchedQuestion, exchange, assessment)
+        await recordQuestionAttempt(sessionId, userId, matchedQuestion, exchange, assessment)
       } else {
         console.log(`⚠️ No matching question found for: "${exchange.question.substring(0, 100)}..."`)
         console.log('💡 Consider checking if this question exists in your database or if the OpenAI matching is working correctly')
@@ -348,9 +348,10 @@ Respond in this exact JSON format:
 }
 
 /**
- * Record question attempt in database
+ * Record question attempt in database and update topic progress
  */
 async function recordQuestionAttempt(
+  sessionId: string,
   userId: string,
   question: any,
   exchange: any,
@@ -361,46 +362,91 @@ async function recordQuestionAttempt(
       ? question.knowledge_topics[0]
       : question.knowledge_topics
 
+    // Get employee_id from user_id
+    const { data: employee, error: employeeError } = await supabaseAdmin
+      .from('employees')
+      .select('id')
+      .eq('user_id', userId)
+      .single()
+
+    if (employeeError || !employee) {
+      console.error('❌ Could not find employee for user_id:', userId)
+      return
+    }
+
+    const employeeId = employee.id
+
+    // Record the question attempt
     const attemptData = {
-      user_id: userId,
+      training_session_id: sessionId,
+      employee_id: employeeId,
       topic_id: topic.id,
       question_id: question.id,
       question_asked: exchange.question,
-      user_answer: exchange.answer,
+      employee_answer: exchange.answer,
       correct_answer: question.correct_answer,
       is_correct: assessment.isCorrect,
-      points_earned: assessment.isCorrect ? 2 : 0,
+      points_earned: assessment.isCorrect ? (question.points || 1) : 0,
       time_spent_seconds: 30, // Estimate for voice answers
       attempt_number: 1,
       created_at: new Date().toISOString()
     }
 
-    console.log('💾 Attempting to save question attempt:', {
+    console.log('💾 Recording question attempt:', {
       question_id: question.id,
-      user_id: userId,
+      employee_id: employeeId,
       is_correct: assessment.isCorrect
     })
 
-    const { data, error } = await supabaseAdmin
+    const { error: attemptError } = await supabaseAdmin
       .from('question_attempts')
       .insert(attemptData)
-      .select()
 
-    if (error) {
-      console.error('❌ Database error recording question attempt:', {
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        attemptData
-      })
-      throw error
+    if (attemptError) {
+      console.error('❌ Database error recording question attempt:', attemptError)
+      throw attemptError
     }
 
     console.log(`✅ Recorded attempt for question ${question.id}: ${assessment.isCorrect ? 'CORRECT' : 'INCORRECT'}`)
+
+    // Update employee topic progress
+    const { data: currentProgress } = await supabaseAdmin
+      .from('employee_topic_progress')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('topic_id', topic.id)
+      .single()
+
+    const totalAttempts = (currentProgress?.total_attempts || 0) + 1
+    const correctAttempts = (currentProgress?.correct_attempts || 0) + (assessment.isCorrect ? 1 : 0)
+    const masteryLevel = totalAttempts > 0 ? correctAttempts / totalAttempts : 0
+
+    const { error: progressError } = await supabaseAdmin
+      .from('employee_topic_progress')
+      .upsert({
+        employee_id: employeeId,
+        topic_id: topic.id,
+        total_attempts: totalAttempts,
+        correct_attempts: correctAttempts,
+        mastery_level: masteryLevel,
+        last_attempt_at: new Date().toISOString(),
+        mastered_at: (masteryLevel >= 0.8 && totalAttempts >= 3)
+          ? (currentProgress?.mastered_at || new Date().toISOString())
+          : currentProgress?.mastered_at,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'employee_id,topic_id'
+      })
+
+    if (progressError) {
+      console.error('❌ Error updating topic progress:', progressError)
+    } else {
+      console.log(`✅ Updated topic progress: ${(masteryLevel * 100).toFixed(1)}% mastery (${correctAttempts}/${totalAttempts})`)
+    }
+
   } catch (error) {
     console.error('❌ Error recording question attempt:', error)
-    // Don't re-throw to prevent breaking the assessment flow, but log clearly
-    console.error('⚠️ Question attempt was NOT saved to database - assessment will continue')
+    // Don't re-throw to prevent breaking the assessment flow
+    console.error('⚠️ Question attempt was NOT fully saved - assessment will continue')
   }
 }

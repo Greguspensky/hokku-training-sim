@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
+    console.log(`📦 Upload details:`)
+    console.log(`   - File path: ${filePath}`)
+    console.log(`   - Content type: ${file.type}`)
+    console.log(`   - Buffer size: ${buffer.length} bytes`)
+
     // Upload to Supabase Storage using admin client
     const { data, error } = await supabaseAdmin.storage
       .from('training-recordings')
@@ -47,8 +52,17 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error(`❌ Failed to upload ${recordingType} recording:`, error)
+      console.error(`📋 Error details:`, JSON.stringify(error, null, 2))
       return NextResponse.json(
         { error: `Failed to upload recording: ${error.message}` },
+        { status: 500 }
+      )
+    }
+
+    if (!data || !data.path) {
+      console.error(`❌ Upload succeeded but no path returned`)
+      return NextResponse.json(
+        { error: 'Upload succeeded but no path returned' },
         { status: 500 }
       )
     }
@@ -56,9 +70,20 @@ export async function POST(request: NextRequest) {
     console.log(`✅ ${recordingType} recording uploaded successfully:`, data.path)
 
     // Get the public URL
-    const { data: { publicUrl } } = supabaseAdmin.storage
-      .from('training-recordings')
-      .getPublicUrl(data.path)
+    let publicUrl: string
+    try {
+      const result = supabaseAdmin.storage
+        .from('training-recordings')
+        .getPublicUrl(data.path)
+      publicUrl = result.data.publicUrl
+      console.log(`✅ Public URL generated: ${publicUrl}`)
+    } catch (urlError) {
+      console.error(`❌ Failed to generate public URL:`, urlError)
+      return NextResponse.json(
+        { error: `Failed to generate public URL: ${urlError instanceof Error ? urlError.message : 'Unknown error'}` },
+        { status: 500 }
+      )
+    }
 
     // Return success with file info
     return NextResponse.json({

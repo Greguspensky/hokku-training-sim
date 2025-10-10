@@ -8,6 +8,7 @@ import { trainingSessionsService, type RecordingPreference } from '@/lib/trainin
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { VideoRecordingService } from '@/services/VideoRecordingService'
 
 interface ElevenLabsAvatarSessionProps {
   companyId: string
@@ -59,22 +60,10 @@ export function ElevenLabsAvatarSession({
   const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
   const [isLoadingSessionQuestions, setIsLoadingSessionQuestions] = useState(false)
 
-  // Session recording with advanced audio mixing
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const recordedChunksRef = useRef<Blob[]>([])
+  // Session recording - simplified with VideoRecordingService
+  const videoService = useRef<VideoRecordingService>(new VideoRecordingService())
   const sessionStartTimeRef = useRef<number>(0)
-  const videoChunksRef = useRef<Blob[]>([])
-  const recordingMimeTypeRef = useRef<string>('video/webm')
-
-  // Audio mixing for TTS capture
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
-  const recordingDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null)
-  const combinedStreamRef = useRef<MediaStream | null>(null)
   const tabAudioStreamRef = useRef<MediaStream | null>(null)
-
-  // Recording stop promise resolver
-  const recordingStopResolverRef = useRef<(() => void) | null>(null)
 
   /**
    * Load structured questions from database for theory practice
@@ -158,11 +147,16 @@ export function ElevenLabsAvatarSession({
       return null
     }
 
+    if (!companyId) {
+      console.log('⚠️ No company ID provided, skipping knowledge context loading')
+      return null
+    }
+
     try {
       setIsLoadingKnowledge(true)
       setError(null)
 
-      console.log(`🧠 Loading knowledge context for scenario: ${scenarioId}`)
+      console.log(`🧠 Loading knowledge context for scenario: ${scenarioId}, company: ${companyId}`)
 
       // Use API endpoint instead of direct service call (client can't access SUPABASE_SERVICE_ROLE_KEY)
       const response = await fetch('/api/scenario-knowledge', {
@@ -235,76 +229,14 @@ export function ElevenLabsAvatarSession({
       // Determine training mode from scenario context
       const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice'
 
-      // Hard-coded knowledge base content (will be replaced with dynamic loading later)
-      const HARDCODED_KNOWLEDGE_BASE = `
-COFFEE SHOP MENU AND PRICES:
-
-НАПИТКИ (DRINKS):
-- Эспрессо
-- Черный кофе (американо/фильтр) 250/350/450 мл
-- Капучино 250/350/450 мл
-- Латте 350/450 мл
-- Флэт Уайт 250/350 мл
-- Раф ванильный/цитрусовый/прянный 350 мл
-- Какао 350 мл
-- Чай грушевый с чабрецом и медом 350 мл
-- Маття латте 350 мл
-- Латте Карамель 350 мл
-- Латте халва 350 мл
-- Молочный улун/сенча/ассам 350 мл
-
-БАЗОВАЯ ВЫПЕЧКА (BASIC PASTRIES):
-Available in all coffee shops from our production:
-- Паштель де ната (Pastel de nata)
-- Трубочка со сгущенкой (Tube with condensed milk)
-- Орешек со сгущенкой (Nut with condensed milk)
-- Чизкейк сан себастьян (San Sebastian cheesecake)
-- Кекс банановый (Banana cake)
-- Кекс морковный (Carrot cake)
-- Кекс яблочный (Apple cake)
-- Кекс апельсиновый (Orange cake)
-- Кекс шоколадный (Chocolate cake)
-- Кекс столичный (Stolichniy cake)
-- Кекс лимонный (Lemon cake)
-- Кекс чернослив (Prune cake)
-- Кекс рождественский (Christmas cake)
-`
-
-      // Hard-coded examiner instructions (will be replaced with dynamic loading later)
-      const HARDCODED_EXAMINER_INSTRUCTIONS = `
-You are a STRICT THEORY EXAMINER for a Russian coffee shop chain. Your role:
-
-CRITICAL BEHAVIOR RULES:
-- Ask ONE factual question at a time about company knowledge
-- After the student gives ANY answer (correct or incorrect), IMMEDIATELY move to the next question
-- Do not repeat the same question - always ask a different question after each response
-- Evaluate answers internally as CORRECT or INCORRECT but don't get stuck on wrong answers
-- Do not engage in conversation or small talk between questions
-- Focus only on testing factual knowledge from the knowledge base
-- Be direct and formal in your questioning
-- Start with: "Let's begin the theory assessment."
-
-QUESTION PROGRESSION:
-1. Ask a question
-2. Student answers (any answer)
-3. Immediately ask a completely DIFFERENT question
-4. Repeat until assessment is complete
-
-KNOWLEDGE SCOPE - Ask questions ONLY about:
-DRINKS: Espresso, Black coffee (americano/filter), Cappuccino, Latte, Flat White, Raf (vanilla/citrus/spiced), Cocoa, Pear tea with thyme and honey, Matcha latte, Caramel Latte, Halva Latte, Milk oolong/sencha/assam
-
-PASTRIES: Pastel de nata, Tube with condensed milk, Nut with condensed milk, San Sebastian cheesecake, Various cakes (banana, carrot, apple, orange, chocolate, stolichniy, lemon, prune, Christmas)
-
-EXAMPLE QUESTIONS:
-- "What sizes are available for cappuccino?"
-- "Name three types of raf coffee we offer"
-- "What ingredients are in our pear tea?"
-- "List five types of cakes in our basic pastry selection"
-- "What is the difference between our americano and filter coffee?"
-- "Which pastries are available in all our coffee shops?"
-
-IMPORTANT: Move to the next question immediately after ANY student response. Do not wait for correct answers.
-`
+      // Validate that we have knowledge context - this is critical for quality training
+      if (!contextToUse || !contextToUse.formattedContext) {
+        console.warn('⚠️ NO KNOWLEDGE CONTEXT LOADED! Training quality will be poor.')
+        console.warn('⚠️ Check that:')
+        console.warn('   1. Scenario has assigned knowledge documents')
+        console.warn('   2. Knowledge documents exist in database')
+        console.warn('   3. API endpoint /api/scenario-knowledge is accessible')
+      }
 
       // Format structured questions for the ElevenLabs agent
       const formatStructuredQuestions = (questions: any[]) => {
@@ -360,15 +292,15 @@ INSTRUCTIONS:
         difficulty_level: scenarioContext?.difficulty || 'intermediate',
         session_type: 'assessment',
         language: language,
-        // Use dynamic knowledge base content if available, otherwise fallback to hard-coded
-        knowledge_context: contextToUse?.formattedContext || HARDCODED_KNOWLEDGE_BASE,
+        // Use dynamic knowledge base content (no fallback - must be loaded from database)
+        knowledge_context: contextToUse?.formattedContext || 'No specific company knowledge available for this scenario. Ask general training questions.',
         knowledge_scope: contextToUse?.knowledgeScope || 'restricted',
-        documents_available: contextToUse?.documents?.length || 1,
+        documents_available: contextToUse?.documents?.length || 0,
         questions_available: questionsToUse.length,
         // Service practice specific fields
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
         expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
-        // Use structured questions if available
+        // Use structured questions if available, otherwise use knowledge-based instructions
         examiner_instructions: trainingMode === 'theory' ?
           (questionsToUse.length > 0 ?
             `You are a STRICT THEORY EXAMINER for a company training.
@@ -382,10 +314,17 @@ IMPORTANT BEHAVIOR:
 
 ${structuredQuestionsText}
 
-If no structured questions are provided, ask general questions about the company's products and services.` :
-            contextToUse?.formattedContext ?
-              `You are a STRICT THEORY EXAMINER for a company training. Ask specific, factual questions based on this knowledge context and move immediately to the next question after any student response.` :
-              HARDCODED_EXAMINER_INSTRUCTIONS
+If you run out of structured questions, ask follow-up questions based on the company knowledge provided.` :
+            `You are a STRICT THEORY EXAMINER for a company training.
+
+CRITICAL BEHAVIOR RULES:
+- Ask ONE factual question at a time about company knowledge
+- After ANY student response, IMMEDIATELY move to the next question
+- Do not repeat questions or get stuck on wrong answers
+- Be direct and formal in your questioning
+- Start with: "Let's begin the theory assessment."
+
+Ask specific, factual questions based on the company knowledge context provided. Focus on testing the employee's knowledge of facts, procedures, and policies.`
           ) :
           `You are a CUSTOMER in a service training roleplay scenario.
 
@@ -396,7 +335,7 @@ SCENARIO CONTEXT:
 You are roleplaying as a customer in the following situation: ${scenarioContext?.title || 'General customer service scenario'}
 
 COMPANY KNOWLEDGE CONTEXT (for reference - you are the CUSTOMER, not the employee):
-${contextToUse?.formattedContext || HARDCODED_KNOWLEDGE_BASE}
+${contextToUse?.formattedContext || 'Use general service industry knowledge for this roleplay.'}
 
 EXPECTED EMPLOYEE RESPONSE (for evaluation context):
 ${scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable'}
@@ -458,9 +397,59 @@ Start the conversation by presenting your customer problem or situation.`
         setConversationHistory(prev => [...prev, message])
       })
 
+      // NEW: Listen for remote audio track becoming available
+      service.on('remoteAudioTrackAvailable', (track: any) => {
+        console.log('🎵 Remote audio track available event received!')
+
+        if (recordingPreference === 'audio_video' && videoService.current.isRecording()) {
+          // Create MediaStream from the track
+          const stream = new MediaStream([track.mediaStreamTrack || track])
+          console.log('✅ Created MediaStream from remote audio track')
+          console.log(`   Audio tracks: ${stream.getAudioTracks().length}`)
+
+          // Add to video recording
+          videoService.current.addLiveAudioStream(stream)
+          tabAudioStreamRef.current = stream
+          console.log('✅ Remote audio added to recording via trackSubscribed event')
+        }
+      })
+
       service.on('agentStartSpeaking', () => {
         setIsAgentSpeaking(true)
         setIsListening(false)
+
+        // Try to capture audio if we haven't already
+        if (recordingPreference === 'audio_video' && videoService.current.isRecording() && !tabAudioStreamRef.current) {
+          console.log('🔍 Agent started speaking - attempting to capture audio stream...')
+
+          // Try immediately first
+          let elevenLabsAudio = service.getRemoteAudioStream()
+
+          if (elevenLabsAudio && elevenLabsAudio.getAudioTracks().length > 0) {
+            console.log('✅ Agent audio captured (immediate) - adding to recording')
+            console.log('   Platform: Works on Desktop + Mobile')
+            videoService.current.addLiveAudioStream(elevenLabsAudio)
+            tabAudioStreamRef.current = elevenLabsAudio
+          } else {
+            console.warn('⚠️ Audio not available immediately - trying with delay...')
+
+            // Retry after a short delay to allow WebRTC connection to establish
+            setTimeout(() => {
+              elevenLabsAudio = service.getRemoteAudioStream()
+
+              if (elevenLabsAudio && elevenLabsAudio.getAudioTracks().length > 0) {
+                console.log('✅ Agent audio captured (retry) - adding to recording')
+                videoService.current.addLiveAudioStream(elevenLabsAudio)
+                tabAudioStreamRef.current = elevenLabsAudio
+              } else {
+                console.error('❌ Failed to capture ElevenLabs audio even after retry')
+                console.error('💡 This means agent speech will NOT be in the recording')
+              }
+            }, 500)
+          }
+        } else if (tabAudioStreamRef.current) {
+          console.log('ℹ️ Agent speaking - audio already captured and connected')
+        }
       })
 
       service.on('agentStartListening', () => {
@@ -528,271 +517,53 @@ Start the conversation by presenting your customer problem or situation.`
     if (recordingPreference === 'none') return
 
     try {
-      console.log(`🎥 Starting ADVANCED ${recordingPreference} recording with TTS audio mixing...`)
+      console.log(`🎥 Starting ${recordingPreference} recording...`)
 
       if (recordingPreference === 'audio') {
-        // Audio-only: No video recording needed, just track audio
+        // Audio-only: No video recording needed
         console.log('🎵 Audio-only session - ElevenLabs audio will be captured in conversation')
         setIsRecording(true)
         sessionStartTimeRef.current = Date.now()
         return
       }
 
-      // Calculate video dimensions based on aspect ratio
-      const getVideoDimensions = (ratio: string) => {
-        switch (ratio) {
-          case '16:9':
-            return { width: 1280, height: 720 }
-          case '9:16':
-            return { width: 720, height: 1280 }
-          case '4:3':
-            return { width: 640, height: 480 }
-          case '1:1':
-            return { width: 720, height: 720 }
-          default:
-            return { width: 1280, height: 720 }
-        }
-      }
+      // Video recording with ElevenLabs audio mixing using service
+      console.log('📹 Starting video recording with service...')
+      console.log('💡 Will capture ElevenLabs audio when agent starts speaking')
 
-      const dimensions = getVideoDimensions(videoAspectRatio)
-
-      // Video recording with TTS audio mixing
-      console.log(`📹 Requesting camera and microphone access for video + audio recording (${videoAspectRatio})...`)
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: dimensions.width },
-          height: { ideal: dimensions.height },
-          aspectRatio: { ideal: dimensions.width / dimensions.height },
-          facingMode: 'user'
-        },
-        audio: {
-          echoCancellation: false,  // Disable echo cancellation to capture system audio
-          noiseSuppression: false,  // Disable noise suppression
-          autoGainControl: false    // Disable auto gain control
-        }
+      await videoService.current.startRecording({
+        aspectRatio: videoAspectRatio,
+        enableAudioMixing: true,
+        videoBitrate: undefined // Let service auto-detect
+        // Note: tabAudioStream will be added dynamically when agent starts speaking
       })
-      console.log('✅ Camera and microphone access granted')
 
-      // Create audio context for mixing ElevenLabs TTS with microphone
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      audioContextRef.current = audioContext
-
-      // Ensure AudioContext is running (required for iOS and some browsers)
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume()
-        console.log('🎵 AudioContext resumed from suspended state')
-      }
-      console.log(`🎵 AudioContext state: ${audioContext.state}`)
-
-      // Create audio sources and destination for mixing
-      const micSource = audioContext.createMediaStreamSource(micStream)
-      const destination = audioContext.createMediaStreamDestination()
-
-      micSourceRef.current = micSource
-      recordingDestinationRef.current = destination
-
-      // Connect microphone to recording destination
-      micSource.connect(destination)
-      console.log('🎧 Microphone connected to recording destination')
-
-      // Try to use pre-authorized tab audio OR request it now
-      if (preAuthorizedTabAudio && preAuthorizedTabAudio.getAudioTracks().length > 0) {
-        // Use pre-authorized stream (Safari-compatible!)
-        try {
-          console.log('✅ Using pre-authorized tab audio (Safari-compatible approach)')
-          tabAudioStreamRef.current = preAuthorizedTabAudio
-
-          const tabAudioSource = audioContext.createMediaStreamSource(new MediaStream([preAuthorizedTabAudio.getAudioTracks()[0]]))
-          const tabGain = audioContext.createGain()
-          tabGain.gain.value = 1.0
-
-          tabAudioSource.connect(tabGain)
-          tabGain.connect(destination)
-
-          console.log('🎵 Pre-authorized ElevenLabs audio is now being mixed into recording')
-          console.log('✅ Recording will contain both your voice AND AI trainer voice')
-        } catch (error) {
-          console.error('❌ Error using pre-authorized tab audio:', error)
-          console.log('💡 Will continue with microphone only')
-        }
-      } else {
-        // Try to request tab audio now (works in Chrome/Edge)
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-
-        if (!isSafari) {
-          // Chrome/Edge support: Try to capture tab audio
-          try {
-            console.log('🔊 Requesting tab audio capture for ElevenLabs voice...')
-            console.log('💡 IMPORTANT: Check "Share tab audio" in the browser prompt!')
-
-            const displayStream = await navigator.mediaDevices.getDisplayMedia({
-              video: false,
-              audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false,
-                suppressLocalAudioPlayback: false
-              }
-            } as any)
-
-            const audioTracks = displayStream.getAudioTracks()
-            if (audioTracks.length > 0) {
-              console.log('✅ Tab audio captured successfully!')
-              tabAudioStreamRef.current = displayStream
-
-              const tabAudioSource = audioContext.createMediaStreamSource(new MediaStream([audioTracks[0]]))
-              const tabGain = audioContext.createGain()
-              tabGain.gain.value = 1.0
-
-              tabAudioSource.connect(tabGain)
-              tabGain.connect(destination)
-
-              console.log('🎵 ElevenLabs audio is now being mixed into recording')
-              console.log('✅ Recording will contain both your voice AND AI trainer voice')
-
-              displayStream.getVideoTracks().forEach(track => track.stop())
-            } else {
-              console.warn('⚠️ No audio tracks - AI voice may not be recorded')
-            }
-          } catch (displayError: any) {
-            console.error('❌ Could not capture tab audio:', displayError)
-            console.log('⚠️ Recording will continue with microphone only')
-            console.log('💡 AI voice will NOT be in the recording')
-          }
-        } else {
-          // Safari: Tab audio capture not available in this context
-          console.log('🍎 Safari detected: No pre-authorized tab audio available')
-          console.log('💡 Safari limitation: Cannot capture ElevenLabs audio in recording')
-          console.log('💡 Recording will include your microphone only')
-          console.log('💡 Alternative: Use Chrome for full audio recording')
-        }
-      }
-
-      // Create combined stream with video + mixed audio
-      const videoTrack = micStream.getVideoTracks()[0]
-      const mixedAudioTrack = destination.stream.getAudioTracks()[0]
-
-      console.log('🎬 Stream debug info:')
-      console.log(`  - Video track: ${videoTrack ? 'available' : 'missing'}`)
-      console.log(`  - Mixed audio track: ${mixedAudioTrack ? 'available' : 'missing'}`)
-      console.log(`  - Mixed audio track enabled: ${mixedAudioTrack?.enabled}`)
-      console.log(`  - Mixed audio track muted: ${mixedAudioTrack?.muted}`)
-
-      const combinedStream = new MediaStream([videoTrack, mixedAudioTrack])
-      combinedStreamRef.current = combinedStream
-
-      console.log(`🎬 Combined stream: ${combinedStream.getTracks().length} tracks (${combinedStream.getVideoTracks().length} video, ${combinedStream.getAudioTracks().length} audio)`)
-
-      // Dynamic MIME type detection for cross-platform compatibility
-      const getSupportedMimeType = () => {
-        const types = [
-          'video/mp4',                    // iOS Safari requirement
-          'video/webm;codecs=vp8,opus',  // Modern browsers with audio
-          'video/webm;codecs=vp8',       // Fallback without audio codec
-          'video/webm'                   // Legacy fallback
-        ]
-
-        for (const type of types) {
-          if (MediaRecorder.isTypeSupported(type)) {
-            console.log(`📹 Using supported MIME type: ${type}`)
-            return type
-          }
-        }
-        console.warn('⚠️ No supported video MIME type found, falling back to video/webm')
-        return 'video/webm'
-      }
-
-      const mimeType = getSupportedMimeType()
-      recordingMimeTypeRef.current = mimeType
-
-      const mediaRecorder = new MediaRecorder(combinedStream, { mimeType })
-      mediaRecorderRef.current = mediaRecorder
-
-      // Clear any existing chunks
-      videoChunksRef.current = []
-      recordedChunksRef.current = []
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          videoChunksRef.current.push(event.data)
-          console.log(`📹 Video chunk recorded: ${event.data.size} bytes, total chunks: ${videoChunksRef.current.length}`)
-        } else {
-          console.log('⚠️ Video chunk is empty')
-        }
-      }
-
-      mediaRecorder.onstop = () => {
-        console.log(`🔄 Recording stopped, transferring ${videoChunksRef.current.length} chunks`)
-        recordedChunksRef.current = [...videoChunksRef.current]
-        setIsRecording(false)
-
-        // Clean up streams
-        micStream.getTracks().forEach(track => track.stop())
-        if (combinedStream) {
-          combinedStream.getTracks().forEach(track => track.stop())
-        }
-
-        // Clean up tab audio stream if it was captured
-        if (tabAudioStreamRef.current) {
-          tabAudioStreamRef.current.getTracks().forEach(track => track.stop())
-          tabAudioStreamRef.current = null
-        }
-
-        // Close audio context
-        if (audioContext.state !== 'closed') {
-          audioContext.close()
-        }
-
-        console.log('📹 Video recording stopped with mixed audio')
-
-        // Resolve the stop promise if one is waiting
-        if (recordingStopResolverRef.current) {
-          console.log('✅ Resolving recording stop promise')
-          recordingStopResolverRef.current()
-          recordingStopResolverRef.current = null
-        }
-      }
-
-      mediaRecorder.start(1000) // Record in 1-second chunks
       setIsRecording(true)
       sessionStartTimeRef.current = Date.now()
-
-      console.log('📹 Started video recording with TTS audio mixing capability')
+      console.log('✅ Video recording started successfully')
 
     } catch (error) {
       console.error(`❌ Failed to start ${recordingPreference} recording:`, error)
       setIsRecording(false)
       // Don't throw - continue session without recording
     }
-  }, [recordingPreference])
+  }, [recordingPreference, videoAspectRatio, preAuthorizedTabAudio])
 
   /**
    * Stop session recording with TTS audio
    * Returns a promise that resolves when recording has fully stopped
    */
-  const stopSessionRecording = useCallback((): Promise<void> => {
-    if (recordingPreference === 'none') return Promise.resolve()
+  const stopSessionRecording = useCallback(async (): Promise<void> => {
+    if (recordingPreference === 'none') return
 
-    console.log(`🛑 Stopping ADVANCED ${recordingPreference} recording...`)
+    console.log(`🛑 Stopping ${recordingPreference} recording...`)
     setIsRecording(false)
 
-    // Stop MediaRecorder for video sessions
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      console.log('📹 Stopping video + audio recording...')
-
-      // Create a promise that will resolve when recording stops
-      const stopPromise = new Promise<void>((resolve) => {
-        recordingStopResolverRef.current = resolve
-        console.log('⏳ Created promise to wait for recording stop...')
-      })
-
-      mediaRecorderRef.current.stop()
-      // Note: cleanup happens in mediaRecorder.onstop handler which will resolve the promise
-
-      return stopPromise
+    // Stop video recording using service
+    if (recordingPreference === 'audio_video' && videoService.current.isRecording()) {
+      await videoService.current.stopRecording()
+      console.log('✅ Video recording stopped')
     }
-
-    return Promise.resolve()
   }, [recordingPreference])
 
   /**
@@ -821,14 +592,15 @@ Start the conversation by presenting your customer problem or situation.`
         console.log('💡 Audio will be available on transcript page via lazy loading')
 
       } else if (recordingPreference === 'audio_video') {
-        // Video recording with TTS audio mixed in
+        // Get recording data from service
+        const recordingData = await videoService.current.stopRecording()
 
-        if (recordedChunksRef.current.length > 0) {
+        if (recordingData.chunks.length > 0) {
           console.log('📹 Uploading video with mixed TTS audio...')
 
-          // Create video blob with the MIME type used during recording
-          const videoBlob = new Blob(recordedChunksRef.current, {
-            type: recordingMimeTypeRef.current
+          // Create video blob with the MIME type from service
+          const videoBlob = new Blob(recordingData.chunks, {
+            type: recordingData.mimeType
           })
 
           console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
@@ -843,9 +615,26 @@ Start the conversation by presenting your customer problem or situation.`
             body: formData
           })
 
+          console.log(`📡 Upload response status: ${response.status} ${response.statusText}`)
+
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Video upload failed')
+            let errorMessage = 'Video upload failed'
+            try {
+              const responseText = await response.text()
+              console.error('📄 Response body:', responseText.substring(0, 500))
+              try {
+                const errorData = JSON.parse(responseText)
+                errorMessage = errorData.error || errorMessage
+                console.error('📋 Server error details:', errorData)
+              } catch {
+                console.error('⚠️ Response is not valid JSON')
+                errorMessage = `Upload failed: ${response.status} ${response.statusText}`
+              }
+            } catch (parseError) {
+              console.error('❌ Failed to read error response:', parseError)
+              errorMessage = `Upload failed: ${response.status} ${response.statusText}`
+            }
+            throw new Error(errorMessage)
           }
 
           const uploadResult = await response.json()
@@ -855,7 +644,7 @@ Start the conversation by presenting your customer problem or situation.`
           await trainingSessionsService.updateSessionRecording(currentSessionId, {
             video_recording_url: uploadResult.url,
             video_file_size: uploadResult.size,
-            recording_duration_seconds: Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
+            recording_duration_seconds: recordingData.duration
           })
 
           console.log('✅ Session updated with video recording URL')
@@ -872,10 +661,6 @@ Start the conversation by presenting your customer problem or situation.`
 
     } catch (error) {
       console.error('❌ Failed to save recording:', error)
-    } finally {
-      // Clear all chunks after upload
-      recordedChunksRef.current = []
-      videoChunksRef.current = []
     }
   }, [recordingPreference, conversationService])
 

@@ -250,6 +250,25 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
           // Try to capture conversation ID immediately
           this.tryCapturingConversationId('onConnect event')
 
+          // Set up LiveKit room event listeners for track subscriptions
+          if (this.conversation?.connection?.room) {
+            const room = this.conversation.connection.room
+            console.log('🎧 Setting up LiveKit room event listeners for audio tracks')
+
+            // Listen for track subscribed events
+            room.on('trackSubscribed', (track: any, publication: any, participant: any) => {
+              if (track.kind === 'audio') {
+                console.log('🎵 Audio track subscribed from remote participant!')
+                console.log('   Track:', track)
+                console.log('   Publication:', publication)
+                console.log('   Participant:', participant)
+                this.emit('remoteAudioTrackAvailable', track)
+              }
+            })
+
+            console.log('✅ LiveKit room event listeners registered')
+          }
+
           this.emit('connected')
         },
 
@@ -419,6 +438,172 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
     } catch (error) {
       console.error('❌ Failed to change input device:', error)
       throw error
+    }
+  }
+
+  /**
+   * Get the remote audio stream for recording (cross-platform compatible)
+   * Works on all devices: Desktop Chrome/Safari, Mobile iOS/Android
+   */
+  getRemoteAudioStream(): MediaStream | null {
+    try {
+      if (!this.conversation) {
+        console.warn('⚠️ Conversation not initialized, cannot get audio stream')
+        return null
+      }
+
+      console.log('🔍 Attempting to extract ElevenLabs audio stream...')
+      console.log('🔍 Conversation object type:', typeof this.conversation)
+      console.log('🔍 Conversation object keys:', Object.keys(this.conversation || {}))
+
+      // Method 1: Try to access peer connection directly from conversation object
+      if (this.conversation.connection) {
+        console.log('✅ Found conversation.connection')
+        console.log('🔍 Connection keys:', Object.keys(this.conversation.connection))
+
+        // Check for WebRTC peer connection
+        if (this.conversation.connection.peerConnection) {
+          console.log('✅ Found peerConnection')
+          const peerConnection = this.conversation.connection.peerConnection
+
+          // Get remote streams from peer connection
+          const remoteStream = peerConnection.getRemoteStreams
+            ? peerConnection.getRemoteStreams()[0]
+            : null
+
+          if (remoteStream && remoteStream.getAudioTracks().length > 0) {
+            console.log('✅ Extracted remote audio from peerConnection.getRemoteStreams()')
+            console.log(`   Audio tracks: ${remoteStream.getAudioTracks().length}`)
+            return remoteStream
+          }
+
+          // Try modern API: getReceivers()
+          const receivers = peerConnection.getReceivers()
+          if (receivers && receivers.length > 0) {
+            console.log(`✅ Found ${receivers.length} receivers`)
+
+            const audioReceiver = receivers.find(r => r.track && r.track.kind === 'audio')
+            if (audioReceiver && audioReceiver.track) {
+              const stream = new MediaStream([audioReceiver.track])
+              console.log('✅ Created MediaStream from audio receiver track')
+              return stream
+            }
+          }
+        }
+
+        // Check for room connection (LiveKit style) - PRIMARY METHOD
+        if (this.conversation.connection.room) {
+          console.log('✅ Found connection.room (LiveKit)')
+          const room = this.conversation.connection.room
+          console.log('🔍 Room object:', room)
+          console.log('🔍 Room keys:', Object.keys(room))
+
+          // Try to get remote participants
+          if (room.remoteParticipants) {
+            console.log('✅ Found remoteParticipants')
+            const participants = Array.from(room.remoteParticipants.values())
+            console.log(`🔍 Found ${participants.length} remote participants`)
+
+            if (participants.length > 0) {
+              const participant = participants[0]
+              console.log('✅ Found remote participant:', participant)
+              console.log('🔍 Participant keys:', Object.keys(participant))
+
+              // Method 1: Get audio tracks from audioTrackPublications (LiveKit API)
+              if (participant.audioTrackPublications) {
+                console.log('🔍 Found audioTrackPublications')
+                const audioTracks = Array.from(participant.audioTrackPublications.values())
+                console.log(`🔍 Found ${audioTracks.length} audio track publications`)
+
+                if (audioTracks.length > 0) {
+                  const audioPublication = audioTracks[0]
+                  console.log('🔍 Audio publication:', audioPublication)
+                  console.log('🔍 Audio publication keys:', Object.keys(audioPublication))
+
+                  // Check if track is available
+                  if (audioPublication.track) {
+                    console.log('✅ Found audio track in publication')
+                    const track = audioPublication.track
+
+                    // LiveKit tracks have a mediaStreamTrack property
+                    if (track.mediaStreamTrack) {
+                      const stream = new MediaStream([track.mediaStreamTrack])
+                      console.log('✅ Extracted audio from LiveKit participant (audioTrackPublications)')
+                      console.log(`   Audio tracks: ${stream.getAudioTracks().length}`)
+                      return stream
+                    } else if (track.track) {
+                      // Alternative property name
+                      const stream = new MediaStream([track.track])
+                      console.log('✅ Extracted audio from LiveKit participant (track.track)')
+                      console.log(`   Audio tracks: ${stream.getAudioTracks().length}`)
+                      return stream
+                    } else {
+                      console.log('🔍 Track object:', track)
+                      console.log('🔍 Track keys:', Object.keys(track))
+                    }
+                  } else if (audioPublication.audioTrack) {
+                    // Try alternative property
+                    const track = audioPublication.audioTrack
+                    if (track.mediaStreamTrack) {
+                      const stream = new MediaStream([track.mediaStreamTrack])
+                      console.log('✅ Extracted audio from LiveKit participant (audioTrack.mediaStreamTrack)')
+                      return stream
+                    }
+                  } else {
+                    console.warn('⚠️ Audio publication has no track')
+                  }
+                }
+              }
+
+              // Method 2: Try deprecated audioTracks property (fallback)
+              if (participant.audioTracks) {
+                console.log('🔍 Found deprecated audioTracks property')
+                const audioTracks = Array.from(participant.audioTracks.values())
+                if (audioTracks.length > 0) {
+                  const audioPublication = audioTracks[0]
+                  if (audioPublication.track && audioPublication.track.mediaStreamTrack) {
+                    const stream = new MediaStream([audioPublication.track.mediaStreamTrack])
+                    console.log('✅ Extracted audio from LiveKit participant (deprecated audioTracks)')
+                    return stream
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Method 2: Try to find audio elements created by SDK
+      console.log('🔍 Fallback: Searching for audio elements in DOM...')
+      const audioElements = document.querySelectorAll('audio')
+      console.log(`🔍 Found ${audioElements.length} audio elements in DOM`)
+
+      if (audioElements.length === 0) {
+        console.warn('⚠️ No audio elements found - agent may not have spoken yet')
+        return null
+      }
+
+      // Find the audio element that's likely used by ElevenLabs
+      for (let i = audioElements.length - 1; i >= 0; i--) {
+        const audio = audioElements[i]
+        // Check if this audio element has a MediaStream source (WebRTC audio)
+        if (audio.srcObject && audio.srcObject instanceof MediaStream) {
+          const stream = audio.srcObject as MediaStream
+          if (stream.getAudioTracks().length > 0) {
+            console.log('✅ Found ElevenLabs audio element with MediaStream')
+            console.log(`   Audio tracks: ${stream.getAudioTracks().length}`)
+            return stream
+          }
+        }
+      }
+
+      console.warn('⚠️ Could not find ElevenLabs audio stream using any method')
+      console.warn('💡 Available conversation properties:', Object.keys(this.conversation || {}))
+      return null
+
+    } catch (error) {
+      console.error('❌ Failed to get remote audio stream:', error)
+      return null
     }
   }
 

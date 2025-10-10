@@ -5,6 +5,7 @@ import { Play, Square, Volume2, VolumeX, SkipForward, StopCircle } from 'lucide-
 import { trainingSessionsService } from '@/lib/training-sessions'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useVideoRecording } from '@/hooks/useVideoRecording'
 
 interface RecommendationQuestion {
   id: string
@@ -60,22 +61,15 @@ export function RecommendationTTSSession({
   const [volume, setVolume] = useState(0.8)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  // Video recording state
-  const [isRecording, setIsRecording] = useState(false)
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([])
-  const [isSavingVideo, setIsSavingVideo] = useState(false)
-  const [videoNeedsRotation, setVideoNeedsRotation] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
+  // Video recording (using custom hook - super clean!)
+  const videoRecording = useVideoRecording({
+    aspectRatio: videoAspectRatio,
+    enableAudioMixing: true,
+    onError: (error) => console.error('Video recording error:', error)
+  })
 
-  // Audio mixing for recording TTS + microphone
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const mixedStreamRef = useRef<MediaStream | null>(null)
-  const recordingDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null)
-  const ttsAudioSourceRef = useRef<MediaElementAudioSourceNode | null>(null)
-  const recordingAudioRef = useRef<HTMLAudioElement | null>(null)
-  const videoChunksRef = useRef<Blob[]>([])
-  const recordingMimeTypeRef = useRef<string>('video/webm')
+  const [isSavingVideo, setIsSavingVideo] = useState(false)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   // Current question
   const currentQuestion = questions[currentQuestionIndex]
@@ -108,6 +102,21 @@ export function RecommendationTTSSession({
       // No automatic video start here (iOS requires user gesture)
     }
   }, [currentQuestionIndex, isSessionActive])
+
+  // Re-attach video preview stream when session becomes active (after re-render)
+  useEffect(() => {
+    if (isSessionActive && videoRef.current && videoRecording.isRecording) {
+      const previewStream = videoRecording.getPreviewStream()
+      if (previewStream && videoRef.current.srcObject !== previewStream) {
+        console.log('📹 Re-attaching preview stream after session activation...')
+        videoRef.current.srcObject = previewStream
+        videoRef.current.play().catch(err => {
+          console.warn('⚠️ Preview play failed:', err)
+        })
+        console.log('✅ Preview stream re-attached')
+      }
+    }
+  }, [isSessionActive, videoRecording])
 
   // Timer effect
   useEffect(() => {
@@ -183,32 +192,9 @@ export function RecommendationTTSSession({
       audioRef.current.src = urlToPlay
       audioRef.current.volume = volume
 
-      // If recording is active, use AudioBuffer approach for TTS audio mixing
-      if (isRecording && audioContextRef.current && recordingDestinationRef.current) {
-        try {
-          console.log('🎵 Fetching TTS audio for AudioBuffer mixing approach')
-
-          // Fetch the audio data as ArrayBuffer
-          const response = await fetch(urlToPlay)
-          const arrayBuffer = await response.arrayBuffer()
-          console.log(`🎵 Fetched audio data: ${arrayBuffer.byteLength} bytes`)
-
-          // Decode audio data to AudioBuffer
-          const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer)
-          console.log(`🎵 Decoded audio buffer: ${audioBuffer.duration.toFixed(2)}s, ${audioBuffer.sampleRate}Hz`)
-
-          // Create AudioBufferSourceNode for recording mixing
-          const bufferSource = audioContextRef.current.createBufferSource()
-          bufferSource.buffer = audioBuffer
-          bufferSource.connect(recordingDestinationRef.current)
-
-          // Start playing the buffer for recording
-          bufferSource.start()
-          console.log('🎵 Started AudioBuffer playback - TTS should now be mixed into recording')
-
-        } catch (error) {
-          console.warn('⚠️ Error with AudioBuffer TTS mixing:', error)
-        }
+      // If recording is active, mix TTS audio using hook
+      if (videoRecording.isRecording) {
+        await videoRecording.mixTTSAudio(urlToPlay)
       }
 
       // Play main audio for user
@@ -243,258 +229,60 @@ export function RecommendationTTSSession({
   }
 
   const startVideoRecording = async () => {
-    console.log('🎬 startVideoRecording called')
     try {
-      // Detect if mobile device
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-      console.log('📱 Device type:', isMobile ? 'Mobile' : 'Desktop')
+      console.log('🎬 Requesting camera and microphone access...')
+      await videoRecording.startRecording()
+      console.log('✅ Video recording started successfully')
 
-      // Calculate video dimensions based on aspect ratio
-      const getVideoDimensions = (ratio: string) => {
-        switch (ratio) {
-          case '16:9':
-            return { width: 1280, height: 720 }
-          case '9:16':
-            return { width: 720, height: 1280 }
-          case '4:3':
-            return { width: 640, height: 480 }
-          case '1:1':
-            return { width: 720, height: 720 }
-          default:
-            return { width: 1280, height: 720 }
-        }
+      // Wait a tiny bit for React to render the video element
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Attach preview stream to video element
+      const previewStream = videoRecording.getPreviewStream()
+      console.log('🔍 Preview stream:', previewStream ? 'Available' : 'NULL')
+      console.log('🔍 Video ref:', videoRef.current ? 'Available' : 'NULL')
+
+      if (!videoRef.current) {
+        console.error('❌ Video element ref is null!')
+        return
       }
 
-      const dimensions = getVideoDimensions(videoAspectRatio)
-      console.log('📐 Requested dimensions:', `${dimensions.width}x${dimensions.height}`)
-
-      // Build video constraints - iOS Safari doesn't like exact dimensions
-      // Let the camera use its native resolution, we'll handle rotation via CSS
-      const videoConstraints: MediaTrackConstraints = {
-        facingMode: 'user' // Front camera for selfie mode
+      if (!previewStream) {
+        console.error('❌ Preview stream is null!')
+        return
       }
 
-      // Only add dimension hints for desktop, iOS ignores them anyway
-      if (!isMobile) {
-        videoConstraints.width = { ideal: dimensions.width }
-        videoConstraints.height = { ideal: dimensions.height }
-        videoConstraints.aspectRatio = { ideal: dimensions.width / dimensions.height }
-        console.log('💻 Desktop: Using ideal dimension constraints')
-      } else {
-        console.log('📱 Mobile: Using camera native resolution (no dimension constraints)')
-      }
+      console.log('📹 Attaching preview stream to video element...')
+      videoRef.current.srcObject = previewStream
 
-      // Get microphone and camera stream
-      // iOS Safari workaround: Request video and audio separately to avoid conflicts
-      let micStream: MediaStream
-
-      if (isMobile) {
-        console.log('📱 iOS workaround: Requesting video only first')
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints
-        })
-
-        console.log('🎤 Now requesting audio separately')
-        const audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: true
-        })
-
-        // Combine video from first stream with audio from second
-        const videoTrack = videoStream.getVideoTracks()[0]
-        const audioTrack = audioStream.getAudioTracks()[0]
-        micStream = new MediaStream([videoTrack, audioTrack])
-        console.log('✅ Combined video + audio streams successfully')
-      } else {
-        // Desktop: Request both together
-        micStream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: true
-        })
-      }
-
-      // Log actual stream dimensions
-      const videoTrack = micStream.getVideoTracks()[0]
-      const settings = videoTrack.getSettings()
-      console.log('✅ Actual stream dimensions:')
-      console.log(`   Width: ${settings.width}`)
-      console.log(`   Height: ${settings.height}`)
-      console.log(`   Aspect Ratio: ${settings.aspectRatio}`)
-      console.log(`   Facing Mode: ${settings.facingMode}`)
-
-      // Check if stream dimensions match requested aspect ratio
-      const actualAspectRatio = settings.width! / settings.height!
-      const requestedAspectRatio = dimensions.width / dimensions.height
-      const aspectRatioDiff = Math.abs(actualAspectRatio - requestedAspectRatio)
-
-      // Detect if video needs rotation
-      // On mobile: If portrait mode (9:16) is selected, we need to rotate the landscape camera feed
-      const isPortraitMode = videoAspectRatio === '9:16'
-      const isLandscapeStream = settings.width! > settings.height!
-
-      if (isMobile && isPortraitMode && isLandscapeStream) {
-        console.warn('🔄 Mobile portrait mode: Camera gave landscape, will apply CSS rotation')
-        setVideoNeedsRotation(true)
-      } else {
-        setVideoNeedsRotation(false)
-        if (isPortraitMode && !isLandscapeStream) {
-          console.log('✅ Camera provided portrait natively, no rotation needed')
-        }
-      }
-
-      if (aspectRatioDiff > 0.1) {
-        console.warn(`⚠️ Aspect ratio mismatch: requested ${requestedAspectRatio.toFixed(2)}, got ${actualAspectRatio.toFixed(2)}`)
-        console.warn('📱 Mobile camera may not support this exact aspect ratio. Recording will continue with available dimensions.')
-      } else {
-        console.log('✅ Aspect ratio matches request')
-      }
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = micStream
-
-        // Wait for video metadata to load and log actual video dimensions
-        videoRef.current.onloadedmetadata = () => {
-          const video = videoRef.current!
-          console.log('📹 Video element dimensions after metadata loaded:')
-          console.log(`  - videoWidth: ${video.videoWidth}`)
-          console.log(`  - videoHeight: ${video.videoHeight}`)
-          console.log(`  - Calculated aspect ratio: ${(video.videoWidth / video.videoHeight).toFixed(2)}`)
-          console.log(`  - Expected for portrait (9:16): ${(9/16).toFixed(2)} = 0.56`)
-          console.log(`  - Expected for landscape (16:9): ${(16/9).toFixed(2)} = 1.78`)
-        }
-      }
-
-      // Create audio context for mixing
-      const audioContext = new AudioContext()
-      audioContextRef.current = audioContext
-
-      // Ensure AudioContext is in running state (required for recording)
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume()
-        console.log('🎵 AudioContext resumed from suspended state')
-      }
-      console.log(`🎵 AudioContext state: ${audioContext.state}`)
-
-      // Create sources and destination
-      const micSource = audioContext.createMediaStreamSource(micStream)
-      const destination = audioContext.createMediaStreamDestination()
-      recordingDestinationRef.current = destination
-
-      // Connect microphone to destination
-      micSource.connect(destination)
-
-      console.log('🎧 Using AudioBuffer approach for TTS audio mixing (no MediaElement needed)')
-
-      // For TTS audio mixing - we'll connect TTS audio when it plays
-      // The TTS audio will be mixed into the recording stream
-
-      // Create combined stream with video from camera and mixed audio
-      // Note: videoTrack already obtained above when checking stream settings (line 295)
-      const mixedAudioTrack = destination.stream.getAudioTracks()[0]
-
-      console.log('🎬 Stream debug info:')
-      console.log(`  - Video track: ${videoTrack ? 'available' : 'missing'}`)
-      console.log(`  - Mixed audio track: ${mixedAudioTrack ? 'available' : 'missing'}`)
-      console.log(`  - Mixed audio track enabled: ${mixedAudioTrack?.enabled}`)
-      console.log(`  - Mixed audio track muted: ${mixedAudioTrack?.muted}`)
-      console.log(`  - Mixed audio track readyState: ${mixedAudioTrack?.readyState}`)
-
-      const combinedStream = new MediaStream([videoTrack, mixedAudioTrack])
-      mixedStreamRef.current = combinedStream
-
-      console.log(`🎬 Combined stream created with ${combinedStream.getTracks().length} tracks (${combinedStream.getVideoTracks().length} video, ${combinedStream.getAudioTracks().length} audio)`)
-
-      // Choose appropriate MIME type for the device
-      const getSupportedMimeType = () => {
-        const types = [
-          'video/mp4',           // iOS Safari requirement
-          'video/webm;codecs=vp8',
-          'video/webm'
-        ]
-
-        for (const type of types) {
-          if (MediaRecorder.isTypeSupported(type)) {
-            console.log(`📹 Using supported MIME type: ${type}`)
-            return type
+      // Wait for metadata to load before playing
+      await new Promise<void>((resolve) => {
+        if (videoRef.current) {
+          videoRef.current.onloadedmetadata = () => {
+            const video = videoRef.current!
+            console.log(`📹 Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`)
+            resolve()
           }
-        }
-        console.warn('⚠️ No supported video MIME type found, falling back to video/webm')
-        return 'video/webm'
-      }
-
-      const mimeType = getSupportedMimeType()
-      recordingMimeTypeRef.current = mimeType
-
-      // Configure MediaRecorder with video bitrate to reduce file size
-      // Mobile: 1 Mbps, Desktop: 2.5 Mbps (isMobile already declared at function start)
-      const videoBitsPerSecond = isMobile ? 1000000 : 2500000 // 1 Mbps or 2.5 Mbps
-
-      console.log(`📹 Configuring MediaRecorder: ${isMobile ? 'Mobile' : 'Desktop'} mode, bitrate: ${videoBitsPerSecond / 1000000} Mbps`)
-
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType,
-        videoBitsPerSecond
-      })
-      setMediaRecorder(recorder)
-
-      // Clear any existing chunks
-      videoChunksRef.current = []
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          videoChunksRef.current.push(event.data)
-          console.log(`📹 Video chunk recorded: ${event.data.size} bytes, total chunks: ${videoChunksRef.current.length}`)
         } else {
-          console.log('⚠️ Video chunk is empty')
+          resolve()
+        }
+      })
+
+      // Explicitly play the video (autoPlay doesn't always work)
+      if (videoRef.current) {
+        try {
+          await videoRef.current.play()
+          console.log('✅ Video preview playing')
+        } catch (playError) {
+          console.warn('⚠️ Video preview play failed (non-critical):', playError)
         }
       }
 
-      recorder.onstop = () => {
-        console.log(`🔄 Recording stopped, transferring ${videoChunksRef.current.length} chunks to state`)
-        setRecordedChunks([...videoChunksRef.current])
-        micStream.getTracks().forEach(track => track.stop())
-        combinedStream.getTracks().forEach(track => track.stop())
-        // Clean up audio references
-        ttsAudioSourceRef.current = null
-        recordingAudioRef.current = null
-        if (audioContext.state !== 'closed') {
-          audioContext.close()
-        }
-        console.log('📹 Video recording stopped with mixed audio')
-      }
-
-      recorder.onerror = (event: any) => {
-        console.error('❌ MediaRecorder error:', event)
-        console.error('❌ MediaRecorder error details:', {
-          error: event.error,
-          name: event.error?.name,
-          message: event.error?.message
-        })
-      }
-
-      recorder.onstart = () => {
-        console.log('✅ MediaRecorder started successfully')
-      }
-
-      console.log('📹 Calling recorder.start()...')
-      recorder.start()
-      setIsRecording(true)
-      console.log('📹 Started video recording with audio mixing capability')
-
+      console.log('✅ Recording initialization complete - ready for TTS audio')
     } catch (error) {
-      console.error('❌ Video recording error:', error)
-      if (error instanceof Error) {
-        console.error('❌ Error name:', error.name)
-        console.error('❌ Error message:', error.message)
-        console.error('❌ Error stack:', error.stack)
-      }
+      console.error('❌ Failed to start recording:', error)
       alert(`Failed to start video recording: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  const stopVideoRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop()
-      setIsRecording(false)
+      throw error // Re-throw to prevent session from starting
     }
   }
 
@@ -524,11 +312,9 @@ export function RecommendationTTSSession({
 
   const handleEndSession = async () => {
     console.log('🛑 handleEndSession called, stopping recording...')
-    stopVideoRecording()
 
-    // Wait for MediaRecorder to finish and chunks to be ready
-    console.log('⏳ Waiting 1 second for recording to fully stop and chunks to be ready...')
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Stop recording using hook
+    const recordingData = await videoRecording.stopRecording()
 
     setIsSessionActive(false)
     setTimerActive(false)
@@ -561,23 +347,20 @@ export function RecommendationTTSSession({
       timestamp: sessionStartTime ? new Date(sessionStartTime.getTime() + (index * 60000)).toISOString() : new Date().toISOString()
     }))
 
-    // NEW APPROACH: Upload video FIRST, then save session with video URL
-    // This prevents losing video if database save times out
+    // Upload video using chunks from service
     let videoUploadResult = null
 
     try {
-      // Check if we have video to upload
-      const chunks = videoChunksRef.current
-      console.log(`📹 Pre-upload video check: ${chunks.length} chunks available`)
+      console.log(`📹 Video chunks from service: ${recordingData.chunks.length}`)
 
-      if (chunks.length > 0) {
-        console.log('📹 Uploading video recording BEFORE saving session...')
+      if (recordingData.chunks.length > 0) {
+        console.log('📹 Uploading video recording...')
 
         // Create temporary session ID for upload
         const tempSessionId = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
-        const videoBlob = new Blob(chunks, {
-          type: recordingMimeTypeRef.current
+        const videoBlob = new Blob(recordingData.chunks, {
+          type: recordingData.mimeType
         })
 
         console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
@@ -705,11 +488,15 @@ export function RecommendationTTSSession({
 
   const startSession = async () => {
     console.log('🚀 Starting session from user button click (user gesture)')
-    setIsSessionActive(true)
 
-    // Start video recording immediately from user gesture (required for iOS)
+    // Start video recording FIRST and wait for it to be ready (required for iOS)
     console.log('🎬 Starting video recording from user gesture')
     await startVideoRecording()
+
+    // Now that recording is ready, activate the session
+    // This triggers the useEffect which loads and plays the first TTS
+    console.log('✅ Recording ready - activating session (will trigger TTS)')
+    setIsSessionActive(true)
   }
 
   // Format timer display
@@ -759,6 +546,15 @@ export function RecommendationTTSSession({
           <Play className="w-5 h-5 mr-2" />
           Start TTS Session
         </button>
+
+        {/* Hidden video element for preview - always present so ref is available */}
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="hidden"
+        />
       </div>
     )
   }
@@ -841,20 +637,11 @@ export function RecommendationTTSSession({
             muted
             playsInline
             className="w-full h-full object-contain"
-            style={videoNeedsRotation ? {
-              transform: 'rotate(90deg) scale(1.33)',
-              transformOrigin: 'center center'
-            } : undefined}
           />
-          {isRecording && (
+          {videoRecording.isRecording && (
             <div className="absolute top-4 right-4 flex items-center bg-red-600 text-white px-3 py-1 rounded-full text-sm">
               <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
               Recording
-            </div>
-          )}
-          {videoNeedsRotation && (
-            <div className="absolute bottom-4 left-4 bg-blue-600 text-white px-3 py-1 rounded text-xs">
-              📱 Rotated for portrait mode
             </div>
           )}
         </div>
