@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
     const { employee_id, scenario_id, assigned_by, notes } = body
 
     console.log('📋 Creating scenario assignment:', { employee_id, scenario_id, assigned_by })
+    console.log('📋 Employee ID type:', typeof employee_id, 'value:', employee_id)
 
     if (!employee_id || !scenario_id || !assigned_by) {
       return NextResponse.json(
@@ -73,6 +74,23 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Verify employee exists
+    const { data: employeeCheck, error: employeeCheckError } = await supabaseAdmin
+      .from('employees')
+      .select('id, name, email')
+      .eq('id', employee_id)
+      .single()
+
+    if (employeeCheckError || !employeeCheck) {
+      console.error('❌ Employee not found in database:', employee_id, employeeCheckError)
+      return NextResponse.json(
+        { success: false, error: `Employee not found in database. Employee ID: ${employee_id}` },
+        { status: 400 }
+      )
+    }
+
+    console.log('✅ Employee verified:', employeeCheck.name, employeeCheck.email)
 
     // Verify that the scenario exists in the database
     const { data: existingScenario, error: scenarioError } = await supabaseAdmin
