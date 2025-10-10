@@ -98,8 +98,8 @@ export default function UserHeader({ title, subtitle }: UserHeaderProps) {
                     <div>
                       <p className="text-sm font-medium text-gray-900">{user.email?.split('@')[0] || 'User'}</p>
                       <p className="text-xs text-gray-500">{user.email}</p>
-                      {user.company_id && (
-                        <p className="text-xs text-gray-400 font-mono mt-1">Company ID: {user.company_id}</p>
+                      {user.company_name && (
+                        <p className="text-xs text-gray-600 mt-1">🏢 {user.company_name}</p>
                       )}
                       <div className="flex items-center space-x-2 mt-1">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${

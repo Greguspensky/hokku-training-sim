@@ -8,6 +8,7 @@ import { signOut as authSignOut } from '@/lib/auth'
 interface ExtendedUser extends User {
   role?: string
   company_id?: string
+  company_name?: string
   employee_record_id?: string
 }
 
@@ -46,7 +47,13 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     // Try to get existing user data first (fast path) with 3s timeout
     const fetchPromise = supabase
       .from('users')
-      .select('role, company_id')
+      .select(`
+        role,
+        company_id,
+        companies (
+          name
+        )
+      `)
       .eq('id', authUser.id)
       .maybeSingle()
 
@@ -58,10 +65,15 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     if (existingUser) {
       console.log('✅ Found existing user:', existingUser.role)
+      const companyName = Array.isArray(existingUser.companies)
+        ? existingUser.companies[0]?.name
+        : existingUser.companies?.name
+
       return {
         ...authUser,
         role: existingUser.role,
-        company_id: existingUser.company_id
+        company_id: existingUser.company_id,
+        company_name: companyName
       }
     }
 
@@ -95,7 +107,13 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     // Fetch the newly created user data with 2s timeout
     const newUserPromise = supabase
       .from('users')
-      .select('role, company_id')
+      .select(`
+        role,
+        company_id,
+        companies (
+          name
+        )
+      `)
       .eq('id', authUser.id)
       .single()
 
@@ -106,10 +124,15 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     )
 
     if (newUser) {
+      const companyName = newUser.companies
+        ? (Array.isArray(newUser.companies) ? newUser.companies[0]?.name : newUser.companies?.name)
+        : undefined
+
       return {
         ...authUser,
         role: newUser.role,
-        company_id: newUser.company_id
+        company_id: newUser.company_id,
+        company_name: companyName
       }
     }
 
