@@ -596,7 +596,7 @@ Start the conversation by presenting your customer problem or situation.`
         const recordingData = await videoService.current.stopRecording()
 
         if (recordingData.chunks.length > 0) {
-          console.log('📹 Uploading video with mixed TTS audio...')
+          console.log('📹 Uploading video directly to Supabase Storage...')
 
           // Create video blob with the MIME type from service
           const videoBlob = new Blob(recordingData.chunks, {
@@ -605,45 +605,51 @@ Start the conversation by presenting your customer problem or situation.`
 
           console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
 
-          const formData = new FormData()
-          formData.append('recording', videoBlob)
-          formData.append('sessionId', currentSessionId)
-          formData.append('recordingType', 'video')
-
-          const response = await fetch('/api/upload-recording', {
-            method: 'POST',
-            body: formData
-          })
-
-          console.log(`📡 Upload response status: ${response.status} ${response.statusText}`)
-
-          if (!response.ok) {
-            let errorMessage = 'Video upload failed'
-            try {
-              const responseText = await response.text()
-              console.error('📄 Response body:', responseText.substring(0, 500))
-              try {
-                const errorData = JSON.parse(responseText)
-                errorMessage = errorData.error || errorMessage
-                console.error('📋 Server error details:', errorData)
-              } catch {
-                console.error('⚠️ Response is not valid JSON')
-                errorMessage = `Upload failed: ${response.status} ${response.statusText}`
-              }
-            } catch (parseError) {
-              console.error('❌ Failed to read error response:', parseError)
-              errorMessage = `Upload failed: ${response.status} ${response.statusText}`
-            }
-            throw new Error(errorMessage)
+          // Detect file extension from MIME type
+          let fileExtension = 'webm'
+          if (recordingData.mimeType.includes('mp4')) {
+            fileExtension = 'mp4'
+          } else if (recordingData.mimeType.includes('webm')) {
+            fileExtension = 'webm'
           }
 
-          const uploadResult = await response.json()
-          console.log('✅ Video with mixed TTS audio uploaded successfully:', uploadResult.path)
+          const fileName = `${currentSessionId}-video-${Date.now()}.${fileExtension}`
+          const filePath = `recordings/video/${fileName}`
+
+          console.log(`📁 Upload path: ${filePath}`)
+          console.log(`📦 File details: ${fileExtension} format, ${videoBlob.size} bytes`)
+
+          // Upload directly to Supabase Storage (bypasses Vercel function limits)
+          const { data, error } = await supabase.storage
+            .from('training-recordings')
+            .upload(filePath, videoBlob, {
+              contentType: recordingData.mimeType,
+              upsert: false
+            })
+
+          if (error) {
+            console.error('❌ Supabase Storage upload failed:', error)
+            throw new Error(`Video upload failed: ${error.message}`)
+          }
+
+          if (!data || !data.path) {
+            console.error('❌ Upload succeeded but no path returned')
+            throw new Error('Upload succeeded but no path returned')
+          }
+
+          console.log('✅ Video uploaded to Supabase:', data.path)
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('training-recordings')
+            .getPublicUrl(data.path)
+
+          console.log('✅ Public URL:', publicUrl)
 
           // Update session with video data
           await trainingSessionsService.updateSessionRecording(currentSessionId, {
-            video_recording_url: uploadResult.url,
-            video_file_size: uploadResult.size,
+            video_recording_url: publicUrl,
+            video_file_size: videoBlob.size,
             recording_duration_seconds: recordingData.duration
           })
 

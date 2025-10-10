@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Play, Square, Volume2, VolumeX, SkipForward, StopCircle } from 'lucide-react'
 import { trainingSessionsService } from '@/lib/training-sessions'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVideoRecording } from '@/hooks/useVideoRecording'
@@ -365,33 +366,53 @@ export function RecommendationTTSSession({
 
         console.log(`📹 Created video blob: ${videoBlob.size} bytes, type: ${videoBlob.type}`)
 
-        const formData = new FormData()
-        formData.append('recording', videoBlob)
-        formData.append('sessionId', tempSessionId)
-        formData.append('recordingType', 'video')
-
-        console.log('📹 Starting video upload with 60s timeout...')
-
-        // Add timeout for video upload (60 seconds)
-        const uploadPromise = fetch('/api/upload-recording', {
-          method: 'POST',
-          body: formData
-        })
-
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Video upload timeout after 60 seconds')), 60000)
-        )
-
-        const uploadResponse = await Promise.race([uploadPromise, timeoutPromise]) as Response
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text()
-          console.error('❌ Upload response not OK:', uploadResponse.status, errorText)
-          throw new Error(`Video upload failed: ${uploadResponse.status} ${errorText}`)
+        // Detect file extension from MIME type
+        let fileExtension = 'webm'
+        if (recordingData.mimeType.includes('mp4')) {
+          fileExtension = 'mp4'
+        } else if (recordingData.mimeType.includes('webm')) {
+          fileExtension = 'webm'
         }
 
-        videoUploadResult = await uploadResponse.json()
-        console.log('✅ Video uploaded successfully:', videoUploadResult.path)
+        const fileName = `${tempSessionId}-video-${Date.now()}.${fileExtension}`
+        const filePath = `recordings/video/${fileName}`
+
+        console.log(`📁 Upload path: ${filePath}`)
+        console.log(`📦 File details: ${fileExtension} format, ${videoBlob.size} bytes`)
+
+        // Upload directly to Supabase Storage (bypasses Vercel function limits)
+        const { data, error } = await supabase.storage
+          .from('training-recordings')
+          .upload(filePath, videoBlob, {
+            contentType: recordingData.mimeType,
+            upsert: false
+          })
+
+        if (error) {
+          console.error('❌ Supabase Storage upload failed:', error)
+          throw new Error(`Video upload failed: ${error.message}`)
+        }
+
+        if (!data || !data.path) {
+          console.error('❌ Upload succeeded but no path returned')
+          throw new Error('Upload succeeded but no path returned')
+        }
+
+        console.log('✅ Video uploaded to Supabase:', data.path)
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('training-recordings')
+          .getPublicUrl(data.path)
+
+        console.log('✅ Public URL:', publicUrl)
+
+        videoUploadResult = {
+          path: data.path,
+          url: publicUrl,
+          size: videoBlob.size
+        }
+        console.log('✅ Video upload successful:', videoUploadResult.path)
       } else {
         console.warn('⚠️ No video chunks to upload')
       }
