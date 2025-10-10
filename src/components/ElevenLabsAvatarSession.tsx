@@ -374,10 +374,8 @@ Start the conversation by presenting your customer problem or situation.`
         setIsConnected(true)
         setConnectionStatus('connected')
         setIsSessionActive(true)
-        // Start recording based on user preference
-        if (recordingPreference !== 'none') {
-          startSessionRecording()
-        }
+        // Recording already started before conversation initialization
+        console.log('ℹ️ Recording was pre-initialized - agent can speak immediately')
       })
 
       service.on('disconnected', () => {
@@ -674,17 +672,26 @@ Start the conversation by presenting your customer problem or situation.`
    * Start the avatar session
    */
   const startSession = useCallback(async () => {
-    // Load knowledge context first if we have a scenario
+    console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs')
+
+    // STEP 1: Start recording FIRST (get camera/mic permissions before agent speaks)
+    if (recordingPreference !== 'none') {
+      console.log('🎬 Pre-initializing recording to get permissions before agent starts speaking...')
+      await startSessionRecording()
+      console.log('✅ Recording ready - now safe to start ElevenLabs agent')
+    }
+
+    // STEP 2: Load knowledge and questions
     const loadedContext = await loadKnowledgeContext()
     console.log('🔄 Knowledge loaded in startSession:', loadedContext ? `${loadedContext.documents?.length || 0} documents` : 'No context')
 
-    // Load structured questions for theory sessions
     const loadedQuestions = await loadStructuredQuestions()
     console.log('🔄 Questions loaded in startSession:', loadedQuestions.length, 'questions')
 
-    // Then initialize the conversation with the loaded context and questions
+    // STEP 3: Initialize ElevenLabs conversation (agent can start speaking now)
+    console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...')
     await initializeConversation(loadedContext, loadedQuestions)
-  }, [loadKnowledgeContext, loadStructuredQuestions, initializeConversation])
+  }, [recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation])
 
   /**
    * Stop the avatar session
