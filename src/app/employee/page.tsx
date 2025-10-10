@@ -6,7 +6,9 @@ import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import IndividualScenariosCard from '@/components/Employee/IndividualScenariosCard'
 import UserHeader from '@/components/UserHeader'
 import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
+import SessionCard from '@/components/Employee/SessionCard'
 import { useAuth } from '@/contexts/AuthContext'
+import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
 // Declare Weglot global type
 declare global {
@@ -20,19 +22,53 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true)
   const [redirectTimeout, setRedirectTimeout] = useState<NodeJS.Timeout | null>(null)
   const [activeTab, setActiveTab] = useState<'tracks' | 'history' | 'progress'>('tracks')
+  const [sessions, setSessions] = useState<TrainingSession[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyStats, setHistoryStats] = useState({
+    totalSessions: 0,
+    totalDuration: 0,
+    completedThisWeek: 0
+  })
   const { user, loading: authLoading } = useAuth()
 
   // Get employee ID from authenticated user
-  const employeeId = user?.employee_record_id || user?.id
+  // For training sessions: use user.id (auth ID)
+  // For assignments: need to look up employee table ID via API
+  const employeeId = user?.id
+  const [employeeTableId, setEmployeeTableId] = useState<string | null>(null)
+
+  // Load employee table ID
+  useEffect(() => {
+    const loadEmployeeTableId = async () => {
+      if (!employeeId || !user?.company_id) return
+
+      try {
+        const response = await fetch(`/api/employees?company_id=${user.company_id}`)
+        const data = await response.json()
+
+        if (data.employees) {
+          const employee = data.employees.find((e: any) => e.email === user.email)
+          if (employee) {
+            setEmployeeTableId(employee.id)
+            console.log('📋 Found employee table ID:', employee.id)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load employee table ID:', error)
+      }
+    }
+
+    loadEmployeeTableId()
+  }, [employeeId, user?.company_id, user?.email])
 
   const loadAssignments = async () => {
-    if (!employeeId) {
+    if (!employeeTableId) {
       setLoading(false)
       return
     }
 
     try {
-      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employeeId}`)
+      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employeeTableId}`)
       const data = await response.json()
 
       if (data.success) {
@@ -45,10 +81,44 @@ export default function EmployeeDashboard() {
     }
   }
 
+  const loadTrainingHistory = async () => {
+    if (!employeeId) return
+
+    try {
+      setHistoryLoading(true)
+      console.log('📚 Loading training session history for employee:', employeeId)
+
+      // Load sessions and stats in parallel
+      const [sessionHistory, employeeStats] = await Promise.all([
+        trainingSessionsService.getEmployeeSessionHistory(employeeId),
+        trainingSessionsService.getEmployeeStats(employeeId)
+      ])
+
+      setSessions(sessionHistory)
+      setHistoryStats(employeeStats)
+
+      console.log(`✅ Loaded ${sessionHistory.length} training sessions`)
+    } catch (err) {
+      console.error('❌ Failed to load training history:', err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   useEffect(() => {
-    loadAssignments()
+    if (employeeTableId) {
+      loadAssignments()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId])
+  }, [employeeTableId])
+
+  // Load training history when tab changes to history
+  useEffect(() => {
+    if (activeTab === 'history' && employeeId && sessions.length === 0) {
+      loadTrainingHistory()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, employeeId])
 
   // Initialize Weglot translation widget
   useEffect(() => {
@@ -234,7 +304,7 @@ export default function EmployeeDashboard() {
 
             {/* Individual Scenarios Section */}
             <div className="mt-8">
-              <IndividualScenariosCard employeeId={employeeId} />
+              <IndividualScenariosCard employeeId={employeeTableId || employeeId} />
             </div>
           </>
         )}
@@ -242,12 +312,55 @@ export default function EmployeeDashboard() {
         {/* Training History Tab */}
         {activeTab === 'history' && (
           <div>
-            <iframe
-              src="/employee/history"
-              className="w-full border-0 rounded-lg shadow"
-              style={{ minHeight: '800px', height: 'calc(100vh - 250px)' }}
-              title="Training History"
-            />
+            {/* Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-lg shadow p-6 text-center">
+                <div className="text-3xl font-bold text-blue-600 mb-2">{historyStats.totalSessions}</div>
+                <div className="text-sm text-gray-600">Total Sessions</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6 text-center">
+                <div className="text-3xl font-bold text-green-600 mb-2">
+                  {trainingSessionsService.formatDuration(historyStats.totalDuration)}
+                </div>
+                <div className="text-sm text-gray-600">Total Training Time</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-6 text-center">
+                <div className="text-3xl font-bold text-purple-600 mb-2">{historyStats.completedThisWeek}</div>
+                <div className="text-sm text-gray-600">Completed This Week</div>
+              </div>
+            </div>
+
+            {/* Sessions List */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Training Sessions</h2>
+
+              {historyLoading ? (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading training history...</p>
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <div className="text-gray-400 text-5xl mb-4">📚</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Training Sessions Yet</h3>
+                  <p className="text-gray-500 mb-4">
+                    You haven't completed any training sessions yet. Start your first training session to see it here.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('tracks')}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                  >
+                    Start Training
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sessions.map((session) => (
+                    <SessionCard key={session.id} session={session} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

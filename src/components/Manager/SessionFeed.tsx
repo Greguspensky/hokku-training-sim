@@ -220,11 +220,11 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                   <Video className="w-3 h-3 mr-1" />
                   Video Recording:
                 </div>
-                <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                <div className="bg-black rounded-lg overflow-hidden flex items-center justify-center">
                   <video
                     src={session.video_recording_url}
                     controls
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-[600px] object-contain"
                     preload="metadata"
                   >
                     Your browser does not support video playback.

@@ -64,14 +64,44 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
       let companyName: string | undefined
       if (existingUser.company_id) {
         try {
-          const { data: company } = await supabase
+          const { data: company, error: companyError } = await supabase
             .from('companies')
             .select('name')
             .eq('id', existingUser.company_id)
             .single()
-          companyName = company?.name
+
+          if (companyError) {
+            // Silently handle 406 or other RLS errors - company name is optional
+            console.debug('Company name fetch skipped (RLS or permissions issue)')
+          } else {
+            companyName = company?.name
+          }
         } catch (err) {
-          console.warn('Could not load company name:', err)
+          // Suppress company fetch errors - this is not critical for auth
+          console.debug('Could not load company name:', err)
+        }
+      }
+
+      // For employees, fetch the employee record ID
+      let employeeRecordId: string | undefined
+      if (existingUser.role === 'employee') {
+        try {
+          const { data: employeeRecord, error: employeeError } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('user_id', authUser.id)
+            .maybeSingle()
+
+          if (employeeError) {
+            console.debug('Employee record fetch error:', employeeError)
+          } else if (employeeRecord) {
+            employeeRecordId = employeeRecord.id
+            console.log('✅ Found employee record ID:', employeeRecordId)
+          } else {
+            console.warn('⚠️ No employee record found for user:', authUser.id)
+          }
+        } catch (err) {
+          console.debug('Could not load employee record:', err)
         }
       }
 
@@ -79,7 +109,8 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
         ...authUser,
         role: existingUser.role,
         company_id: existingUser.company_id,
-        company_name: companyName
+        company_name: companyName,
+        employee_record_id: employeeRecordId
       }
     }
 
@@ -139,11 +170,31 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
         }
       }
 
+      // For employees, fetch the employee record ID
+      let employeeRecordId: string | undefined
+      if (newUser.role === 'employee') {
+        try {
+          const { data: employeeRecord } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('user_id', authUser.id)
+            .maybeSingle()
+
+          if (employeeRecord) {
+            employeeRecordId = employeeRecord.id
+            console.log('✅ Found employee record ID for new user:', employeeRecordId)
+          }
+        } catch (err) {
+          console.debug('Could not load employee record:', err)
+        }
+      }
+
       return {
         ...authUser,
         role: newUser.role,
         company_id: newUser.company_id,
-        company_name: companyName
+        company_name: companyName,
+        employee_record_id: employeeRecordId
       }
     }
 
@@ -160,7 +211,30 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     // Graceful degradation - return auth user with inferred role
     const fallbackRole = authUser.email?.includes('emp') ? 'employee' : 'manager'
-    return { ...authUser, role: fallbackRole }
+
+    // For employees, try to fetch employee_record_id even in fallback
+    let employeeRecordId: string | undefined
+    if (fallbackRole === 'employee') {
+      try {
+        console.log('🔄 Attempting to fetch employee_record_id in fallback...')
+        const { data: employeeRecord } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .maybeSingle()
+
+        if (employeeRecord) {
+          employeeRecordId = employeeRecord.id
+          console.log('✅ Fallback: Found employee record ID:', employeeRecordId)
+        } else {
+          console.warn('⚠️ Fallback: No employee record found')
+        }
+      } catch (err) {
+        console.debug('Fallback: Could not load employee record:', err)
+      }
+    }
+
+    return { ...authUser, role: fallbackRole, employee_record_id: employeeRecordId }
   }
 }
 

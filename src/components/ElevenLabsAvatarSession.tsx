@@ -64,6 +64,7 @@ export function ElevenLabsAvatarSession({
   const videoService = useRef<VideoRecordingService>(new VideoRecordingService())
   const sessionStartTimeRef = useRef<number>(0)
   const tabAudioStreamRef = useRef<MediaStream | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   /**
    * Load structured questions from database for theory practice
@@ -540,6 +541,17 @@ Start the conversation by presenting your customer problem or situation.`
       sessionStartTimeRef.current = Date.now()
       console.log('✅ Video recording started successfully')
 
+      // Attach preview stream to video element
+      const previewStream = videoService.current.getPreviewStream()
+      if (previewStream && videoRef.current) {
+        console.log('📹 Attaching preview stream to video element...')
+        videoRef.current.srcObject = previewStream
+        await videoRef.current.play().catch(err => {
+          console.warn('⚠️ Preview play failed:', err)
+        })
+        console.log('✅ Video preview attached')
+      }
+
     } catch (error) {
       console.error(`❌ Failed to start ${recordingPreference} recording:`, error)
       setIsRecording(false)
@@ -741,8 +753,8 @@ Start the conversation by presenting your customer problem or situation.`
       const endTime = new Date()
       const startTime = new Date(sessionStartTimeRef.current || Date.now())
 
-      // Get employee ID from authenticated user
-      const employeeId = user.employee_record_id || user.id
+      // Get employee ID from authenticated user (always use auth user ID for consistency)
+      const employeeId = user.id
 
       // Save the session to database using the existing sessionId
       if (!sessionId) {
@@ -855,6 +867,23 @@ Start the conversation by presenting your customer problem or situation.`
     loadKnowledgeContext()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenarioId, companyId])
+
+  /**
+   * Re-attach video preview stream when session becomes active (after re-render)
+   */
+  useEffect(() => {
+    if (isSessionActive && videoRef.current && recordingPreference === 'audio_video' && videoService.current.isRecording()) {
+      const previewStream = videoService.current.getPreviewStream()
+      if (previewStream && videoRef.current.srcObject !== previewStream) {
+        console.log('📹 Re-attaching preview stream after session activation...')
+        videoRef.current.srcObject = previewStream
+        videoRef.current.play().catch(err => {
+          console.warn('⚠️ Preview play failed:', err)
+        })
+        console.log('✅ Preview stream re-attached')
+      }
+    }
+  }, [isSessionActive, recordingPreference])
 
   /**
    * Cleanup on unmount
@@ -1087,6 +1116,37 @@ Start the conversation by presenting your customer problem or situation.`
               />
             </div>
           </div>
+
+          {/* Video Preview - Show when recording video */}
+          {isSessionActive && recordingPreference === 'audio_video' && isRecording && (
+            <div className="bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center"
+              style={{
+                aspectRatio: videoAspectRatio,
+                maxWidth: videoAspectRatio === '9:16' ? '360px' : '100%',
+                width: '100%'
+              }}
+            >
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-contain"
+                style={{ transform: 'scaleX(-1)' }}
+              />
+            </div>
+          )}
+
+          {/* Hidden video element for preview - always present so ref is available */}
+          {!isSessionActive && (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="hidden"
+            />
+          )}
 
           {/* Session Status */}
           {isSessionActive && (

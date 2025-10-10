@@ -23,7 +23,11 @@ export default function SessionTranscriptPage() {
   const sessionId = params.sessionId as string
 
   useEffect(() => {
-    if (!sessionId || !user) return
+    console.log('🔄 Session page useEffect - sessionId:', sessionId, 'user:', !!user)
+    if (!sessionId || !user) {
+      console.log('⏸️ Waiting for sessionId and user...')
+      return
+    }
 
     loadSession()
   }, [sessionId, user])
@@ -41,12 +45,17 @@ export default function SessionTranscriptPage() {
         return
       }
 
-      // Verify user has access to this session
-      const employeeId = user?.employee_record_id || user?.id
+      // Verify user has access to this session (always use auth user ID for consistency)
+      const employeeId = user?.id
+      console.log('🔐 Access check - Session employee_id:', sessionData.employee_id, 'User ID:', employeeId)
+
       if (sessionData.employee_id !== employeeId) {
+        console.error('❌ Access denied - IDs do not match')
         setError('Access denied: This session belongs to another user')
         return
       }
+
+      console.log('✅ Access granted')
 
       setSession(sessionData)
       console.log('✅ Session transcript loaded successfully')

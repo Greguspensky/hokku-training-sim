@@ -32,7 +32,7 @@ export default function TrainingHistoryPage() {
       setLoading(true)
       setError(null)
 
-      const employeeId = user.employee_record_id || user.id
+      const employeeId = user.id
       console.log('📚 Loading training session history for employee:', employeeId)
 
       // Load sessions and stats in parallel

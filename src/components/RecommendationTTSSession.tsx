@@ -423,7 +423,7 @@ export function RecommendationTTSSession({
 
     try {
       console.log('🔄 About to save session with data:', {
-        employee_id: user?.employee_record_id || user?.id || 'unknown',
+        employee_id: user?.id || 'unknown',
         assignment_id: assignmentId || 'unknown',
         company_id: companyId,
         training_mode: 'recommendation_tts',
@@ -432,7 +432,7 @@ export function RecommendationTTSSession({
 
       // Save session to database WITH video URL if available
       const savedSession = await trainingSessionsService.saveSession({
-        employee_id: user?.employee_record_id || user?.id || 'unknown',
+        employee_id: user?.id || 'unknown',
         assignment_id: assignmentId || 'unknown',
         company_id: companyId,
         scenario_id: scenarioId,
