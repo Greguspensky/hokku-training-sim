@@ -192,8 +192,21 @@ class EmployeeService {
         for (const user of users) {
           const alreadyAdded = allEmployees.find(e => e.email === user.email)
           if (!alreadyAdded) {
+            // IMPORTANT: Look up the employee_id from employees table using user_id
+            console.log(`🔍 Looking up employee record for user: ${user.email}`)
+            const { data: employeeRecord, error: employeeRecordError } = await client
+              .from('employees')
+              .select('id')
+              .eq('user_id', user.id)
+              .single()
+
+            if (employeeRecordError || !employeeRecord) {
+              console.error(`❌ No employee record found for user ${user.email}, skipping`)
+              continue // Skip users without employee records
+            }
+
             allEmployees.push({
-              id: user.id,
+              id: employeeRecord.id, // Use employee_id from employees table
               name: user.name,
               email: user.email,
               company_id: companyId,
