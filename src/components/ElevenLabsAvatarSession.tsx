@@ -59,6 +59,7 @@ export function ElevenLabsAvatarSession({
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
   const [isLoadingSessionQuestions, setIsLoadingSessionQuestions] = useState(false)
+  const [isSavingSession, setIsSavingSession] = useState(false)
 
   // Session recording - simplified with VideoRecordingService
   const videoService = useRef<VideoRecordingService>(new VideoRecordingService())
@@ -715,6 +716,8 @@ Start the conversation by presenting your customer problem or situation.`
     }
 
     try {
+      // Show saving indicator immediately
+      setIsSavingSession(true)
       console.log('🛑 Stopping training session...')
 
       // Get conversation ID from the service before stopping
@@ -732,6 +735,17 @@ Start the conversation by presenting your customer problem or situation.`
         console.log('⏳ Waiting for recording to stop completely...')
         await stopSessionRecording()
         console.log('✅ Recording stopped successfully')
+
+        // Release camera/mic resources
+        if (videoService.current) {
+          const previewStream = videoService.current.getPreviewStream()
+          if (previewStream) {
+            previewStream.getTracks().forEach(track => {
+              track.stop()
+              console.log('🔇 Stopped track:', track.kind)
+            })
+          }
+        }
       }
 
       // Skip automatic transcript fetching - user will trigger it manually
@@ -834,10 +848,32 @@ Start the conversation by presenting your customer problem or situation.`
       // Save recording using hybrid approach (ElevenLabs API + webcam if applicable)
       if (recordingPreference !== 'none') {
         console.log('🎬 Saving session recording using hybrid approach...')
-        await saveSessionRecording()
+
+        try {
+          // Add timeout to prevent indefinite waiting
+          const uploadTimeout = 30000 // 30 seconds
+          await Promise.race([
+            saveSessionRecording(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Upload timeout')), uploadTimeout)
+            )
+          ])
+          console.log('✅ Recording saved successfully')
+        } catch (uploadError) {
+          console.error('⚠️ Recording upload failed or timed out:', uploadError)
+          // Continue anyway - user can still access transcript
+          console.log('📝 Continuing to transcript page despite upload issue...')
+        }
       }
 
       console.log('🔄 Redirecting to transcript...')
+
+      // Reset saving state before navigation
+      setIsSavingSession(false)
+
+      // Small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+
       // Redirect to the transcript page
       router.push(`/employee/sessions/${sessionId}`)
 
@@ -847,6 +883,7 @@ Start the conversation by presenting your customer problem or situation.`
       console.error('Error details:', errorMessage)
       // Still allow the user to continue, just show an error
       alert(`Failed to save training session: ${errorMessage}\n\nPlease try again or contact support.`)
+      setIsSavingSession(false)
     }
   }, [conversationService, user, scenarioContext, scenarioId, companyId, language, agentId, knowledgeContext, router, sessionId, recordingPreference, saveSessionRecording, stopSessionRecording])
 
@@ -901,7 +938,23 @@ Start the conversation by presenting your customer problem or situation.`
   const isTheoryMode = trainingMode === 'theory'
 
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className}`}>
+    <div className={`w-full max-w-4xl mx-auto ${className} relative`}>
+      {/* Saving Session Overlay */}
+      {isSavingSession && (
+        <div className="absolute inset-0 bg-white bg-opacity-95 z-50 flex items-center justify-center rounded-lg">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Saving Session...</h3>
+            <p className="text-gray-600 mb-2">
+              {recordingPreference === 'audio_video' ? 'Uploading video recording and saving session data' :
+               recordingPreference === 'audio' ? 'Saving audio recording and session data' :
+               'Saving session data'}
+            </p>
+            <p className="text-sm text-gray-500">Please wait, this may take a moment</p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="space-y-6">
           {/* Header */}
