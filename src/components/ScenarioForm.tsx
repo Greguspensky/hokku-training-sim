@@ -40,6 +40,7 @@ interface ScenarioFormData {
   expected_response: string
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   estimated_duration_minutes: number
+  session_time_limit_minutes: number
   milestones: string[]
   knowledge_category_ids: string[]
   knowledge_document_ids: string[]
@@ -68,6 +69,7 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     expected_response: '',
     difficulty: 'beginner',
     estimated_duration_minutes: 30,
+    session_time_limit_minutes: 10,
     milestones: [],
     knowledge_category_ids: [],
     knowledge_document_ids: [],
@@ -369,7 +371,27 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
           /* Scenario Content - Only for Service Practice */
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Scenario Content</h3>
-            
+
+            {/* Session Time Limit */}
+            <div>
+              <label htmlFor="session_time_limit" className="block text-sm font-medium text-gray-700 mb-2">
+                Session Time Limit (minutes)
+              </label>
+              <input
+                type="number"
+                id="session_time_limit"
+                min="1"
+                max="60"
+                value={formData.session_time_limit_minutes}
+                onChange={(e) => handleInputChange('session_time_limit_minutes', parseInt(e.target.value) || 10)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="10"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Maximum duration for this role-play session (1-60 minutes)
+              </p>
+            </div>
+
             <div>
               <label htmlFor="client_behavior" className="block text-sm font-medium text-gray-700 mb-2">
                 Client Behavior *
@@ -576,6 +598,26 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               <p className="text-sm text-blue-700">
                 <strong>Theory scenarios</strong> are Q&A based and don't require role-playing elements.
                 They focus on knowledge testing using questions from selected topics in your question pool.
+              </p>
+            </div>
+
+            {/* Session Time Limit */}
+            <div>
+              <label htmlFor="session_time_limit" className="block text-sm font-medium text-gray-700 mb-2">
+                Session Time Limit (minutes)
+              </label>
+              <input
+                type="number"
+                id="session_time_limit"
+                min="1"
+                max="60"
+                value={formData.session_time_limit_minutes}
+                onChange={(e) => handleInputChange('session_time_limit_minutes', parseInt(e.target.value) || 10)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="10"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Maximum duration for this theory session (1-60 minutes)
               </p>
             </div>
 
