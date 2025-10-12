@@ -29,11 +29,13 @@ export async function POST(request: NextRequest) {
       expected_response: body.expected_response,
       difficulty: body.difficulty || 'beginner',
       estimated_duration_minutes: body.estimated_duration_minutes || 30,
+      session_time_limit_minutes: body.session_time_limit_minutes || 10,
       milestones: body.milestones || [],
       knowledge_category_ids: body.knowledge_category_ids || [],
       knowledge_document_ids: body.knowledge_document_ids || [],
       topic_ids: body.topic_ids || [],
       recommendation_question_ids: body.recommendation_question_ids || [],
+      recommendation_question_durations: body.recommendation_question_durations || {},
       instructions: body.instructions
     };
 

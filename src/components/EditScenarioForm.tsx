@@ -39,6 +39,7 @@ interface EditScenarioFormData {
   expected_response: string
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   estimated_duration_minutes: number
+  session_time_limit_minutes: number
   milestones: string[]
   topic_ids: string[]
   recommendation_question_ids: string[]
@@ -66,6 +67,7 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     expected_response: scenario.expected_response,
     difficulty: scenario.difficulty,
     estimated_duration_minutes: scenario.estimated_duration_minutes,
+    session_time_limit_minutes: scenario.session_time_limit_minutes || 10,
     milestones: scenario.milestones || [],
     topic_ids: scenario.topic_ids || [],
     recommendation_question_ids: scenario.recommendation_question_ids || [],
@@ -329,21 +331,6 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
                   required
                 />
               </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  id="description"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Describe the training scenario and objectives"
-                  required
-                />
-              </div>
             </>
           )}
         </div>
@@ -352,7 +339,27 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
           /* Scenario Content - Only for Service Practice */
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Scenario Content</h3>
-            
+
+            {/* Session Time Limit */}
+            <div>
+              <label htmlFor="session_time_limit" className="block text-sm font-medium text-gray-700 mb-2">
+                Session Time Limit (minutes)
+              </label>
+              <input
+                type="number"
+                id="session_time_limit"
+                min="1"
+                max="60"
+                value={formData.session_time_limit_minutes}
+                onChange={(e) => handleInputChange('session_time_limit_minutes', parseInt(e.target.value) || 10)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="10"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Maximum duration for this role-play session (1-60 minutes)
+              </p>
+            </div>
+
             <div>
               <label htmlFor="client_behavior" className="block text-sm font-medium text-gray-700 mb-2">
                 Client Behavior *
@@ -381,39 +388,6 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
                 placeholder="Describe the ideal way an employee should respond"
                 required
               />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="difficulty" className="block text-sm font-medium text-gray-700 mb-2">
-                  Difficulty Level
-                </label>
-                <select
-                  id="difficulty"
-                  value={formData.difficulty}
-                  onChange={(e) => handleInputChange('difficulty', e.target.value as 'beginner' | 'intermediate' | 'advanced')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  id="duration"
-                  min="5"
-                  max="180"
-                  value={formData.estimated_duration_minutes}
-                  onChange={(e) => handleInputChange('estimated_duration_minutes', parseInt(e.target.value) || 30)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
             </div>
             
             {/* Milestones Section - Only for Service Practice */}
@@ -591,6 +565,26 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               <p className="text-sm text-blue-700">
                 <strong>Theory scenarios</strong> are Q&A based and don't require role-playing elements.
                 They focus on knowledge testing using questions from selected topics in your question pool.
+              </p>
+            </div>
+
+            {/* Session Time Limit */}
+            <div>
+              <label htmlFor="session_time_limit" className="block text-sm font-medium text-gray-700 mb-2">
+                Session Time Limit (minutes)
+              </label>
+              <input
+                type="number"
+                id="session_time_limit"
+                min="1"
+                max="60"
+                value={formData.session_time_limit_minutes}
+                onChange={(e) => handleInputChange('session_time_limit_minutes', parseInt(e.target.value) || 10)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="10"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Maximum duration for this theory session (1-60 minutes)
               </p>
             </div>
 

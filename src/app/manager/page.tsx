@@ -17,9 +17,10 @@ import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
 // TopicTag component to display topic information
 interface TopicTagProps {
   topicId: string
+  companyId: string
 }
 
-function TopicTag({ topicId }: TopicTagProps) {
+function TopicTag({ topicId, companyId }: TopicTagProps) {
   const [topicData, setTopicData] = useState<{
     name: string
     questionCount: number
@@ -31,7 +32,7 @@ function TopicTag({ topicId }: TopicTagProps) {
   useEffect(() => {
     const fetchTopicData = async () => {
       try {
-        const response = await fetch('/api/knowledge-assessment/topics?company_id=test')
+        const response = await fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`)
         const data = await response.json()
         if (data.success) {
           const topic = data.topics.find((t: any) => t.id === topicId)
@@ -52,7 +53,7 @@ function TopicTag({ topicId }: TopicTagProps) {
     }
 
     fetchTopicData()
-  }, [topicId])
+  }, [topicId, companyId])
 
   if (loading) {
     return (
@@ -628,7 +629,6 @@ export default function ManagerDashboard() {
                         <div className="flex-1">
                           <h3 className="text-lg font-medium text-gray-900">{scenario.title}</h3>
                           <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
-                          <p className="text-gray-600 mt-1">{scenario.description}</p>
                           <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                               {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
@@ -639,13 +639,8 @@ export default function ManagerDashboard() {
                                 {scenario.template_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                               </span>
                             )}
-                            {scenario.scenario_type === 'service_practice' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                {scenario.difficulty}
-                              </span>
-                            )}
-                            {scenario.scenario_type === 'service_practice' && (
-                              <span>{scenario.estimated_duration_minutes} min</span>
+                            {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
+                              <span>{scenario.session_time_limit_minutes} min</span>
                             )}
                           </div>
 
@@ -668,7 +663,7 @@ export default function ManagerDashboard() {
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {scenario.topic_ids && scenario.topic_ids.length > 0 ? (
                                   scenario.topic_ids.map((topicId) => (
-                                    <TopicTag key={topicId} topicId={topicId} />
+                                    <TopicTag key={topicId} topicId={topicId} companyId={user?.company_id || ''} />
                                   ))
                                 ) : (
                                   <span className="text-sm text-gray-500 italic">No topics assigned</span>
@@ -776,7 +771,6 @@ export default function ManagerDashboard() {
                       <div className="flex-1">
                         <h3 className="text-lg font-medium text-gray-900">{scenario.title}</h3>
                         <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
-                        <p className="text-gray-600 mt-1">{scenario.description}</p>
                         <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                             {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
@@ -787,13 +781,8 @@ export default function ManagerDashboard() {
                               {scenario.template_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                             </span>
                           )}
-                          {scenario.scenario_type === 'service_practice' && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              {scenario.difficulty}
-                            </span>
-                          )}
-                          {scenario.scenario_type === 'service_practice' && (
-                            <span>{scenario.estimated_duration_minutes} min</span>
+                          {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
+                            <span>{scenario.session_time_limit_minutes} min</span>
                           )}
                         </div>
                         
@@ -829,7 +818,7 @@ export default function ManagerDashboard() {
                             <div className="mt-1 flex flex-wrap gap-2">
                               {scenario.topic_ids && scenario.topic_ids.length > 0 ? (
                                 scenario.topic_ids.map((topicId) => (
-                                  <TopicTag key={topicId} topicId={topicId} />
+                                  <TopicTag key={topicId} topicId={topicId} companyId={user?.company_id || ''} />
                                 ))
                               ) : (
                                 <span className="text-sm text-gray-500 italic">No topics assigned</span>

@@ -81,6 +81,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       expected_response: body.expected_response,
       difficulty: body.difficulty,
       estimated_duration_minutes: body.estimated_duration_minutes,
+      session_time_limit_minutes: body.session_time_limit_minutes,
       milestones: body.milestones || [],
       topic_ids: body.topic_ids || [],
       recommendation_question_ids: body.recommendation_question_ids || [],

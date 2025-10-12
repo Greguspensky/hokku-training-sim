@@ -34,12 +34,70 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutError: st
 }
 
 /**
+ * Cache user data in localStorage to survive page reloads and tab switches
+ */
+function getCachedUserData(userId: string): ExtendedUser | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const cached = localStorage.getItem(`user_cache_${userId}`)
+    if (cached) {
+      const data = JSON.parse(cached)
+      // Only use cache if it's less than 5 minutes old
+      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        console.log('📦 Using cached user data')
+        return data.user
+      }
+    }
+  } catch (err) {
+    console.debug('Could not read cached user data:', err)
+  }
+  return null
+}
+
+function setCachedUserData(userId: string, userData: ExtendedUser) {
+  if (typeof window === 'undefined') return
+
+  try {
+    localStorage.setItem(`user_cache_${userId}`, JSON.stringify({
+      user: userData,
+      timestamp: Date.now()
+    }))
+  } catch (err) {
+    console.debug('Could not cache user data:', err)
+  }
+}
+
+/**
  * Consolidated user enrichment - single DB call with upsert
  * Replaces ensureUserRecord + enrichUserWithDbInfo
  */
 async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
   try {
     console.log('🔍 Getting/creating user data for:', authUser.email)
+
+    // Try to use cached data first if available
+    const cachedData = getCachedUserData(authUser.id)
+    if (cachedData) {
+      // Still try to fetch fresh data in background, but return cached immediately
+      // This prevents the error flash while we're fetching
+      setTimeout(() => {
+        // Fetch fresh data without blocking
+        supabase
+          .from('users')
+          .select('role, company_id')
+          .eq('id', authUser.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              const freshUser = { ...authUser, ...data }
+              setCachedUserData(authUser.id, freshUser)
+            }
+          })
+      }, 0)
+
+      return cachedData
+    }
 
     // Determine role based on email
     const role = authUser.email?.includes('emp') ? 'employee' : 'manager'
@@ -105,13 +163,18 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
         }
       }
 
-      return {
+      const enrichedUser = {
         ...authUser,
         role: existingUser.role,
         company_id: existingUser.company_id,
         company_name: companyName,
         employee_record_id: employeeRecordId
       }
+
+      // Cache the successful fetch
+      setCachedUserData(authUser.id, enrichedUser)
+
+      return enrichedUser
     }
 
     // User doesn't exist - create via RPC (bypasses RLS) with 3s timeout
@@ -189,13 +252,18 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
         }
       }
 
-      return {
+      const enrichedUser = {
         ...authUser,
         role: newUser.role,
         company_id: newUser.company_id,
         company_name: companyName,
         employee_record_id: employeeRecordId
       }
+
+      // Cache the successful fetch
+      setCachedUserData(authUser.id, enrichedUser)
+
+      return enrichedUser
     }
 
     // Fallback - return user with determined role
@@ -204,12 +272,20 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
   } catch (error: any) {
     const isTimeout = error?.message?.includes('timeout')
     if (isTimeout) {
-      console.warn('⚠️ Database timeout, using fallback role from email')
+      console.warn('⚠️ Database timeout, checking cache...')
     } else {
       console.error('❌ Error in getOrCreateUserData:', error)
     }
 
+    // Try to use cached data if available (most important for recovering from timeouts)
+    const cachedData = getCachedUserData(authUser.id)
+    if (cachedData) {
+      console.log('✅ Using cached user data after database error')
+      return cachedData
+    }
+
     // Graceful degradation - return auth user with inferred role
+    console.warn('⚠️ No cached data available, using fallback role from email')
     const fallbackRole = authUser.email?.includes('emp') ? 'employee' : 'manager'
 
     // For employees, try to fetch employee_record_id even in fallback
@@ -328,10 +404,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           const userId = session.user.id
 
-          // Skip enrichment if same user and already enriched
-          if (userId === currentUserId.current && user?.role) {
-            console.log('ℹ️ Same user, skipping re-enrichment')
+          // Skip enrichment if same user and already fully enriched with complete data
+          const hasCompleteData = user?.company_id || user?.role === 'employee'
+          if (userId === currentUserId.current && user?.role && hasCompleteData) {
+            console.log('ℹ️ Same user with complete data, skipping re-enrichment')
             return
+          }
+
+          // If same user but missing company_id, allow re-enrichment attempt
+          if (userId === currentUserId.current && user?.role && !hasCompleteData) {
+            console.log('🔄 Same user but missing company_id, attempting re-enrichment...')
           }
 
           // Prevent duplicate enrichment calls

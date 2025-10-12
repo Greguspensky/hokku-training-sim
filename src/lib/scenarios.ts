@@ -78,6 +78,7 @@ export interface Scenario {
   expected_response: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes: number;
+  session_time_limit_minutes?: number;
   milestones: string[];
   is_active: boolean;
   created_at: string;
@@ -114,11 +115,13 @@ export interface CreateScenarioData {
   expected_response?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes?: number;
+  session_time_limit_minutes?: number;
   milestones?: string[];
   knowledge_category_ids?: string[];
   knowledge_document_ids?: string[];
   topic_ids?: string[];
   recommendation_question_ids?: string[];
+  recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
 }
 
@@ -130,6 +133,7 @@ export interface UpdateScenarioData {
   expected_response?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   estimated_duration_minutes?: number;
+  session_time_limit_minutes?: number;
   milestones?: string[];
   topic_ids?: string[];
   recommendation_question_ids?: string[];
@@ -204,8 +208,11 @@ class ScenarioService {
       expected_response: scenarioData.expected_response,
       difficulty: scenarioData.difficulty || 'beginner',
       estimated_duration_minutes: scenarioData.estimated_duration_minutes || 30,
+      session_time_limit_minutes: scenarioData.session_time_limit_minutes || 10,
       milestones: scenarioData.milestones || [],
+      topic_ids: scenarioData.topic_ids || [],
       recommendation_question_ids: scenarioData.recommendation_question_ids || [],
+      recommendation_question_durations: scenarioData.recommendation_question_durations || {},
       instructions: scenarioData.instructions,
       is_active: true,
       knowledge_category_ids: scenarioData.knowledge_category_ids || [],
@@ -328,6 +335,7 @@ class ScenarioService {
       expected_response: updates.expected_response,
       difficulty: updates.difficulty,
       estimated_duration_minutes: updates.estimated_duration_minutes,
+      session_time_limit_minutes: updates.session_time_limit_minutes,
       milestones: updates.milestones || [],
       topic_ids: updates.topic_ids || [],
       recommendation_question_ids: updates.recommendation_question_ids,
