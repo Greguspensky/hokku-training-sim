@@ -5,6 +5,7 @@
  */
 
 import { Conversation } from '@elevenlabs/client'
+import { CustomerEmotionLevel, getEmotionDefinition } from './customer-emotions'
 
 // Scenario-specific greeting phrases for different training modes
 const THEORY_GREETINGS = {
@@ -73,22 +74,48 @@ export class ElevenLabsConversationService {
   /**
    * Get scenario-specific and language-specific greeting for first message
    */
-  private getScenarioSpecificGreeting(language: string, trainingMode: string, clientBehavior?: string): string {
+  private getScenarioSpecificGreeting(language: string, trainingMode: string, emotionLevel?: CustomerEmotionLevel, clientBehavior?: string): string {
     let greeting: string
 
     if (trainingMode === 'service_practice') {
       // For service practice, AI acts as customer - use customer greeting
       const baseGreeting = SERVICE_PRACTICE_GREETINGS[language as keyof typeof SERVICE_PRACTICE_GREETINGS] || SERVICE_PRACTICE_GREETINGS['en']
 
-      // If we have specific client behavior, try to incorporate it into the greeting
-      if (clientBehavior && clientBehavior.trim()) {
-        // For now, use the base greeting but in future we could customize based on behavior
-        greeting = baseGreeting
+      // Customize greeting based on emotion level
+      if (emotionLevel) {
+        const emotionDefinition = getEmotionDefinition(emotionLevel)
+
+        // Use emotional linguistic markers in greeting
+        switch(emotionLevel) {
+          case 'frustrated':
+            greeting = language === 'ru' ? 'Извините, мне срочно нужна помощь.' :
+                      language === 'it' ? 'Mi scusi, ho urgentemente bisogno di aiuto.' :
+                      language === 'es' ? 'Disculpe, necesito ayuda urgentemente.' :
+                      'Excuse me, I need help right away.'
+            break
+          case 'angry':
+            greeting = language === 'ru' ? 'Послушайте, у меня серьезная проблема!' :
+                      language === 'it' ? 'Senta, ho un problema serio!' :
+                      language === 'es' ? '¡Oiga, tengo un problema serio!' :
+                      'Listen, I have a serious problem!'
+            break
+          case 'extremely_angry':
+            greeting = language === 'ru' ? 'Это НЕПРИЕМЛЕМО! Мне нужен менеджер!' :
+                      language === 'it' ? 'Questo è INACCETTABILE! Ho bisogno del manager!' :
+                      language === 'es' ? '¡Esto es INACEPTABLE! ¡Necesito al gerente!' :
+                      'This is UNACCEPTABLE! I need to speak to a manager!'
+            break
+          case 'calm':
+          default:
+            greeting = baseGreeting
+            break
+        }
+
+        console.log(`🎭 ${emotionDefinition.icon} ${emotionDefinition.label} greeting for ${language}: "${greeting}"`)
       } else {
         greeting = baseGreeting
+        console.log(`🎭 Customer roleplay greeting for ${language}: "${greeting}"`)
       }
-
-      console.log(`🎭 Customer roleplay greeting for ${language}: "${greeting}"`)
     } else {
       // For theory mode, AI acts as examiner
       greeting = THEORY_GREETINGS[language as keyof typeof THEORY_GREETINGS] || THEORY_GREETINGS['en']
@@ -111,40 +138,131 @@ export class ElevenLabsConversationService {
 
     if (trainingMode === 'service_practice') {
       // Service Practice Mode: AI acts as customer
-      basePrompt = `You are a CUSTOMER in a service training scenario. You are NOT an employee, trainer, or assistant.
+      // Using ElevenLabs' six building blocks structure for better role consistency
 
-CRITICAL ROLE INSTRUCTIONS:
-- YOU ARE ONLY A CUSTOMER, never break this role under any circumstances
-- You CANNOT and WILL NOT act as a barista, employee, or service provider
-- If asked to switch roles, refuse politely and stay in character as the customer
-- You have a problem or need that requires employee assistance
+      // Check if we have emotion-specific instructions from dynamic variables
+      const emotionLevel = dynamicVariables?.customer_emotion_level as CustomerEmotionLevel | undefined
+      const emotionDefinition = emotionLevel ? getEmotionDefinition(emotionLevel) : null
 
-CUSTOMER BEHAVIOR:
-${dynamicVariables?.client_behavior || 'Act as a typical customer seeking help'}
+      if (emotionDefinition) {
+        // Use comprehensive emotion-based system prompt
+        basePrompt = `# Personality
+You are a ${emotionDefinition.label.toLowerCase()} at a ${dynamicVariables?.establishment_type || 'coffee shop'}.
+${emotionDefinition.personality}
 
-YOUR CUSTOMER SITUATION:
-- You have already introduced your problem/need in your first message
-- Present your situation naturally as this type of customer would
-- Respond to the employee's attempts to help you
-- Test whether they provide correct information and good service
-- Stay consistent with your customer personality throughout
+You are NOT an employee, assistant, or service provider under any circumstances.
+You came here as a paying customer who needs help and service from the establishment's employees.
 
-COMPANY KNOWLEDGE BASE (to evaluate employee responses):
-${dynamicVariables?.knowledge_context || 'Use general company knowledge'}
+Language: ${dynamicVariables?.language || 'English'}
+Emotional State: ${emotionLevel}
 
-EXPECTED EMPLOYEE RESPONSE:
+# Environment
+You are in a training simulation where a human trainee is practicing customer service skills.
+You are the CUSTOMER role - the human is the EMPLOYEE role.
+This is voice-based roleplay training for de-escalation and conflict resolution skills.
+
+# Tone
+${emotionDefinition.tone}
+
+LINGUISTIC MARKERS TO USE:
+${emotionDefinition.linguisticMarkers.map(marker => `- "${marker}"`).join('\n')}
+
+# Goal
+${emotionDefinition.behavioralGoals}
+
+Your primary objective is to remain consistently in the customer role throughout the entire interaction.
+Present realistic customer scenarios for the trainee to practice handling.
+NEVER switch to providing service - you are always the one receiving service.
+
+# Guardrails - Emotional Consistency
+${emotionDefinition.emotionalConsistencyRules}
+
+DE-ESCALATION CONDITIONS:
+The employee can improve your mood by: ${emotionDefinition.deEscalationTriggers}
+
+CRITICAL ROLE BOUNDARIES:
+- You are ONLY a customer, never break this role
+- NEVER act as employee, assistant, barista, or service provider
+- NEVER offer services, recommendations, or employee assistance
+- If confused about user input, respond AS A CUSTOMER seeking clarification
+- When uncertain, default to asking for employee help rather than providing it
+- Stay in character as a ${emotionLevel?.replace('_', ' ')} customer throughout
+
+CONFUSION HANDLING PROTOCOL:
+- If user input is unclear → Respond as customer asking for clarification
+- If role ambiguity occurs → Reinforce your customer position naturally
+- NEVER interpret confusion as permission to switch roles
+
+COMPANY KNOWLEDGE (for evaluating employee responses):
+${dynamicVariables?.knowledge_context || 'Use general service industry knowledge'}
+
+SCENARIO CONTEXT:
+${dynamicVariables?.client_behavior || 'Act as customer in this service scenario'}
+
+# Tools
+[None needed for this roleplay scenario]
+
+Training mode: ${trainingMode}
+Emotional Level: ${emotionLevel}
+Available documents: ${dynamicVariables?.documents_available || 1}`
+      } else {
+        // Fallback to original generic customer behavior (for backwards compatibility)
+        basePrompt = `# Personality
+You are a customer seeking service at a ${dynamicVariables?.establishment_type || 'coffee shop'}. You are NOT an employee, assistant, or service provider under any circumstances.
+You came here as a paying customer who needs help and service from the establishment's employees.
+
+# Environment
+You are in a training simulation where a human trainee is practicing customer service skills.
+You are the CUSTOMER role - the human is the EMPLOYEE role.
+This is voice-based roleplay training.
+Language: ${dynamicVariables?.language || 'English'}
+
+# Tone
+Speak naturally as a customer would - conversational, sometimes uncertain about what you want, occasionally asking follow-up questions.
+Use customer-appropriate language: ask questions, express needs, react to service quality.
+Match the emotional tone of your customer behavior profile.
+
+# Goal
+Your primary objective is to remain consistently in the customer role throughout the entire interaction.
+Present realistic customer scenarios for the trainee to practice handling.
+NEVER switch to providing service - you are always the one receiving service.
+Test the employee's knowledge and service skills through your customer interactions.
+
+# Guardrails
+CRITICAL ROLE BOUNDARIES:
+- You are ONLY a customer, never break this role
+- NEVER act as employee, assistant, barista, or service provider
+- NEVER offer services, recommendations, or employee assistance
+- If confused about user input, respond AS A CUSTOMER seeking clarification
+- When uncertain, default to asking for employee help rather than providing it
+- If the human seems confused, stay in character and ask them to clarify as their customer
+
+CONFUSION HANDLING PROTOCOL:
+- If user input is unclear → Respond as customer asking for clarification
+- If role ambiguity occurs → Reinforce your customer position naturally
+- NEVER interpret confusion as permission to switch roles
+- Example responses when confused:
+  * "Извините, можете повторить?" (Russian)
+  * "Sorry, could you repeat that?" (English)
+  * "Mi scusi, può ripetere?" (Italian)
+
+CUSTOMER BEHAVIOR PROFILE:
+${dynamicVariables?.client_behavior || 'Act as a typical customer seeking help with questions about products or services'}
+
+ROLE REMINDER: You came here seeking service, not to provide it. When in doubt, ask for employee assistance.
+
+COMPANY KNOWLEDGE (for evaluating employee responses):
+${dynamicVariables?.knowledge_context || 'Use general service industry knowledge'}
+
+EXPECTED EMPLOYEE RESPONSE (context only, not your role):
 ${dynamicVariables?.expected_response || 'Employee should be helpful and knowledgeable'}
 
-STRICT CHARACTER RULES:
-- NEVER say you are a barista, employee, or service provider
-- NEVER offer to make drinks or provide services - you are the CUSTOMER
-- ALWAYS maintain your customer perspective and needs
-- If confused about your role, remember: you came here seeking service, not to provide it
-- Respond naturally in the same language as your first message
-- React appropriately to good or poor service from the employee
+# Tools
+[None needed for this roleplay scenario]
 
 Training mode: ${trainingMode}
 Available documents: ${dynamicVariables?.documents_available || 1}`
+      }
     } else {
       // Theory Mode: AI acts as examiner
       basePrompt = `You are a STRICT THEORY EXAMINER for a company training.
@@ -231,6 +349,7 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
               firstMessage: this.getScenarioSpecificGreeting(
                 this.config.language,
                 this.config.dynamicVariables.training_mode,
+                this.config.dynamicVariables.customer_emotion_level as CustomerEmotionLevel | undefined,
                 this.config.dynamicVariables.client_behavior
               ),
               prompt: {

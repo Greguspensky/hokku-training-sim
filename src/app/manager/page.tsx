@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario, scenarioService } from '@/lib/scenarios'
 import { employeeService } from '@/lib/employees'
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
+import { getEmotionDisplay } from '@/lib/customer-emotions'
 
 // TopicTag component to display topic information
 interface TopicTagProps {
@@ -639,6 +640,16 @@ export default function ManagerDashboard() {
                                 {scenario.template_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                               </span>
                             )}
+                            {scenario.scenario_type === 'service_practice' && scenario.customer_emotion_level && (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                scenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
+                                scenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-100 text-yellow-800' :
+                                scenario.customer_emotion_level === 'angry' ? 'bg-orange-100 text-orange-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {getEmotionDisplay(scenario.customer_emotion_level).icon} {getEmotionDisplay(scenario.customer_emotion_level).label}
+                              </span>
+                            )}
                             {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
                               <span>{scenario.session_time_limit_minutes} min</span>
                             )}
@@ -779,6 +790,16 @@ export default function ManagerDashboard() {
                           {scenario.scenario_type === 'service_practice' && (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                               {scenario.template_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
+                          )}
+                          {scenario.scenario_type === 'service_practice' && scenario.customer_emotion_level && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              scenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
+                              scenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-100 text-yellow-800' :
+                              scenario.customer_emotion_level === 'angry' ? 'bg-orange-100 text-orange-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {getEmotionDisplay(scenario.customer_emotion_level).icon} {getEmotionDisplay(scenario.customer_emotion_level).label}
                             </span>
                           )}
                           {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (

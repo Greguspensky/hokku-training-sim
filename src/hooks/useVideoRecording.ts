@@ -129,24 +129,29 @@ export function useVideoRecording(
   }, [onError])
 
   /**
-   * Mix TTS audio into the recording
+   * Mix TTS audio into the recording (non-blocking)
    */
   const mixTTSAudio = useCallback(async (audioUrl: string) => {
     try {
       console.log('🎵 useVideoRecording: Mixing TTS audio...')
-      await serviceRef.current.mixTTSAudio(audioUrl)
-      console.log('✅ useVideoRecording: TTS audio mixed')
+
+      // ⚡ Don't await - let it run in background
+      // The service returns immediately while decode happens async
+      serviceRef.current.mixTTSAudio(audioUrl).catch(err => {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to mix TTS audio'
+        console.error('❌ useVideoRecording: Mix error:', err)
+        setError(errorMessage)
+
+        if (onError && err instanceof Error) {
+          onError(err)
+        }
+      })
+
+      console.log('⚡ useVideoRecording: TTS mixing started (non-blocking)')
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to mix TTS audio'
-      console.error('❌ useVideoRecording: Mix error:', err)
-      setError(errorMessage)
-
-      if (onError && err instanceof Error) {
-        onError(err)
-      }
-
-      // Don't throw - TTS mixing is optional
+      // This catch is now for synchronous errors only
+      console.error('❌ useVideoRecording: Failed to start mixing:', err)
     }
   }, [onError])
 

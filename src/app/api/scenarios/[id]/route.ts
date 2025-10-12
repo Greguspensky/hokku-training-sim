@@ -86,7 +86,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       topic_ids: body.topic_ids || [],
       recommendation_question_ids: body.recommendation_question_ids || [],
       recommendation_question_durations: body.recommendation_question_durations || {},
-      instructions: body.instructions
+      instructions: body.instructions,
+      customer_emotion_level: body.customer_emotion_level
     };
     
     // Validate required fields based on scenario type

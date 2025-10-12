@@ -20,8 +20,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔊 Generating TTS for text: "${text.slice(0, 50)}..." in language: ${language}`)
 
-    // Use ElevenLabs Flash v2.5 model for cost efficiency
-    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgDQGcFmaJgB', {
+    // Use ElevenLabs v3 model for audio tags support ([excited], [happy], [pause], etc.)
+    // IMPORTANT: Only v3 models support audio tags - v2.5 models will pronounce them as text
+    // Voice: TX3LPaxmHKxFdv7VOQHJ - Selected for better audio tags support and emotional range
+    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/TX3LPaxmHKxFdv7VOQHJ', {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -30,7 +32,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: 'eleven_flash_v2_5', // Cost-efficient model
+        model_id: 'eleven_v3', // v3 model required for audio tags support
+        optimize_streaming_latency: 3, // 0-4: higher = faster generation (3 = good balance of speed/quality)
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.5,

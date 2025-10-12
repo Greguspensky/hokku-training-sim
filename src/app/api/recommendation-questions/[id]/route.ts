@@ -3,10 +3,10 @@ import { supabaseAdmin } from '@/lib/supabase'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const questionId = params.id
+    const { id: questionId } = await params
     const body = await request.json()
     const { question_text, category, difficulty_level } = body
 
@@ -64,10 +64,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const questionId = params.id
+    const { id: questionId } = await params
 
     console.log(`🗑️ Deleting recommendation question: ${questionId}`)
 

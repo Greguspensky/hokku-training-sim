@@ -16,8 +16,7 @@ interface ScenarioAssignment {
     title: string
     description: string
     scenario_type: string
-    difficulty: string
-    estimated_duration_minutes: number
+    session_time_limit_minutes?: number
     track_id: string
     tracks: {
       id: string
@@ -189,10 +188,11 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
             <span className={`inline-flex items-center px-2 py-1 rounded-full font-medium ${getScenarioTypeColor(assignment.scenarios.scenario_type)}`}>
               {getScenarioTypeText(assignment.scenarios.scenario_type)}
             </span>
-            <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-800">
-              {assignment.scenarios.difficulty}
-            </span>
-            <span className="text-gray-600">{assignment.scenarios.estimated_duration_minutes} min</span>
+            {assignment.scenarios.session_time_limit_minutes && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-700">
+                ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+              </span>
+            )}
           </div>
 
           {assignment.notes && (

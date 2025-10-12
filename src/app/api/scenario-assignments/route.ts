@@ -30,8 +30,7 @@ export async function GET(request: NextRequest) {
           title,
           description,
           scenario_type,
-          difficulty,
-          estimated_duration_minutes,
+          session_time_limit_minutes,
           track_id,
           tracks (
             id,

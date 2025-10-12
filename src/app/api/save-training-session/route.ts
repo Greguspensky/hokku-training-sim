@@ -29,10 +29,14 @@ export async function POST(request: NextRequest) {
     const sessionData = await request.json()
     console.log('📝 API: Received session data:', Object.keys(sessionData))
 
-    // Insert the training session using service role (bypasses RLS)
+    // Upsert the training session using service role (bypasses RLS)
+    // This allows for both insert (new session) and update (duplicate call) without errors
     const { data, error } = await supabase
       .from('training_sessions')
-      .insert(sessionData)
+      .upsert(sessionData, {
+        onConflict: 'id', // Update if ID already exists
+        ignoreDuplicates: false // Always return the record
+      })
       .select()
       .single()
 
@@ -44,7 +48,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ API: Session saved successfully:', data.id)
+    console.log('✅ API: Session saved/updated successfully:', data.id)
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AudioTagsReference } from '@/components/AudioTagsReference'
 
 interface RecommendationQuestionInputProps {
   companyId: string
@@ -65,6 +66,9 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
         Enter your questions (one per line). AI will search your knowledge base documents to find answers.
       </p>
 
+      {/* Audio Tags Reference for Emotional TTS Control */}
+      <AudioTagsReference className="mb-6" defaultExpanded={true} />
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="questions" className="block text-sm font-medium text-gray-700 mb-2">
@@ -75,17 +79,20 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
             value={questions}
             onChange={(e) => setQuestions(e.target.value)}
             rows={8}
-            placeholder="Enter your questions here, one per line. For example:
-What is the price of cappuccino?
-How do you make a latte?
-What sizes are available for espresso?"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter your questions here, one per line. Use audio tags for emotion control!
+
+Examples:
+[excited] Have you tried our seasonal special?
+[curious] What flavors do you enjoy? [pause]
+[professional] I'd recommend our signature blend."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
             required
           />
         </div>
 
         <p className="text-sm text-gray-500">
-          Questions should end with "?" and be specific enough to find in your documents.
+          💡 <strong>Tip:</strong> Click audio tags above to copy them, then paste into your questions to control TTS emotion and delivery.
+          Questions work best when specific to your knowledge base documents.
         </p>
 
         <div className="flex items-center space-x-3">

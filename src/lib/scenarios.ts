@@ -95,6 +95,8 @@ export interface Scenario {
   // Avatar mode support
   avatar_mode?: boolean;
   language?: string;
+  // Customer emotion level for service practice scenarios
+  customer_emotion_level?: 'calm' | 'frustrated' | 'angry' | 'extremely_angry';
 }
 
 export interface CreateTrackData {
@@ -123,6 +125,7 @@ export interface CreateScenarioData {
   recommendation_question_ids?: string[];
   recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
+  customer_emotion_level?: 'calm' | 'frustrated' | 'angry' | 'extremely_angry';
 }
 
 export interface UpdateScenarioData {
@@ -139,6 +142,7 @@ export interface UpdateScenarioData {
   recommendation_question_ids?: string[];
   recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
+  customer_emotion_level?: 'calm' | 'frustrated' | 'angry' | 'extremely_angry';
 }
 
 class ScenarioService {
@@ -214,6 +218,7 @@ class ScenarioService {
       recommendation_question_ids: scenarioData.recommendation_question_ids || [],
       recommendation_question_durations: scenarioData.recommendation_question_durations || {},
       instructions: scenarioData.instructions,
+      customer_emotion_level: scenarioData.customer_emotion_level || 'calm',
       is_active: true,
       knowledge_category_ids: scenarioData.knowledge_category_ids || [],
       knowledge_document_ids: scenarioData.knowledge_document_ids || [],
@@ -341,6 +346,7 @@ class ScenarioService {
       recommendation_question_ids: updates.recommendation_question_ids,
       recommendation_question_durations: updates.recommendation_question_durations || {},
       instructions: updates.instructions,
+      customer_emotion_level: updates.customer_emotion_level,
       updated_at: new Date().toISOString()
     };
 

@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
       topic_ids: body.topic_ids || [],
       recommendation_question_ids: body.recommendation_question_ids || [],
       recommendation_question_durations: body.recommendation_question_durations || {},
-      instructions: body.instructions
+      instructions: body.instructions,
+      customer_emotion_level: body.customer_emotion_level || 'calm'
     };
 
     // Validate required fields for all scenarios

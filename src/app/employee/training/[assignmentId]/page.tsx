@@ -13,6 +13,7 @@ import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '@/lib/avatar-types'
 import { RecordingConsent } from '@/components/RecordingConsent'
 import type { RecordingPreference } from '@/lib/training-sessions'
 import Link from 'next/link'
+import { getEmotionDisplay } from '@/lib/customer-emotions'
 
 interface TrainingQuestion {
   id: string
@@ -736,6 +737,9 @@ export default function TrainingSessionPage() {
                         }
                       </p>
                       <p><strong>Scenario:</strong> {currentScenario.title}</p>
+                      {currentScenario.session_time_limit_minutes && (
+                        <p><strong>Time Limit:</strong> ⏱️ {currentScenario.session_time_limit_minutes} minutes</p>
+                      )}
                       <p><strong>Company:</strong> {companyId}</p>
                     </div>
                   </div>
@@ -883,6 +887,36 @@ export default function TrainingSessionPage() {
 
                       {currentScenario.scenario_type === 'service_practice' && (
                         <>
+                          {/* Customer Emotion Level Display */}
+                          {currentScenario.customer_emotion_level && (
+                            <div className={`rounded-lg p-4 border-2 ${
+                              currentScenario.customer_emotion_level === 'calm' ? 'bg-green-50 border-green-200' :
+                              currentScenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-50 border-yellow-200' :
+                              currentScenario.customer_emotion_level === 'angry' ? 'bg-orange-50 border-orange-200' :
+                              'bg-red-50 border-red-200'
+                            }`}>
+                              <p className="font-semibold text-gray-900 mb-2">
+                                {getEmotionDisplay(currentScenario.customer_emotion_level).icon} Customer Emotion Level
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                  currentScenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
+                                  currentScenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-100 text-yellow-800' :
+                                  currentScenario.customer_emotion_level === 'angry' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {getEmotionDisplay(currentScenario.customer_emotion_level).icon} {getEmotionDisplay(currentScenario.customer_emotion_level).label}
+                                </span>
+                              </div>
+                              <p className="text-gray-600 text-xs mt-2">
+                                {currentScenario.customer_emotion_level === 'calm' && 'The customer is polite and patient. Practice standard customer service skills.'}
+                                {currentScenario.customer_emotion_level === 'frustrated' && 'The customer is impatient and needs quick resolution. Show efficiency and acknowledge their time pressure.'}
+                                {currentScenario.customer_emotion_level === 'angry' && 'The customer is very upset and demanding. Use de-escalation techniques, show genuine empathy, and provide concrete solutions.'}
+                                {currentScenario.customer_emotion_level === 'extremely_angry' && 'The customer is furious and confrontational. This is advanced de-escalation training. Stay calm, show exceptional empathy, and demonstrate accountability.'}
+                              </p>
+                            </div>
+                          )}
+
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <p className="font-medium text-gray-900 mb-2">😤 Customer Behavior</p>
                             <p className="text-gray-600 text-xs max-h-20 overflow-y-auto">
@@ -1144,7 +1178,8 @@ export default function TrainingSessionPage() {
                     title: currentScenario.title,
                     type: currentScenario.scenario_type,
                     client_behavior: currentScenario.client_behavior,
-                    expected_response: currentScenario.expected_response
+                    expected_response: currentScenario.expected_response,
+                    customer_emotion_level: currentScenario.customer_emotion_level
                   }}
                   scenarioQuestions={scenarioQuestions}
                   language={selectedLanguage}
@@ -1152,6 +1187,7 @@ export default function TrainingSessionPage() {
                   recordingPreference={recordingPreference}
                   videoAspectRatio={videoAspectRatio}
                   preAuthorizedTabAudio={preAuthorizedTabAudio}
+                  sessionTimeLimit={currentScenario.session_time_limit_minutes}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ Avatar session completed:', completedSessionData)
                     setSessionData(completedSessionData)

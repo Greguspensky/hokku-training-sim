@@ -27,6 +27,14 @@ interface RecommendationTTSSessionProps {
   className?: string
 }
 
+/**
+ * Remove ElevenLabs audio tags from text for display purposes
+ * Tags like [excited], [happy], [pause] are kept in TTS but hidden from user
+ */
+function stripAudioTags(text: string): string {
+  return text.replace(/\[[\w\s]+\]/g, '').trim()
+}
+
 export function RecommendationTTSSession({
   companyId,
   scenarioId,
@@ -95,9 +103,9 @@ export function RecommendationTTSSession({
       setAudioUrl(null)
       setIsPlaying(false)
 
-      console.log('🔄 Question effect running - loading TTS and starting timer')
+      console.log('🔄 Question effect running - loading TTS (timer will start after audio plays)')
       loadQuestionTTS()
-      startQuestionTimer()
+      // ⏱️ Timer now starts AFTER audio plays (see playTTSWithUrl)
 
       // Video recording is now started in startSession() from user gesture
       // No automatic video start here (iOS requires user gesture)
@@ -156,11 +164,14 @@ export function RecommendationTTSSession({
     try {
       console.log('🔊 Loading TTS for question:', currentQuestion.question_text)
 
+      // Send FULL text with audio tags to TTS API
+      // Tags like [excited], [happy], [pause] control emotional delivery
+      // Tags are stripped from UI display but kept here for TTS processing
       const response = await fetch('/api/elevenlabs-tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: currentQuestion.question_text,
+          text: currentQuestion.question_text, // Includes audio tags
           language: language
         })
       })
@@ -185,7 +196,7 @@ export function RecommendationTTSSession({
     }
   }
 
-  const playTTSWithUrl = async (urlToPlay: string) => {
+  const playTTSWithUrl = (urlToPlay: string) => {
     if (urlToPlay && audioRef.current) {
       console.log('🔊 Playing TTS audio with URL:', urlToPlay.substring(0, 50))
 
@@ -193,30 +204,48 @@ export function RecommendationTTSSession({
       audioRef.current.src = urlToPlay
       audioRef.current.volume = volume
 
-      // If recording is active, mix TTS audio using hook
-      if (videoRecording.isRecording) {
-        await videoRecording.mixTTSAudio(urlToPlay)
-      }
-
-      // Play main audio for user
+      // ⚡ Play audio IMMEDIATELY (synchronous, no await)
       audioRef.current.play()
         .then(() => {
           console.log('✅ TTS audio playing successfully')
           setIsPlaying(true)
+
+          // ⏱️ START TIMER NOW - only after audio is playing
+          // This ensures user doesn't lose time during TTS generation
+          if (!timerActive && currentQuestion) {
+            console.log('⏱️ Starting timer now that audio is playing')
+            startQuestionTimer()
+          }
         })
         .catch(error => {
           console.error('❌ Audio play error:', error)
           console.error('Error details:', error.name, error.message)
+
+          // Start timer anyway even if audio fails (fallback)
+          if (!timerActive && currentQuestion) {
+            console.log('⏱️ Starting timer (audio failed but continuing)')
+            startQuestionTimer()
+          }
         })
+
+      // ⚡ Mix into video recording in BACKGROUND (after play starts)
+      // Use setTimeout to ensure this runs AFTER play() is called
+      if (videoRecording.isRecording) {
+        setTimeout(() => {
+          videoRecording.mixTTSAudio(urlToPlay).catch(error => {
+            console.warn('⚠️ Video mixing failed (non-critical):', error)
+          })
+        }, 0)
+      }
     } else {
       console.warn('⚠️ Cannot play TTS - missing URL or audio ref')
     }
   }
 
-  const playTTS = async () => {
+  const playTTS = () => {
     // Legacy function - now calls playTTSWithUrl with state audioUrl
     if (audioUrl) {
-      await playTTSWithUrl(audioUrl)
+      playTTSWithUrl(audioUrl)
     } else {
       console.warn('⚠️ Cannot play TTS - no audioUrl in state')
     }
@@ -608,7 +637,7 @@ export function RecommendationTTSSession({
         <div className="bg-gray-50 rounded-lg p-6 mb-8">
           <div className="flex items-center justify-center gap-4">
             <h3 className="text-2xl font-semibold text-gray-900 text-center leading-relaxed flex-1">
-              {currentQuestion?.question_text || 'Loading question...'}
+              {currentQuestion?.question_text ? stripAudioTags(currentQuestion.question_text) : 'Loading question...'}
             </h3>
             <button
               onClick={playTTS}

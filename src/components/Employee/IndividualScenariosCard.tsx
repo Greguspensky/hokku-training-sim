@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface KnowledgeTopic {
   id: string
@@ -30,8 +31,7 @@ interface ScenarioAssignment {
     title: string
     description: string
     scenario_type: string
-    difficulty: string
-    estimated_duration_minutes: number
+    session_time_limit_minutes?: number
     track_id: string
     tracks: {
       id: string
@@ -41,7 +41,7 @@ interface ScenarioAssignment {
 }
 
 interface IndividualScenariosCardProps {
-  employeeId: string
+  employeeId: string  // For loading assignments (employees table ID)
 }
 
 export default function IndividualScenariosCard({ employeeId }: IndividualScenariosCardProps) {
@@ -49,6 +49,10 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
   const [loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
   const [scenarioStats, setScenarioStats] = useState<{[key: string]: ScenarioStats}>({})
+  const { user } = useAuth()
+
+  // Use auth user ID for stats queries (training sessions are saved with auth user ID)
+  const statsUserId = user?.id
 
   // Function to fetch topic details
   const loadTopics = async (topicIds: string[]) => {
@@ -75,14 +79,20 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
 
   // Load statistics for all scenarios
   const loadScenarioStats = async (assignments: ScenarioAssignment[]) => {
-    if (!employeeId) return
+    if (!statsUserId) {
+      console.log('⚠️ No auth user ID available for loading stats')
+      return
+    }
+
+    console.log('📊 Loading stats with auth user ID:', statsUserId)
 
     const statsPromises = assignments.map(async (assignment) => {
       try {
-        const response = await fetch(`/api/scenario-stats?scenario_id=${assignment.scenario_id}&user_id=${employeeId}`)
+        const response = await fetch(`/api/scenario-stats?scenario_id=${assignment.scenario_id}&user_id=${statsUserId}`)
         const data = await response.json()
 
         if (data.success) {
+          console.log(`✅ Loaded stats for scenario ${assignment.scenario_id}:`, data.stats)
           return { scenarioId: assignment.scenario_id, stats: data.stats }
         }
       } catch (error) {
@@ -100,6 +110,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
       }
     })
 
+    console.log('📊 Stats map:', statsMap)
     setScenarioStats(statsMap)
   }
 
@@ -124,6 +135,8 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
       if (data.success) {
         console.log('✅ Found scenario assignments:', data.assignments.length)
         const assignments = data.assignments || []
+        console.log('🔍 First assignment data:', assignments[0])
+        console.log('🔍 First scenario data:', assignments[0]?.scenarios)
         setScenarioAssignments(assignments)
 
         // Load stats for all scenarios
@@ -142,7 +155,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
 
   useEffect(() => {
     loadScenarioAssignments()
-  }, [employeeId])
+  }, [employeeId, statsUserId])
 
   if (loading) {
     return (
@@ -222,6 +235,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                      assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
                      'Service Practice'}
                   </span>
+
+                  {/* Session Time Limit */}
+                  {assignment.scenarios.session_time_limit_minutes && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                      ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+                    </span>
+                  )}
 
                   {/* Progress/Completion Status */}
                   {scenarioStats[assignment.scenario_id] && (

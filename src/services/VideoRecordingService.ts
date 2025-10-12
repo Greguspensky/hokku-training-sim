@@ -190,26 +190,40 @@ export class VideoRecordingService {
     }
 
     try {
-      console.log('🎵 Mixing TTS audio into recording...')
+      console.log('🎵 Starting non-blocking TTS audio mix...')
+      const startTime = Date.now()
 
       // Fetch audio data
       const response = await fetch(audioUrl)
       const arrayBuffer = await response.arrayBuffer()
+      console.log(`📥 Fetched audio: ${(arrayBuffer.byteLength / 1024).toFixed(1)}KB`)
 
-      // Decode to AudioBuffer
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer)
-      console.log(`🎵 Decoded audio: ${audioBuffer.duration.toFixed(2)}s`)
+      // Start decoding in BACKGROUND (don't await yet)
+      // This allows the function to return immediately while decode happens async
+      const decodePromise = this.audioContext.decodeAudioData(arrayBuffer)
+        .then(audioBuffer => {
+          console.log(`🎵 Decoded audio in background: ${audioBuffer.duration.toFixed(2)}s (took ${Date.now() - startTime}ms)`)
 
-      // Create buffer source and play it into the recording
-      const bufferSource = this.audioContext.createBufferSource()
-      bufferSource.buffer = audioBuffer
-      bufferSource.connect(this.recordingDestination)
-      bufferSource.start()
+          // Mix into recording when ready
+          const bufferSource = this.audioContext!.createBufferSource()
+          bufferSource.buffer = audioBuffer
+          bufferSource.connect(this.recordingDestination!)
+          bufferSource.start()
 
-      console.log('✅ TTS audio mixed into recording')
+          console.log('✅ TTS audio mixed into recording')
+          return audioBuffer
+        })
+        .catch(error => {
+          console.error('❌ Background decode failed:', error)
+          // Don't throw - this is background work, shouldn't break main flow
+        })
+
+      // Return immediately without waiting for decode
+      // The decode will finish in background and mix when ready
+      console.log(`⚡ mixTTSAudio returning immediately (decode in progress...)`)
 
     } catch (error) {
-      console.error('❌ Failed to mix TTS audio:', error)
+      console.error('❌ Failed to start TTS audio mix:', error)
       throw error
     }
   }

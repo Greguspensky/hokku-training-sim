@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { scenarioService, SCENARIO_TEMPLATES, type ScenarioType, type ScenarioTemplate, type Track, type Scenario } from '@/lib/scenarios'
+import { getEmotionOptions, type CustomerEmotionLevel } from '@/lib/customer-emotions'
 
 interface KnowledgeTopic {
   id: string
@@ -45,6 +46,7 @@ interface EditScenarioFormData {
   recommendation_question_ids: string[]
   recommendation_question_durations: { [questionId: string]: number }
   instructions: string
+  customer_emotion_level: CustomerEmotionLevel
 }
 
 interface EditScenarioFormProps {
@@ -72,7 +74,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     topic_ids: scenario.topic_ids || [],
     recommendation_question_ids: scenario.recommendation_question_ids || [],
     recommendation_question_durations: scenario.recommendation_question_durations || {},
-    instructions: scenario.instructions || ''
+    instructions: scenario.instructions || '',
+    customer_emotion_level: scenario.customer_emotion_level || 'calm'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -389,7 +392,29 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
                 required
               />
             </div>
-            
+
+            {/* Customer Emotion Level - Service Practice specific */}
+            <div>
+              <label htmlFor="customer_emotion_level" className="block text-sm font-medium text-gray-700 mb-2">
+                Customer Emotion Level *
+              </label>
+              <select
+                id="customer_emotion_level"
+                value={formData.customer_emotion_level}
+                onChange={(e) => handleInputChange('customer_emotion_level', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {getEmotionOptions().map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.icon} {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-sm text-gray-500 mt-1">
+                {getEmotionOptions().find(o => o.value === formData.customer_emotion_level)?.description}
+              </p>
+            </div>
+
             {/* Milestones Section - Only for Service Practice */}
             <div className="space-y-4">
               <h4 className="text-md font-medium text-gray-900">Milestones</h4>

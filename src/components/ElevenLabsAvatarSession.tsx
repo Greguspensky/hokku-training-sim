@@ -20,6 +20,7 @@ interface ElevenLabsAvatarSessionProps {
   recordingPreference?: RecordingPreference
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
+  sessionTimeLimit?: number  // Time limit in minutes
   onSessionEnd?: (sessionData: any) => void
   className?: string
 }
@@ -34,6 +35,7 @@ export function ElevenLabsAvatarSession({
   recordingPreference = 'none',
   videoAspectRatio = '16:9',
   preAuthorizedTabAudio = null,
+  sessionTimeLimit,
   onSessionEnd,
   className = ''
 }: ElevenLabsAvatarSessionProps) {
@@ -61,11 +63,38 @@ export function ElevenLabsAvatarSession({
   const [isLoadingSessionQuestions, setIsLoadingSessionQuestions] = useState(false)
   const [isSavingSession, setIsSavingSession] = useState(false)
 
+  // Countdown timer state
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null) // time in seconds
+  const [isTimerActive, setIsTimerActive] = useState(false)
+
   // Session recording - simplified with VideoRecordingService
   const videoService = useRef<VideoRecordingService>(new VideoRecordingService())
   const sessionStartTimeRef = useRef<number>(0)
   const tabAudioStreamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const isSavingSessionRef = useRef<boolean>(false) // Guard to prevent duplicate saves
+
+  /**
+   * Countdown timer logic
+   * Starts when isTimerActive is true and counts down every second
+   */
+  useEffect(() => {
+    if (!isTimerActive || timeRemaining === null || timeRemaining <= 0) return
+
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null || prev <= 1) {
+          // Time's up! Stop the session
+          console.log('⏰ Time limit reached - ending session')
+          stopSession()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isTimerActive, timeRemaining])
 
   /**
    * Load structured questions from database for theory practice
@@ -302,6 +331,7 @@ INSTRUCTIONS:
         // Service practice specific fields
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
         expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
+        customer_emotion_level: scenarioContext?.customer_emotion_level || 'calm',
         // Use structured questions if available, otherwise use knowledge-based instructions
         examiner_instructions: trainingMode === 'theory' ?
           (questionsToUse.length > 0 ?
@@ -355,6 +385,7 @@ Start the conversation by presenting your customer problem or situation.`
 
       console.log('🎯 Starting session with dynamic variables:', dynamicVariables)
       console.log('📋 Scenario context received:', scenarioContext)
+      console.log('😤 Customer emotion level:', scenarioContext?.customer_emotion_level || 'calm (default)')
       console.log('🧠 Knowledge context status:', {
         available: !!knowledgeContext,
         documentsCount: knowledgeContext?.documents?.length || 0,
@@ -524,6 +555,15 @@ Start the conversation by presenting your customer problem or situation.`
         console.log('🎵 Audio-only session - ElevenLabs audio will be captured in conversation')
         setIsRecording(true)
         sessionStartTimeRef.current = Date.now()
+
+        // Start countdown timer if time limit is set
+        if (sessionTimeLimit) {
+          const timeInSeconds = sessionTimeLimit * 60
+          setTimeRemaining(timeInSeconds)
+          setIsTimerActive(true)
+          console.log(`⏱️ Started countdown timer: ${sessionTimeLimit} minutes (${timeInSeconds} seconds)`)
+        }
+
         return
       }
 
@@ -540,6 +580,15 @@ Start the conversation by presenting your customer problem or situation.`
 
       setIsRecording(true)
       sessionStartTimeRef.current = Date.now()
+
+      // Start countdown timer if time limit is set
+      if (sessionTimeLimit) {
+        const timeInSeconds = sessionTimeLimit * 60
+        setTimeRemaining(timeInSeconds)
+        setIsTimerActive(true)
+        console.log(`⏱️ Started countdown timer: ${sessionTimeLimit} minutes (${timeInSeconds} seconds)`)
+      }
+
       console.log('✅ Video recording started successfully')
 
       // Attach preview stream to video element
@@ -710,12 +759,24 @@ Start the conversation by presenting your customer problem or situation.`
    * Stop the avatar session
    */
   const stopSession = useCallback(async () => {
+    // Guard: Prevent duplicate saves
+    if (isSavingSessionRef.current) {
+      console.log('⚠️ Session save already in progress, skipping duplicate call')
+      return
+    }
+
     if (!conversationService || !user) {
       console.warn('⚠️ Cannot save session: missing conversation service or user')
       return
     }
 
     try {
+      // Set the guard flag immediately
+      isSavingSessionRef.current = true
+
+      // Stop the timer immediately to prevent further calls
+      setIsTimerActive(false)
+
       // Show saving indicator immediately
       setIsSavingSession(true)
       console.log('🛑 Stopping training session...')
@@ -881,6 +942,10 @@ Start the conversation by presenting your customer problem or situation.`
       console.error('❌ Failed to save training session:', error)
       const errorMessage = error?.message || 'Unknown error'
       console.error('Error details:', errorMessage)
+
+      // Reset the guard flag to allow retry
+      isSavingSessionRef.current = false
+
       // Still allow the user to continue, just show an error
       alert(`Failed to save training session: ${errorMessage}\n\nPlease try again or contact support.`)
       setIsSavingSession(false)
@@ -970,6 +1035,22 @@ Start the conversation by presenting your customer problem or situation.`
                 }
               </p>
             </div>
+
+            {/* Countdown Timer - Big Display */}
+            {isTimerActive && timeRemaining !== null && (
+              <div className="flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl px-8 py-4 shadow-lg">
+                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Time Remaining</div>
+                <div className={`text-6xl font-bold tabular-nums ${
+                  timeRemaining <= 60 ? 'text-red-600 animate-pulse' :
+                  timeRemaining <= 180 ? 'text-orange-600' :
+                  'text-blue-600'
+                }`}>
+                  {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">minutes</div>
+              </div>
+            )}
+
             <div className="text-right space-y-1">
               <div className="flex items-center justify-end space-x-2">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
