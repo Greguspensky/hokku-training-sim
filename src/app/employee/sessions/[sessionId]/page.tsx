@@ -117,8 +117,8 @@ export default function SessionTranscriptPage() {
       const response = await fetch(`/api/scenarios/${scenarioId}`)
       if (response.ok) {
         const data = await response.json()
-        setScenarioDetails(data)
-        console.log('✅ Scenario details loaded:', data)
+        setScenarioDetails(data.scenario)
+        console.log('✅ Scenario details loaded:', data.scenario)
       } else {
         console.warn('⚠️ Could not load scenario details')
       }
