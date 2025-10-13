@@ -331,6 +331,7 @@ INSTRUCTIONS:
         documents_available: contextToUse?.documents?.length || 0,
         questions_available: questionsToUse.length,
         // Service practice specific fields
+        scenario_title: scenarioContext?.title || 'General customer interaction',
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
         expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
         customer_emotion_level: scenarioContext?.customer_emotion_level || 'calm',

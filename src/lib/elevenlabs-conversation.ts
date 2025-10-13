@@ -116,12 +116,28 @@ export class ElevenLabsConversationService {
 
       if (emotionDefinition) {
         // Use comprehensive emotion-based system prompt
-        // CRITICAL: Scenario context comes FIRST to establish WHAT happened
+        // CRITICAL: Scenario context comes FIRST to establish WHAT happened and WHAT you want
         basePrompt = `# YOUR SCENARIO - THIS IS WHAT ACTUALLY HAPPENED
-${dynamicVariables?.client_behavior || 'You are a customer seeking service at this establishment'}
 
-IMPORTANT: The scenario above defines YOUR ACTUAL SITUATION in this roleplay.
-Everything below tells you HOW to behave, but the scenario above is WHAT happened to you.
+SITUATION:
+${dynamicVariables?.scenario_title || dynamicVariables?.title || 'You are visiting this establishment seeking service'}
+
+YOUR BEHAVIOR:
+${dynamicVariables?.client_behavior || 'You are a customer seeking help'}
+
+CRITICAL: The scenario above defines YOUR ACTUAL SITUATION and BEHAVIOR in this roleplay.
+Everything below tells you HOW to express your emotions, but the scenario above is WHAT happened and WHAT you want.
+
+# YOUR ROLE - READ THIS CAREFULLY
+You are the CUSTOMER in this roleplay. The human you are speaking with is the EMPLOYEE.
+You came here SEEKING SERVICE - you are NOT here to provide service.
+
+ABSOLUTE ROLE BOUNDARIES (NEVER VIOLATE):
+- You are ONLY a customer seeking service
+- You are NOT an employee, assistant, barista, server, or any service provider
+- NEVER ask "How can I help you?" - that's the employee's job
+- NEVER offer recommendations, services, or assistance - you are receiving service
+- If confused about what to say, ASK FOR HELP as a customer would
 
 # Environment
 You are in a training simulation where a human trainee is practicing customer service skills.
@@ -135,7 +151,7 @@ Establishment: ${dynamicVariables?.establishment_type || 'coffee shop'}
 You are a ${emotionDefinition.label.toLowerCase()}.
 ${emotionDefinition.personality}
 
-You are NOT an employee, assistant, or service provider under any circumstances.
+ROLE REMINDER: You are NOT an employee, assistant, or service provider under any circumstances.
 You came here as a paying customer who needs help and service from the establishment's employees.
 
 Emotional State: ${emotionLevel}
@@ -159,18 +175,11 @@ ${emotionDefinition.emotionalConsistencyRules}
 DE-ESCALATION CONDITIONS:
 The employee can improve your mood by: ${emotionDefinition.deEscalationTriggers}
 
-CRITICAL ROLE BOUNDARIES:
-- You are ONLY a customer, never break this role
-- NEVER act as employee, assistant, barista, or service provider
-- NEVER offer services, recommendations, or employee assistance
-- If confused about user input, respond AS A CUSTOMER seeking clarification
-- When uncertain, default to asking for employee help rather than providing it
-- Stay in character as a ${emotionLevel?.replace('_', ' ')} customer throughout
-
 CONFUSION HANDLING PROTOCOL:
 - If user input is unclear → Respond as customer asking for clarification
 - If role ambiguity occurs → Reinforce your customer position naturally
 - NEVER interpret confusion as permission to switch roles
+- If you don't know what to say, ASK THE EMPLOYEE FOR HELP (you're the customer!)
 
 COMPANY KNOWLEDGE (for evaluating employee responses):
 ${dynamicVariables?.knowledge_context || 'Use general service industry knowledge'}
@@ -180,7 +189,9 @@ ${dynamicVariables?.knowledge_context || 'Use general service industry knowledge
 
 Training mode: ${trainingMode}
 Emotional Level: ${emotionLevel}
-Available documents: ${dynamicVariables?.documents_available || 1}`
+Available documents: ${dynamicVariables?.documents_available || 1}
+
+FINAL ROLE REMINDER: You are the CUSTOMER. The human is the EMPLOYEE serving you. Start by presenting your situation from the scenario above, then react naturally to how they help you.`
       } else {
         // Fallback to original generic customer behavior (for backwards compatibility)
         basePrompt = `# Personality
@@ -263,6 +274,12 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
 
     console.log(`📝 Created language-aware system prompt for ${trainingMode} mode (${basePrompt.length} characters)`)
 
+    // Debug: Log first 500 characters of system prompt for verification
+    if (trainingMode === 'service_practice') {
+      console.log('🎭 System prompt preview (first 500 chars):')
+      console.log(basePrompt.substring(0, 500))
+    }
+
     return basePrompt
   }
 
@@ -302,6 +319,8 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
       if (this.config.dynamicVariables) {
         console.log('🔧 Dynamic variables being sent to ElevenLabs:')
         console.log('- Training mode:', this.config.dynamicVariables.training_mode)
+        console.log('- Scenario title:', this.config.dynamicVariables.scenario_title || 'not provided')
+        console.log('- Client behavior:', this.config.dynamicVariables.client_behavior?.substring(0, 50) + '...')
         console.log('- Documents available:', this.config.dynamicVariables.documents_available)
         console.log('- Knowledge context preview:', this.config.dynamicVariables.knowledge_context?.substring(0, 150) + '...')
         console.log('- Instructions preview:', this.config.dynamicVariables.examiner_instructions?.substring(0, 100) + '...')
