@@ -10,6 +10,7 @@ interface ExtendedUser extends User {
   company_id?: string
   company_name?: string
   employee_record_id?: string
+  business_type?: string  // Company's business type for roleplay scenarios
 }
 
 interface AuthContextType {
@@ -118,25 +119,27 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     if (existingUser) {
       console.log('✅ Found existing user:', existingUser.role)
 
-      // Fetch company name separately if company_id exists
+      // Fetch company name and business type separately if company_id exists
       let companyName: string | undefined
+      let businessType: string | undefined
       if (existingUser.company_id) {
         try {
           const { data: company, error: companyError } = await supabase
             .from('companies')
-            .select('name')
+            .select('name, business_type')
             .eq('id', existingUser.company_id)
             .single()
 
           if (companyError) {
-            // Silently handle 406 or other RLS errors - company name is optional
-            console.debug('Company name fetch skipped (RLS or permissions issue)')
+            // Silently handle 406 or other RLS errors - company info is optional
+            console.debug('Company info fetch skipped (RLS or permissions issue)')
           } else {
             companyName = company?.name
+            businessType = company?.business_type || 'coffee_shop'
           }
         } catch (err) {
           // Suppress company fetch errors - this is not critical for auth
-          console.debug('Could not load company name:', err)
+          console.debug('Could not load company info:', err)
         }
       }
 
@@ -168,7 +171,8 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
         role: existingUser.role,
         company_id: existingUser.company_id,
         company_name: companyName,
-        employee_record_id: employeeRecordId
+        employee_record_id: employeeRecordId,
+        business_type: businessType
       }
 
       // Cache the successful fetch
@@ -218,18 +222,20 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
     )
 
     if (newUser) {
-      // Fetch company name separately if company_id exists
+      // Fetch company name and business type separately if company_id exists
       let companyName: string | undefined
+      let businessType: string | undefined
       if (newUser.company_id) {
         try {
           const { data: company } = await supabase
             .from('companies')
-            .select('name')
+            .select('name, business_type')
             .eq('id', newUser.company_id)
             .single()
           companyName = company?.name
+          businessType = company?.business_type || 'coffee_shop'
         } catch (err) {
-          console.warn('Could not load company name:', err)
+          console.warn('Could not load company info:', err)
         }
       }
 
@@ -257,7 +263,8 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
         role: newUser.role,
         company_id: newUser.company_id,
         company_name: companyName,
-        employee_record_id: employeeRecordId
+        employee_record_id: employeeRecordId,
+        business_type: businessType
       }
 
       // Cache the successful fetch

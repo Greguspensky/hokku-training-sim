@@ -318,6 +318,9 @@ INSTRUCTIONS:
 
       const structuredQuestionsText = formatStructuredQuestions(questionsToUse)
 
+      // Get establishment type from user's company
+      const establishmentType = user?.business_type || 'coffee_shop'
+
       // Create dynamic variables for ElevenLabs agent
       const dynamicVariables = {
         training_mode: trainingMode,
@@ -325,6 +328,7 @@ INSTRUCTIONS:
         difficulty_level: scenarioContext?.difficulty || 'intermediate',
         session_type: 'assessment',
         language: language,
+        establishment_type: establishmentType,
         // Use dynamic knowledge base content (no fallback - must be loaded from database)
         knowledge_context: contextToUse?.formattedContext || 'No specific company knowledge available for this scenario. Ask general training questions.',
         knowledge_scope: contextToUse?.knowledgeScope || 'restricted',

@@ -6,7 +6,7 @@
 
 import { Conversation } from '@elevenlabs/client'
 import { CustomerEmotionLevel, getEmotionDefinition } from './customer-emotions'
-import { resolveVoiceId } from './elevenlabs-voices'
+import { resolveVoiceId, getVoiceName, getVoiceGender, getGenderLanguageHint } from './elevenlabs-voices'
 
 // Scenario-specific greeting phrases for different training modes
 const THEORY_GREETINGS = {
@@ -101,7 +101,11 @@ export class ElevenLabsConversationService {
   /**
    * Get language-aware system prompt with dynamic variables
    */
-  private getLanguageAwareSystemPrompt(dynamicVariables?: Record<string, any>): string {
+  private getLanguageAwareSystemPrompt(
+    dynamicVariables?: Record<string, any>,
+    voiceId?: string,
+    language?: string
+  ): string {
     const trainingMode = dynamicVariables?.training_mode || 'theory'
 
     let basePrompt: string
@@ -109,6 +113,14 @@ export class ElevenLabsConversationService {
     if (trainingMode === 'service_practice') {
       // Service Practice Mode: AI acts as customer
       // Using ElevenLabs' six building blocks structure for better role consistency
+
+      // Get voice identity for personalization
+      const voiceName = getVoiceName(voiceId)
+      const voiceGender = getVoiceGender(voiceId)
+      const customerName = (voiceName !== 'Random Voice' && voiceName !== 'Unknown Voice')
+        ? voiceName
+        : 'a customer'
+      const establishmentType = dynamicVariables?.establishment_type || 'coffee shop'
 
       // Check if we have emotion-specific instructions from dynamic variables
       const emotionLevel = dynamicVariables?.customer_emotion_level as CustomerEmotionLevel | undefined
@@ -140,19 +152,16 @@ ABSOLUTE ROLE BOUNDARIES (NEVER VIOLATE):
 - If confused about what to say, ASK FOR HELP as a customer would
 
 # Environment
-You are in a training simulation where a human trainee is practicing customer service skills.
-You are the CUSTOMER role - the human is the EMPLOYEE role.
-This is voice-based roleplay training for de-escalation and conflict resolution skills.
+You are at the counter of a ${establishmentType}, speaking with the employee who will help you.
+This is voice-based roleplay training.
 
 Language: ${dynamicVariables?.language || 'English'}
-Establishment: ${dynamicVariables?.establishment_type || 'coffee shop'}
 
 # Personality
-You are a ${emotionDefinition.label.toLowerCase()}.
+You are ${customerName}, a ${emotionDefinition.label.toLowerCase()} at a ${establishmentType}.
 ${emotionDefinition.personality}
 
-ROLE REMINDER: You are NOT an employee, assistant, or service provider under any circumstances.
-You came here as a paying customer who needs help and service from the establishment's employees.
+You are NOT an employee - you came here as a paying customer seeking service.
 
 Emotional State: ${emotionLevel}
 
@@ -191,7 +200,9 @@ Training mode: ${trainingMode}
 Emotional Level: ${emotionLevel}
 Available documents: ${dynamicVariables?.documents_available || 1}
 
-FINAL ROLE REMINDER: You are the CUSTOMER. The human is the EMPLOYEE serving you. Start by presenting your situation from the scenario above, then react naturally to how they help you.`
+${getGenderLanguageHint(voiceGender, language || dynamicVariables?.language || 'en')}
+
+FINAL ROLE REMINDER: You are the CUSTOMER named ${customerName}. The human is the EMPLOYEE serving you. Start by presenting your situation from the scenario above, then react naturally to how they help you.`
       } else {
         // Fallback to original generic customer behavior (for backwards compatibility)
         basePrompt = `# Personality
@@ -331,6 +342,8 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
       // Debug: Log voice ID configuration
       console.log('🎤 Voice configuration:')
       console.log('- voiceId from config:', this.config.voiceId)
+      console.log(`- Voice identity: ${getVoiceName(this.config.voiceId)} (${getVoiceGender(this.config.voiceId)})`)
+      console.log('- Establishment type:', this.config.dynamicVariables?.establishment_type || 'coffee shop (default)')
       console.log('- Resolved voice ID:', this.config.voiceId ? resolveVoiceId(this.config.voiceId) : 'none')
       console.log('- Will override voice?', !!(this.config.voiceId))
 
@@ -345,7 +358,11 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
               this.config.dynamicVariables.training_mode
             ),
             prompt: {
-              prompt: this.getLanguageAwareSystemPrompt(this.config.dynamicVariables)
+              prompt: this.getLanguageAwareSystemPrompt(
+                this.config.dynamicVariables,
+                this.config.voiceId,
+                this.config.language
+              )
             },
             language: this.config.language
           },

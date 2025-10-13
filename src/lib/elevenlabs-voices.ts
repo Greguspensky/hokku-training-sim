@@ -63,3 +63,68 @@ export function resolveVoiceId(voiceId: string | undefined): string {
   }
   return voiceId;
 }
+
+/**
+ * Get gender of voice by voice ID
+ * Klava and Karina are female voices
+ * Sanyok and Vlad are male voices
+ */
+export function getVoiceGender(voiceId: string | undefined): 'female' | 'male' | 'neutral' {
+  if (!voiceId || voiceId === RANDOM_VOICE_OPTION) {
+    return 'neutral';
+  }
+
+  const voice = ELEVENLABS_VOICES.find(v => v.id === voiceId);
+
+  // Female voices: Klava, Karina
+  if (voice?.name === 'Klava' || voice?.name === 'Karina') {
+    return 'female';
+  }
+
+  // Male voices: Sanyok, Vlad
+  if (voice?.name === 'Sanyok' || voice?.name === 'Vlad') {
+    return 'male';
+  }
+
+  return 'neutral';
+}
+
+/**
+ * Get language-specific gender hint for AI prompt
+ * Helps AI use correct gendered language (Russian, Spanish, French, etc.)
+ */
+export function getGenderLanguageHint(gender: 'female' | 'male' | 'neutral', language: string): string {
+  if (gender === 'neutral') return '';
+
+  const isFemale = gender === 'female';
+
+  switch (language) {
+    case 'ru': // Russian
+      return isFemale
+        ? 'LANGUAGE NOTE: You are speaking as a female. In Russian, use feminine verb endings: "я согласна", "я пришла", "я хотела бы"'
+        : 'LANGUAGE NOTE: You are speaking as a male. In Russian, use masculine verb endings: "я согласен", "я пришёл", "я хотел бы"';
+
+    case 'es': // Spanish
+      return isFemale
+        ? 'LANGUAGE NOTE: You are speaking as a female. In Spanish, use feminine forms: "estoy cansada", "soy cliente"'
+        : 'LANGUAGE NOTE: You are speaking as a male. In Spanish, use masculine forms: "estoy cansado", "soy cliente"';
+
+    case 'fr': // French
+      return isFemale
+        ? 'LANGUAGE NOTE: You are speaking as a female. In French, use feminine forms: "je suis fatiguée", "je suis cliente"'
+        : 'LANGUAGE NOTE: You are speaking as a male. In French, use masculine forms: "je suis fatigué", "je suis client"';
+
+    case 'it': // Italian
+      return isFemale
+        ? 'LANGUAGE NOTE: You are speaking as a female. In Italian, use feminine forms: "sono stanca", "sono cliente"'
+        : 'LANGUAGE NOTE: You are speaking as a male. In Italian, use masculine forms: "sono stanco", "sono cliente"';
+
+    case 'pl': // Polish
+      return isFemale
+        ? 'LANGUAGE NOTE: You are speaking as a female. In Polish, use feminine forms: "jestem zmęczona"'
+        : 'LANGUAGE NOTE: You are speaking as a male. In Polish, use masculine forms: "jestem zmęczony"';
+
+    default:
+      return ''; // English, Chinese, Japanese, Korean don't need gender hints
+  }
+}
