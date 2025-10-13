@@ -359,6 +359,23 @@ export default function SessionTranscriptPage() {
         {/* Session Metadata */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h2>
+
+          {/* Session and Attempt IDs */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="font-medium text-gray-700">Session ID:</span>
+                <div className="mt-1 font-mono text-gray-600 break-all">{session.id}</div>
+              </div>
+              {session.scenario_id && (
+                <div>
+                  <span className="font-medium text-gray-700">Attempt ID:</span>
+                  <div className="mt-1 font-mono text-gray-600 break-all">{session.scenario_id}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center">
               <Calendar className="w-5 h-5 text-gray-400 mr-3" />
