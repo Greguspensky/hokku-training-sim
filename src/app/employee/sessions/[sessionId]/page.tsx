@@ -6,6 +6,8 @@ import { ArrowLeft, Clock, User, Bot, Calendar, Globe, Brain, Play, Pause, Volum
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
 import UserHeader from '@/components/UserHeader'
+import { getEmotionDisplay } from '@/lib/customer-emotions'
+import { getVoiceName } from '@/lib/elevenlabs-voices'
 
 export default function SessionTranscriptPage() {
   const params = useParams()
@@ -456,51 +458,79 @@ export default function SessionTranscriptPage() {
                   <span className="text-lg mr-2">🎭</span>
                   <h3 className="font-semibold text-gray-900">Character Role</h3>
                 </div>
-                <p className="text-sm text-gray-700 pl-7">
+                <p className="text-sm text-gray-700">
                   Customer in Roleplay - Will act according to scenario behavior
                 </p>
               </div>
 
-              {/* Scenario Context */}
-              {scenarioDetails.client_behavior && (
+              {/* Two-column layout for Scenario Context and AI Voice */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Scenario Context */}
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex items-start mb-2">
                     <span className="text-lg mr-2">📋</span>
                     <h3 className="font-semibold text-gray-900">Scenario Context</h3>
                   </div>
-                  <p className="text-sm text-gray-700 pl-7 whitespace-pre-wrap">
-                    {scenarioDetails.client_behavior}
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {scenarioDetails.title || 'No scenario context available'}
                   </p>
                 </div>
-              )}
+
+                {/* AI Voice */}
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-start mb-2">
+                    <span className="text-lg mr-2">🎤</span>
+                    <h3 className="font-semibold text-gray-900">AI Voice</h3>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-medium text-blue-700">
+                        {scenarioDetails.voice_id ? getVoiceName(scenarioDetails.voice_id) : 'Unknown Voice'}
+                      </span>
+                      {scenarioDetails.voice_id === 'random' && (
+                        <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
+                          Randomly Selected
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {scenarioDetails.voice_id === 'random'
+                        ? `The system has randomly selected ${getVoiceName(scenarioDetails.voice_id)} for this session. Reload the page to try a different voice.`
+                        : `The AI used the ${getVoiceName(scenarioDetails.voice_id)} voice for this session`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
 
               {/* Customer Emotion Level */}
               {scenarioDetails.customer_emotion_level && (
                 <div className={`rounded-lg p-4 border-2 ${
-                  scenarioDetails.customer_emotion_level === 'calm' ? 'bg-green-50 border-green-300' :
-                  scenarioDetails.customer_emotion_level === 'frustrated' ? 'bg-yellow-50 border-yellow-300' :
-                  scenarioDetails.customer_emotion_level === 'angry' ? 'bg-orange-50 border-orange-300' :
-                  'bg-red-50 border-red-300'
+                  scenarioDetails.customer_emotion_level === 'calm' ? 'bg-green-50 border-green-200' :
+                  scenarioDetails.customer_emotion_level === 'frustrated' ? 'bg-yellow-50 border-yellow-200' :
+                  scenarioDetails.customer_emotion_level === 'angry' ? 'bg-orange-50 border-orange-200' :
+                  'bg-red-50 border-red-200'
                 }`}>
                   <div className="flex items-start mb-2">
                     <span className="text-lg mr-2">
-                      {scenarioDetails.customer_emotion_level === 'calm' ? '😊' :
-                       scenarioDetails.customer_emotion_level === 'frustrated' ? '😤' :
-                       scenarioDetails.customer_emotion_level === 'angry' ? '😠' :
-                       '🤬'}
+                      {getEmotionDisplay(scenarioDetails.customer_emotion_level).icon}
                     </span>
                     <h3 className="font-semibold text-gray-900">Customer Emotion Level</h3>
                   </div>
-                  <div className="pl-7">
-                    <p className="text-sm font-semibold text-gray-900 mb-1">
-                      {scenarioDetails.customer_emotion_level === 'calm' ? '😊 Calm Customer' :
-                       scenarioDetails.customer_emotion_level === 'frustrated' ? '😤 Frustrated Customer' :
-                       scenarioDetails.customer_emotion_level === 'angry' ? '😠 Angry Customer' :
-                       '🤬 Extremely Angry Customer'}
-                    </p>
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        scenarioDetails.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
+                        scenarioDetails.customer_emotion_level === 'frustrated' ? 'bg-yellow-100 text-yellow-800' :
+                        scenarioDetails.customer_emotion_level === 'angry' ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {getEmotionDisplay(scenarioDetails.customer_emotion_level).icon} {getEmotionDisplay(scenarioDetails.customer_emotion_level).label}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-700">
                       {scenarioDetails.customer_emotion_level === 'calm'
-                        ? 'The customer is impatient and needs quick resolution. Show efficiency and acknowledge their time pressure.'
+                        ? 'The customer is polite and patient. Maintain professionalism and friendly service.'
                         : scenarioDetails.customer_emotion_level === 'frustrated'
                         ? 'The customer is impatient and needs quick resolution. Show efficiency and acknowledge their time pressure.'
                         : scenarioDetails.customer_emotion_level === 'angry'
@@ -511,52 +541,27 @@ export default function SessionTranscriptPage() {
                 </div>
               )}
 
-              {/* AI Voice */}
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              {/* Customer Behavior */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <div className="flex items-start mb-2">
-                  <span className="text-lg mr-2">🎤</span>
-                  <h3 className="font-semibold text-gray-900">AI Voice</h3>
+                  <span className="text-lg mr-2">😤</span>
+                  <h3 className="font-semibold text-gray-900">Customer Behavior</h3>
                 </div>
-                <div className="pl-7">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-medium text-blue-700">
-                      {session.agent_id ? session.agent_id.substring(0, 20) + '...' : 'Default'}
-                    </span>
-                    <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
-                      Randomly Selected
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    The system has randomly selected a voice for this session. Reload the page to try a different voice.
-                  </p>
-                </div>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {scenarioDetails.client_behavior || 'No customer behavior defined'}
+                </p>
               </div>
 
-              {/* Customer Behavior */}
-              {scenarioDetails.client_behavior && (
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-start mb-2">
-                    <span className="text-lg mr-2">😤</span>
-                    <h3 className="font-semibold text-gray-900">Customer Behavior</h3>
-                  </div>
-                  <p className="text-sm text-gray-700 pl-7 whitespace-pre-wrap">
-                    {scenarioDetails.client_behavior}
-                  </p>
-                </div>
-              )}
-
               {/* Expected Employee Response */}
-              {scenarioDetails.expected_response && (
-                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                  <div className="flex items-start mb-2">
-                    <span className="text-lg mr-2">✅</span>
-                    <h3 className="font-semibold text-gray-900">Expected Employee Response</h3>
-                  </div>
-                  <p className="text-sm text-gray-700 pl-7 whitespace-pre-wrap">
-                    {scenarioDetails.expected_response}
-                  </p>
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <div className="flex items-start mb-2">
+                  <span className="text-lg mr-2">✅</span>
+                  <h3 className="font-semibold text-gray-900">Expected Employee Response</h3>
                 </div>
-              )}
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {scenarioDetails.expected_response || 'No expected response defined'}
+                </p>
+              </div>
             </div>
           </div>
         )}
