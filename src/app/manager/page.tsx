@@ -14,6 +14,7 @@ import { Track, Scenario, scenarioService } from '@/lib/scenarios'
 import { employeeService } from '@/lib/employees'
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
+import { getVoiceName } from '@/lib/elevenlabs-voices'
 
 // TopicTag component to display topic information
 interface TopicTagProps {
@@ -653,6 +654,9 @@ export default function ManagerDashboard() {
                             {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
                               <span>{scenario.session_time_limit_minutes} min</span>
                             )}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              🎤 {getVoiceName(scenario.voice_id)}
+                            </span>
                           </div>
 
                           {scenario.scenario_type === 'service_practice' && (
@@ -805,8 +809,11 @@ export default function ManagerDashboard() {
                           {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
                             <span>{scenario.session_time_limit_minutes} min</span>
                           )}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            🎤 {getVoiceName(scenario.voice_id)}
+                          </span>
                         </div>
-                        
+
                         {scenario.scenario_type === 'service_practice' && (
                           <div className="mt-4 space-y-2">
                             <div>

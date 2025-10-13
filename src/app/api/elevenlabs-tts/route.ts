@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveVoiceId } from '@/lib/elevenlabs-voices'
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, language = 'en' } = await request.json()
+    const { text, language = 'en', voiceId } = await request.json()
 
     if (!text) {
       return NextResponse.json(
@@ -18,12 +19,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Resolve voice ID (random or specific)
+    const selectedVoiceId = voiceId ? resolveVoiceId(voiceId) : 'TX3LPaxmHKxFdv7VOQHJ'
+
     console.log(`🔊 Generating TTS for text: "${text.slice(0, 50)}..." in language: ${language}`)
+    console.log(`🎤 Using voice ID: ${selectedVoiceId}`)
 
     // Use ElevenLabs v3 model for audio tags support ([excited], [happy], [pause], etc.)
     // IMPORTANT: Only v3 models support audio tags - v2.5 models will pronounce them as text
-    // Voice: TX3LPaxmHKxFdv7VOQHJ - Selected for better audio tags support and emotional range
-    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/TX3LPaxmHKxFdv7VOQHJ', {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',

@@ -6,6 +6,7 @@
 
 import { Conversation } from '@elevenlabs/client'
 import { CustomerEmotionLevel, getEmotionDefinition } from './customer-emotions'
+import { resolveVoiceId } from './elevenlabs-voices'
 
 // Scenario-specific greeting phrases for different training modes
 const THEORY_GREETINGS = {
@@ -24,26 +25,28 @@ const THEORY_GREETINGS = {
   'zh': "你好！让我们开始理论课程吧。"
 } as const
 
-// Service practice greetings where AI acts as customer with specific behavior
+// Service practice greetings - simple neutral "Hello" for all scenarios
+// Emotion emerges naturally during conversation based on scenario premise
 const SERVICE_PRACTICE_GREETINGS = {
-  'en': "Excuse me, I need some help.",
-  'ru': "Извините, мне нужна помощь.",
-  'it': "Mi scusi, ho bisogno di aiuto.",
-  'es': "Disculpe, necesito ayuda.",
-  'fr': "Excusez-moi, j'ai besoin d'aide.",
-  'de': "Entschuldigung, ich brauche Hilfe.",
-  'pt': "Com licença, preciso de ajuda.",
-  'nl': "Pardon, ik heb hulp nodig.",
-  'pl': "Przepraszam, potrzebuję pomocy.",
-  'ka': "უკაცრავად, დახმარება მჭირდება.",
-  'ja': "すみません、助けが必要です。",
-  'ko': "실례합니다, 도움이 필요합니다.",
-  'zh': "不好意思，我需要帮助。"
+  'en': "Hello.",
+  'ru': "Здравствуйте.",
+  'it': "Salve.",
+  'es': "Hola.",
+  'fr': "Bonjour.",
+  'de': "Hallo.",
+  'pt': "Olá.",
+  'nl': "Hallo.",
+  'pl': "Cześć.",
+  'ka': "გამარჯობა.",
+  'ja': "こんにちは。",
+  'ko': "안녕하세요.",
+  'zh': "你好。"
 } as const
 
 export interface ElevenLabsConversationConfig {
   agentId: string
   language: string
+  voiceId?: string  // ElevenLabs Voice ID or 'random'
   connectionType: 'webrtc' | 'websocket'
   volume: number
   dynamicVariables?: Record<string, any>
@@ -72,57 +75,24 @@ export class ElevenLabsConversationService {
   private conversationId: string | null = null
 
   /**
-   * Get scenario-specific and language-specific greeting for first message
+   * Get language-specific greeting for first message
+   * Returns simple "Hello" for service practice (emotion emerges naturally during conversation)
+   * Returns session intro for theory mode
    */
-  private getScenarioSpecificGreeting(language: string, trainingMode: string, emotionLevel?: CustomerEmotionLevel, clientBehavior?: string): string {
+  private getScenarioSpecificGreeting(language: string, trainingMode: string): string {
     let greeting: string
 
     if (trainingMode === 'service_practice') {
-      // For service practice, AI acts as customer - use customer greeting
-      const baseGreeting = SERVICE_PRACTICE_GREETINGS[language as keyof typeof SERVICE_PRACTICE_GREETINGS] || SERVICE_PRACTICE_GREETINGS['en']
-
-      // Customize greeting based on emotion level
-      if (emotionLevel) {
-        const emotionDefinition = getEmotionDefinition(emotionLevel)
-
-        // Use emotional linguistic markers in greeting
-        switch(emotionLevel) {
-          case 'frustrated':
-            greeting = language === 'ru' ? 'Извините, мне срочно нужна помощь.' :
-                      language === 'it' ? 'Mi scusi, ho urgentemente bisogno di aiuto.' :
-                      language === 'es' ? 'Disculpe, necesito ayuda urgentemente.' :
-                      'Excuse me, I need help right away.'
-            break
-          case 'angry':
-            greeting = language === 'ru' ? 'Послушайте, у меня серьезная проблема!' :
-                      language === 'it' ? 'Senta, ho un problema serio!' :
-                      language === 'es' ? '¡Oiga, tengo un problema serio!' :
-                      'Listen, I have a serious problem!'
-            break
-          case 'extremely_angry':
-            greeting = language === 'ru' ? 'Это НЕПРИЕМЛЕМО! Мне нужен менеджер!' :
-                      language === 'it' ? 'Questo è INACCETTABILE! Ho bisogno del manager!' :
-                      language === 'es' ? '¡Esto es INACEPTABLE! ¡Necesito al gerente!' :
-                      'This is UNACCEPTABLE! I need to speak to a manager!'
-            break
-          case 'calm':
-          default:
-            greeting = baseGreeting
-            break
-        }
-
-        console.log(`🎭 ${emotionDefinition.icon} ${emotionDefinition.label} greeting for ${language}: "${greeting}"`)
-      } else {
-        greeting = baseGreeting
-        console.log(`🎭 Customer roleplay greeting for ${language}: "${greeting}"`)
-      }
+      // Simple neutral "Hello" greeting - emotion emerges naturally based on scenario
+      greeting = SERVICE_PRACTICE_GREETINGS[language as keyof typeof SERVICE_PRACTICE_GREETINGS] || SERVICE_PRACTICE_GREETINGS['en']
+      console.log(`🎭 Customer neutral greeting for ${language}: "${greeting}"`)
     } else {
       // For theory mode, AI acts as examiner
       greeting = THEORY_GREETINGS[language as keyof typeof THEORY_GREETINGS] || THEORY_GREETINGS['en']
       console.log(`🎓 Theory examiner greeting for ${language}: "${greeting}"`)
     }
 
-    console.log(`🌍 Selected scenario-specific greeting for ${trainingMode} mode in ${language}`)
+    console.log(`🌍 Selected greeting for ${trainingMode} mode in ${language}`)
     console.log(`💬 Localized greeting: "${greeting}"`)
 
     return greeting
@@ -146,20 +116,29 @@ export class ElevenLabsConversationService {
 
       if (emotionDefinition) {
         // Use comprehensive emotion-based system prompt
-        basePrompt = `# Personality
-You are a ${emotionDefinition.label.toLowerCase()} at a ${dynamicVariables?.establishment_type || 'coffee shop'}.
-${emotionDefinition.personality}
+        // CRITICAL: Scenario context comes FIRST to establish WHAT happened
+        basePrompt = `# YOUR SCENARIO - THIS IS WHAT ACTUALLY HAPPENED
+${dynamicVariables?.client_behavior || 'You are a customer seeking service at this establishment'}
 
-You are NOT an employee, assistant, or service provider under any circumstances.
-You came here as a paying customer who needs help and service from the establishment's employees.
-
-Language: ${dynamicVariables?.language || 'English'}
-Emotional State: ${emotionLevel}
+IMPORTANT: The scenario above defines YOUR ACTUAL SITUATION in this roleplay.
+Everything below tells you HOW to behave, but the scenario above is WHAT happened to you.
 
 # Environment
 You are in a training simulation where a human trainee is practicing customer service skills.
 You are the CUSTOMER role - the human is the EMPLOYEE role.
 This is voice-based roleplay training for de-escalation and conflict resolution skills.
+
+Language: ${dynamicVariables?.language || 'English'}
+Establishment: ${dynamicVariables?.establishment_type || 'coffee shop'}
+
+# Personality
+You are a ${emotionDefinition.label.toLowerCase()}.
+${emotionDefinition.personality}
+
+You are NOT an employee, assistant, or service provider under any circumstances.
+You came here as a paying customer who needs help and service from the establishment's employees.
+
+Emotional State: ${emotionLevel}
 
 # Tone
 ${emotionDefinition.tone}
@@ -195,9 +174,6 @@ CONFUSION HANDLING PROTOCOL:
 
 COMPANY KNOWLEDGE (for evaluating employee responses):
 ${dynamicVariables?.knowledge_context || 'Use general service industry knowledge'}
-
-SCENARIO CONTEXT:
-${dynamicVariables?.client_behavior || 'Act as customer in this service scenario'}
 
 # Tools
 [None needed for this roleplay scenario]
@@ -333,6 +309,46 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
         console.warn('⚠️ No dynamic variables provided to ElevenLabs conversation')
       }
 
+      // Debug: Log voice ID configuration
+      console.log('🎤 Voice configuration:')
+      console.log('- voiceId from config:', this.config.voiceId)
+      console.log('- Resolved voice ID:', this.config.voiceId ? resolveVoiceId(this.config.voiceId) : 'none')
+      console.log('- Will override voice?', !!(this.config.voiceId))
+
+      // Build overrides config (for scenarios that use overrides)
+      const overridesConfig = (this.config.dynamicVariables &&
+        (this.config.dynamicVariables?.training_mode === 'theory' ||
+         this.config.dynamicVariables?.training_mode === 'service_practice')) ? {
+        overrides: {
+          agent: {
+            firstMessage: this.getScenarioSpecificGreeting(
+              this.config.language,
+              this.config.dynamicVariables.training_mode
+            ),
+            prompt: {
+              prompt: this.getLanguageAwareSystemPrompt(this.config.dynamicVariables)
+            },
+            language: this.config.language
+          },
+          // Voice override - must be at same level as agent per ElevenLabs docs
+          ...(this.config.voiceId && {
+            tts: {
+              voiceId: resolveVoiceId(this.config.voiceId)  // Using double quotes as suggested by ElevenLabs
+            }
+          })
+        }
+      } : {}
+
+      // Log the complete overrides structure (per ElevenLabs support suggestion)
+      if (overridesConfig.overrides) {
+        console.log('🎤 Sending full overrides config to ElevenLabs:')
+        console.log(JSON.stringify(overridesConfig.overrides, null, 2))
+        if (this.config.voiceId) {
+          console.warn('⚠️ NOTE: Voice overrides require "Voice ID Overrides" enabled in Dashboard > Security')
+          console.warn('⚠️ Allow 5 minutes propagation delay after enabling the setting')
+        }
+      }
+
       // Start ElevenLabs conversation session with dynamic variables
       this.conversation = await Conversation.startSession({
         agentId: this.config.agentId,
@@ -342,23 +358,8 @@ Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
         // Pass dynamic variables for training context
         ...(this.config.dynamicVariables && { dynamicVariables: this.config.dynamicVariables }),
 
-        // Add overrides for both theory and service practice modes (scenario-aware with proper ElevenLabs API)
-        ...(this.config.dynamicVariables && (this.config.dynamicVariables?.training_mode === 'theory' || this.config.dynamicVariables?.training_mode === 'service_practice') && {
-          overrides: {
-            agent: {
-              firstMessage: this.getScenarioSpecificGreeting(
-                this.config.language,
-                this.config.dynamicVariables.training_mode,
-                this.config.dynamicVariables.customer_emotion_level as CustomerEmotionLevel | undefined,
-                this.config.dynamicVariables.client_behavior
-              ),
-              prompt: {
-                prompt: this.getLanguageAwareSystemPrompt(this.config.dynamicVariables)
-              },
-              language: this.config.language
-            }
-          }
-        }),
+        // Add overrides (voice override now RE-ENABLED per ElevenLabs support)
+        ...overridesConfig,
 
         // Event handlers
         onConnect: () => {

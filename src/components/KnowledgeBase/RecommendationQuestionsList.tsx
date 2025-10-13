@@ -23,6 +23,8 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
   const [editingQuestion, setEditingQuestion] = useState<RecommendationQuestion | null>(null)
   const [editText, setEditText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [audioPreviewLoading, setAudioPreviewLoading] = useState(false)
+  const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState<HTMLAudioElement | null>(null)
 
   const loadQuestions = async () => {
     try {
@@ -48,6 +50,66 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
   const handleEdit = (question: RecommendationQuestion) => {
     setEditingQuestion(question)
     setEditText(question.question_text)
+  }
+
+  const handlePreviewAudio = async (text: string) => {
+    if (!text.trim()) {
+      alert('⚠️ Please enter question text to preview')
+      return
+    }
+
+    // Stop any currently playing audio
+    if (currentlyPlayingAudio) {
+      currentlyPlayingAudio.pause()
+      currentlyPlayingAudio.currentTime = 0
+      setCurrentlyPlayingAudio(null)
+    }
+
+    setAudioPreviewLoading(true)
+
+    try {
+      console.log('🎵 Previewing audio for:', text)
+
+      const response = await fetch('/api/elevenlabs-tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          language: 'en'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate audio preview')
+      }
+
+      // Create audio blob and play
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+
+      audio.onended = () => {
+        setCurrentlyPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
+      }
+
+      audio.onerror = () => {
+        alert('❌ Failed to play audio preview')
+        setCurrentlyPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
+      }
+
+      setCurrentlyPlayingAudio(audio)
+      await audio.play()
+
+    } catch (error) {
+      console.error('Error generating audio preview:', error)
+      alert('❌ Failed to generate audio preview. Please try again.')
+    } finally {
+      setAudioPreviewLoading(false)
+    }
   }
 
   const handleSaveEdit = async () => {
@@ -165,10 +227,21 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                     />
                   </div>
                   <div className="flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewAudio(editText)}
+                      disabled={audioPreviewLoading || !editText.trim()}
+                      className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                    >
+                      <span className="text-xl">{currentlyPlayingAudio ? '🔊' : '▶️'}</span>
+                      <span>
+                        {audioPreviewLoading ? 'Generating...' : currentlyPlayingAudio ? 'Playing...' : 'Preview Audio'}
+                      </span>
+                    </button>
                     <button
                       onClick={handleSaveEdit}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
@@ -181,13 +254,16 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
                     >
                       Cancel
                     </button>
+                    {audioPreviewLoading && (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    )}
                   </div>
                 </div>
               ) : (
                 // View Mode
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-gray-900 mb-3 leading-relaxed">
+                    <p className="text-gray-900 mb-3 leading-relaxed font-mono text-sm">
                       {question.question_text}
                     </p>
                     <div className="text-xs text-gray-500">
@@ -198,6 +274,14 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
                     </div>
                   </div>
                   <div className="ml-4 flex-shrink-0 flex space-x-2">
+                    <button
+                      onClick={() => handlePreviewAudio(question.question_text)}
+                      disabled={audioPreviewLoading}
+                      className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      <span className="mr-1.5">{currentlyPlayingAudio ? '🔊' : '▶️'}</span>
+                      {audioPreviewLoading ? 'Loading...' : currentlyPlayingAudio ? 'Playing...' : 'Preview'}
+                    </button>
                     <button
                       onClick={() => handleEdit(question)}
                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

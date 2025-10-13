@@ -12,6 +12,74 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
   const [questions, setQuestions] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [audioPreviewLoading, setAudioPreviewLoading] = useState(false)
+  const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState<HTMLAudioElement | null>(null)
+
+  const handlePreviewAudio = async () => {
+    if (!questions.trim()) {
+      setMessage('⚠️ Please enter some questions to preview')
+      return
+    }
+
+    // Stop any currently playing audio
+    if (currentlyPlayingAudio) {
+      currentlyPlayingAudio.pause()
+      currentlyPlayingAudio.currentTime = 0
+      setCurrentlyPlayingAudio(null)
+    }
+
+    setAudioPreviewLoading(true)
+    setMessage('')
+
+    try {
+      // Take the first question (or first few lines) for preview
+      const questionLines = questions.trim().split('\n').filter(line => line.trim())
+      const previewText = questionLines.slice(0, 3).join(' ') // Preview first 3 questions
+
+      console.log('🎵 Previewing audio for:', previewText)
+
+      const response = await fetch('/api/elevenlabs-tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: previewText,
+          language: 'en'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate audio preview')
+      }
+
+      // Create audio blob and play
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+
+      audio.onended = () => {
+        setCurrentlyPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
+      }
+
+      audio.onerror = () => {
+        setMessage('❌ Failed to play audio preview')
+        setCurrentlyPlayingAudio(null)
+        URL.revokeObjectURL(audioUrl)
+      }
+
+      setCurrentlyPlayingAudio(audio)
+      await audio.play()
+      setMessage('🔊 Playing audio preview...')
+
+    } catch (error) {
+      console.error('Error generating audio preview:', error)
+      setMessage('❌ Failed to generate audio preview. Please try again.')
+    } finally {
+      setAudioPreviewLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,6 +165,18 @@ Examples:
 
         <div className="flex items-center space-x-3">
           <button
+            type="button"
+            onClick={handlePreviewAudio}
+            disabled={audioPreviewLoading || loading || !questions.trim()}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md font-medium transition-colors"
+          >
+            <span className="text-xl">{currentlyPlayingAudio ? '🔊' : '▶️'}</span>
+            <span>
+              {audioPreviewLoading ? 'Generating...' : currentlyPlayingAudio ? 'Playing...' : 'Preview Audio'}
+            </span>
+          </button>
+
+          <button
             type="submit"
             disabled={loading}
             className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md font-medium transition-colors"
@@ -112,7 +192,7 @@ Examples:
             Cancel
           </button>
 
-          {loading && (
+          {(loading || audioPreviewLoading) && (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
           )}
         </div>

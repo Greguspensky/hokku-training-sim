@@ -17,6 +17,7 @@ interface ElevenLabsAvatarSessionProps {
   scenarioQuestions?: any[]
   language?: string
   agentId: string // ElevenLabs Agent ID
+  voiceId?: string // ElevenLabs Voice ID or 'random'
   recordingPreference?: RecordingPreference
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
@@ -32,6 +33,7 @@ export function ElevenLabsAvatarSession({
   scenarioQuestions = [],
   language = 'en',
   agentId,
+  voiceId,
   recordingPreference = 'none',
   videoAspectRatio = '16:9',
   preAuthorizedTabAudio = null,
@@ -396,6 +398,7 @@ Start the conversation by presenting your customer problem or situation.`
       const service = new ElevenLabsConversationService({
         agentId,
         language,
+        voiceId,
         connectionType: 'webrtc', // Use WebRTC for better audio quality
         volume,
         dynamicVariables
@@ -1097,8 +1100,8 @@ Start the conversation by presenting your customer problem or situation.`
           )}
 
           {/* Mode-specific Instructions */}
-          {/* Session Questions Preview - Replacing useless instructions */}
-          {scenarioContext?.type === 'theory' ? (
+          {/* Session Questions Preview - Only show for Theory mode */}
+          {scenarioContext?.type === 'theory' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-blue-900 flex items-center gap-2">
@@ -1151,32 +1154,21 @@ Start the conversation by presenting your customer problem or situation.`
                 </p>
               )}
             </div>
-          ) : (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="font-semibold text-green-900 mb-2">
-                🎭 Service Practice Instructions
+          )}
+
+          {/* Session Configuration - Only show for Theory mode */}
+          {scenarioContext?.type === 'theory' && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                ⚙️ Session Configuration
               </h3>
-              <div className="text-sm space-y-1 text-green-800">
-                <p>• <strong>Engage naturally</strong> with the customer</p>
-                <p>• <strong>Ask clarifying questions</strong> when needed</p>
-                <p>• <strong>Use company knowledge</strong> to help solve problems</p>
-                <p>• <strong>Practice handling</strong> different customer situations</p>
-                <p>• <strong>Build rapport</strong> and provide excellent service</p>
+              <div className="text-gray-700 text-sm space-y-1">
+                <p><strong>Training Mode:</strong> 📖 Theory Assessment</p>
+                <p><strong>Language:</strong> {language === 'ru' ? '🇷🇺 Russian' : language === 'en' ? '🇺🇸 English' : language}</p>
+                <p><strong>Database Questions:</strong> {sessionQuestions.length > 0 ? `✅ ${sessionQuestions.length} loaded` : '⏳ Click refresh to load'}</p>
               </div>
             </div>
           )}
-
-          {/* Session Status - Simplified */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">
-              ⚙️ Session Configuration
-            </h3>
-            <div className="text-gray-700 text-sm space-y-1">
-              <p><strong>Training Mode:</strong> {scenarioContext?.type === 'theory' ? '📖 Theory Assessment' : '🗣️ Service Practice'}</p>
-              <p><strong>Language:</strong> {language === 'ru' ? '🇷🇺 Russian' : language === 'en' ? '🇺🇸 English' : language}</p>
-              <p><strong>Database Questions:</strong> {sessionQuestions.length > 0 ? `✅ ${sessionQuestions.length} loaded` : '⏳ Click refresh to load'}</p>
-            </div>
-          </div>
 
 
           {/* Loading Knowledge Display */}
@@ -1193,8 +1185,8 @@ Start the conversation by presenting your customer problem or situation.`
             </div>
           )}
 
-          {/* Structured Questions Status */}
-          {structuredQuestions.length > 0 && (
+          {/* Structured Questions Status - Only show for Theory mode */}
+          {scenarioContext?.type === 'theory' && structuredQuestions.length > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h3 className="font-semibold text-green-900 mb-2">
                 📋 Structured Questions Loaded
@@ -1342,7 +1334,7 @@ Start the conversation by presenting your customer problem or situation.`
             </div>
           )}
 
-          {/* Current Message Display */}
+          {/* Current Message Display - centered */}
           {currentMessage && (
             <div className={`border rounded-lg p-4 ${
               isTheoryMode
@@ -1360,15 +1352,24 @@ Start the conversation by presenting your customer problem or situation.`
             </div>
           )}
 
-          {/* Conversation History */}
+          {/* Session Info - moved above conversation history */}
+          <div className="text-sm text-gray-600 bg-gray-50 rounded p-3">
+            <p><strong>Agent ID:</strong> {agentId}</p>
+            <p><strong>Language:</strong> {language}</p>
+            <p><strong>Company:</strong> {companyId}</p>
+            {sessionId && <p><strong>Session ID:</strong> {sessionId}</p>}
+          </div>
+
+          {/* Conversation History - removed max-h to allow full page scrolling, reversed order */}
           {conversationHistory.length > 0 && (
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="space-y-2">
               <h3 className="font-medium text-gray-900">
                 {isTheoryMode ? '📝 Q&A History:' : '💬 Conversation History:'}
               </h3>
-              {conversationHistory.map((message, index) => (
+              {/* Reverse the order: newest messages first, oldest last */}
+              {[...conversationHistory].reverse().map((message, index) => (
                 <div
-                  key={index}
+                  key={conversationHistory.length - 1 - index}
                   className={`p-3 rounded-lg ${
                     message.role === 'assistant'
                       ? (isTheoryMode ? 'bg-orange-50 border border-orange-200' : 'bg-blue-50 border border-blue-200')
@@ -1401,14 +1402,6 @@ Start the conversation by presenting your customer problem or situation.`
               ))}
             </div>
           )}
-
-          {/* Session Info */}
-          <div className="text-sm text-gray-600 bg-gray-50 rounded p-3">
-            <p><strong>Agent ID:</strong> {agentId}</p>
-            <p><strong>Language:</strong> {language}</p>
-            <p><strong>Company:</strong> {companyId}</p>
-            {sessionId && <p><strong>Session ID:</strong> {sessionId}</p>}
-          </div>
         </div>
       </div>
     </div>

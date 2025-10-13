@@ -14,6 +14,7 @@ import { RecordingConsent } from '@/components/RecordingConsent'
 import type { RecordingPreference } from '@/lib/training-sessions'
 import Link from 'next/link'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
+import { getVoiceName, resolveVoiceId } from '@/lib/elevenlabs-voices'
 
 interface TrainingQuestion {
   id: string
@@ -58,6 +59,7 @@ export default function TrainingSessionPage() {
   const [recommendationQuestionsLoading, setRecommendationQuestionsLoading] = useState(false)
   const [preAuthorizedTabAudio, setPreAuthorizedTabAudio] = useState<MediaStream | null>(null)
   const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16' | '4:3' | '1:1'>('16:9')
+  const [resolvedVoiceId, setResolvedVoiceId] = useState<string | undefined>(undefined)
 
   // Handle authentication - redirect if not authenticated after timeout
   useEffect(() => {
@@ -105,10 +107,22 @@ export default function TrainingSessionPage() {
     loadDefaultLanguage()
   }, [user])
 
-  // Auto-set recording preference for recommendations scenarios
+  // Auto-set recording preference for different scenario types
   useEffect(() => {
     if (currentScenario?.scenario_type === 'recommendations') {
       setRecordingPreference('audio_video')
+    } else if ((currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'service_practice') && recordingPreference === 'none') {
+      // Default to audio recording for theory and service practice (no "none" option available)
+      setRecordingPreference('audio')
+    }
+  }, [currentScenario])
+
+  // Resolve random voice to actual voice when scenario loads
+  useEffect(() => {
+    if (currentScenario?.voice_id) {
+      const resolved = resolveVoiceId(currentScenario.voice_id)
+      setResolvedVoiceId(resolved)
+      console.log('🎤 Voice resolved:', currentScenario.voice_id === 'random' ? `Random → ${getVoiceName(resolved)} (${resolved})` : `${getVoiceName(resolved)} (${resolved})`)
     }
   }, [currentScenario])
 
@@ -724,6 +738,146 @@ export default function TrainingSessionPage() {
 
                 {/* Session Configuration */}
                 <div className="space-y-8">
+                  {/* Language Selection - First for Service Practice */}
+                  {currentScenario.scenario_type === 'service_practice' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
+                      <p className="text-gray-600 mb-4">
+                        Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
+                      </p>
+
+                      <div className="relative inline-block text-left w-full max-w-xs">
+                        <select
+                          value={selectedLanguage}
+                          onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguageCode)}
+                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                        >
+                          {SUPPORTED_LANGUAGES.map((language) => (
+                            <option key={language.code} value={language.code}>
+                              {language.flag} {language.name}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Session Recording - Second for Service Practice */}
+                  {currentScenario.scenario_type === 'service_practice' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
+                      <p className="text-gray-600 mb-4">
+                        Recording is required for this training session. Choose your preferred recording format.
+                      </p>
+
+                      <div className="relative inline-block text-left w-full max-w-xs">
+                        <select
+                          value={recordingPreference}
+                          onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
+                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                        >
+                          <option value="audio">🎤 Audio Recording</option>
+                          <option value="audio_video">🎬 Audio + Video Recording</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          {recordingPreference === 'audio' && (
+                            <><strong>Selected:</strong> 🎤 Audio Recording - Your voice will be captured for review</>
+                          )}
+                          {recordingPreference === 'audio_video' && (
+                            <><strong>Selected:</strong> 🎬 Audio + Video Recording - Full session recording for detailed analysis</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Video Aspect Ratio - Third for Service Practice (only if video selected) */}
+                  {currentScenario.scenario_type === 'service_practice' && recordingPreference === 'audio_video' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">📐 Video Aspect Ratio</h3>
+                      <p className="text-gray-600 mb-4">
+                        Choose the video format that works best for your device and viewing preferences.
+                      </p>
+
+                      <div className="relative inline-block text-left w-full max-w-xs">
+                        <select
+                          value={videoAspectRatio}
+                          onChange={(e) => setVideoAspectRatio(e.target.value as '16:9' | '9:16' | '4:3' | '1:1')}
+                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                        >
+                          <option value="16:9">📺 16:9 Widescreen (Landscape)</option>
+                          <option value="9:16">📱 9:16 Vertical (Portrait)</option>
+                          <option value="4:3">📺 4:3 Standard</option>
+                          <option value="1:1">⬛ 1:1 Square</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <strong>Selected:</strong> {videoAspectRatio === '16:9' && '📺 16:9 Widescreen - Best for desktop viewing'}
+                          {videoAspectRatio === '9:16' && '📱 9:16 Portrait - Best for mobile devices'}
+                          {videoAspectRatio === '4:3' && '📺 4:3 Standard - Classic video format'}
+                          {videoAspectRatio === '1:1' && '⬛ 1:1 Square - Perfect for social media'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Data Security & Privacy - Fourth for Service Practice */}
+                  {currentScenario.scenario_type === 'service_practice' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-blue-900">Data Security & Privacy</h4>
+                          <div className="mt-1 text-sm text-blue-800">
+                            All recordings are stored securely and are only accessible by you and authorized training managers. You can request deletion of your recordings at any time.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Start Session Button - Fifth for Service Practice */}
+                  {currentScenario.scenario_type === 'service_practice' && (
+                    <div className="text-center">
+                      <button
+                        onClick={handleStartSessionWithPreAuth}
+                        className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
+                      >
+                        🚀 Start Training Session
+                      </button>
+                    </div>
+                  )}
+
                   {/* Training Mode Display */}
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
                     <h3 className="font-semibold text-gray-900 mb-2">⚙️ Session Configuration</h3>
@@ -917,6 +1071,29 @@ export default function TrainingSessionPage() {
                             </div>
                           )}
 
+                          {/* Voice Display */}
+                          <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+                            <p className="font-semibold text-gray-900 mb-2">
+                              🎤 AI Voice
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                {getVoiceName(resolvedVoiceId)}
+                              </span>
+                              {currentScenario.voice_id === 'random' && (
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                                  Randomly Selected
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-600 text-xs mt-2">
+                              {currentScenario.voice_id === 'random'
+                                ? `The system has randomly selected ${getVoiceName(resolvedVoiceId)} for this session. Reload the page to try a different voice.`
+                                : `The AI will use the ${getVoiceName(resolvedVoiceId)} voice for this session`
+                              }
+                            </p>
+                          </div>
+
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <p className="font-medium text-gray-900 mb-2">😤 Customer Behavior</p>
                             <p className="text-gray-600 text-xs max-h-20 overflow-y-auto">
@@ -934,8 +1111,8 @@ export default function TrainingSessionPage() {
                     </div>
                   </div>
 
-                  {/* Language Selection - Hide for recommendations */}
-                  {currentScenario?.scenario_type !== 'recommendations' && (
+                  {/* Language Selection - Hide for recommendations and service_practice (shown at top for service_practice) */}
+                  {currentScenario?.scenario_type === 'theory' && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
                       <p className="text-gray-600 mb-4">
@@ -969,57 +1146,66 @@ export default function TrainingSessionPage() {
                     </div>
                   )}
 
-                  {/* Recording Preferences - Simplified Dropdown */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
-                    <p className="text-gray-600 mb-4">
-                      {currentScenario?.scenario_type === 'recommendations'
-                        ? 'This recommendation training requires video recording to capture your responses to spoken questions.'
-                        : 'Choose your recording preference for this training session.'
-                      }
-                    </p>
+                  {/* Recording Preferences - Only show for Theory and Recommendations (Service Practice has it at top) */}
+                  {currentScenario?.scenario_type !== 'service_practice' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
+                      <p className="text-gray-600 mb-4">
+                        {currentScenario?.scenario_type === 'recommendations'
+                          ? 'This recommendation training requires video recording to capture your responses to spoken questions.'
+                          : currentScenario?.scenario_type === 'theory'
+                          ? 'Recording is required for this training session. Choose your preferred recording format.'
+                          : 'Choose your recording preference for this training session.'
+                        }
+                      </p>
 
-                    <div className="relative inline-block text-left w-full max-w-xs">
-                      <select
-                        value={recordingPreference}
-                        onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
-                        className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
-                        disabled={currentScenario?.scenario_type === 'recommendations'}
-                      >
-                        {currentScenario?.scenario_type === 'recommendations' ? (
-                          <option value="audio_video">🎬 Video Recording (Required)</option>
-                        ) : (
-                          <>
-                            <option value="none">🚫 No Recording</option>
-                            <option value="audio">🎤 Audio Recording</option>
-                            <option value="audio_video">🎬 Audio + Video Recording</option>
-                          </>
-                        )}
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                      <div className="relative inline-block text-left w-full max-w-xs">
+                        <select
+                          value={recordingPreference}
+                          onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
+                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                          disabled={currentScenario?.scenario_type === 'recommendations'}
+                        >
+                          {currentScenario?.scenario_type === 'recommendations' ? (
+                            <option value="audio_video">🎬 Video Recording (Required)</option>
+                          ) : currentScenario?.scenario_type === 'theory' ? (
+                            <>
+                              <option value="audio">🎤 Audio Recording</option>
+                              <option value="audio_video">🎬 Audio + Video Recording</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="none">🚫 No Recording</option>
+                              <option value="audio">🎤 Audio Recording</option>
+                              <option value="audio_video">🎬 Audio + Video Recording</option>
+                            </>
+                          )}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          {recordingPreference === 'none' && (
+                            <><strong>Selected:</strong> 🚫 No Recording - Only text transcript will be saved</>
+                          )}
+                          {recordingPreference === 'audio' && (
+                            <><strong>Selected:</strong> 🎤 Audio Recording - Your voice will be captured for review</>
+                          )}
+                          {recordingPreference === 'audio_video' && (
+                            <><strong>Selected:</strong> 🎬 Audio + Video Recording - Full session recording for detailed analysis</>
+                          )}
+                        </p>
                       </div>
                     </div>
+                  )}
 
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        {recordingPreference === 'none' && (
-                          <><strong>Selected:</strong> 🚫 No Recording - Only text transcript will be saved</>
-                        )}
-                        {recordingPreference === 'audio' && (
-                          <><strong>Selected:</strong> 🎤 Audio Recording - Your voice will be captured for review</>
-                        )}
-                        {recordingPreference === 'audio_video' && (
-                          <><strong>Selected:</strong> 🎬 Audio + Video Recording - Full session recording for detailed analysis</>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Video Aspect Ratio Selection - Show only if video recording is enabled */}
-                  {recordingPreference === 'audio_video' && (
+                  {/* Video Aspect Ratio Selection - Only show for Theory and Recommendations if video enabled (Service Practice has it at top) */}
+                  {currentScenario?.scenario_type !== 'service_practice' && recordingPreference === 'audio_video' && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">📐 Video Aspect Ratio</h3>
                       <p className="text-gray-600 mb-4">
@@ -1055,33 +1241,37 @@ export default function TrainingSessionPage() {
                     </div>
                   )}
 
-                  {/* Privacy Notice */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <h4 className="text-sm font-medium text-blue-900">Data Security & Privacy</h4>
-                        <div className="mt-1 text-sm text-blue-800">
-                          All recordings are stored securely and are only accessible by you and authorized training managers. You can request deletion of your recordings at any time.
+                  {/* Privacy Notice - Only show for Theory and Recommendations (Service Practice has it at top) */}
+                  {currentScenario?.scenario_type !== 'service_practice' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-blue-900">Data Security & Privacy</h4>
+                          <div className="mt-1 text-sm text-blue-800">
+                            All recordings are stored securely and are only accessible by you and authorized training managers. You can request deletion of your recordings at any time.
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Start Session Button */}
-                <div className="mt-8 text-center">
-                  <button
-                    onClick={handleStartSessionWithPreAuth}
-                    className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
-                  >
-                    🚀 Start Training Session
-                  </button>
-                </div>
+                {/* Start Session Button - Only show for Theory and Recommendations (Service Practice button is at top) */}
+                {currentScenario.scenario_type !== 'service_practice' && (
+                  <div className="mt-8 text-center">
+                    <button
+                      onClick={handleStartSessionWithPreAuth}
+                      className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
+                    >
+                      🚀 Start Training Session
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1158,6 +1348,7 @@ export default function TrainingSessionPage() {
                   language={selectedLanguage}
                   assignmentId={assignmentId}
                   videoAspectRatio={videoAspectRatio}
+                  voiceId={resolvedVoiceId || currentScenario.voice_id}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ TTS recommendation session completed:', completedSessionData)
                     setSessionData(completedSessionData)
@@ -1184,6 +1375,7 @@ export default function TrainingSessionPage() {
                   scenarioQuestions={scenarioQuestions}
                   language={selectedLanguage}
                   agentId="agent_9301k5efjt1sf81vhzc3pjmw0fy9"
+                  voiceId={resolvedVoiceId || currentScenario.voice_id}
                   recordingPreference={recordingPreference}
                   videoAspectRatio={videoAspectRatio}
                   preAuthorizedTabAudio={preAuthorizedTabAudio}

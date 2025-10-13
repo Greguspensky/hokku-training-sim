@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { scenarioService, SCENARIO_TEMPLATES, type ScenarioType, type ScenarioTemplate, type Track, type Scenario } from '@/lib/scenarios'
 import { getEmotionOptions, type CustomerEmotionLevel } from '@/lib/customer-emotions'
+import { ELEVENLABS_VOICES, RANDOM_VOICE_OPTION } from '@/lib/elevenlabs-voices'
 
 interface KnowledgeTopic {
   id: string
@@ -47,6 +48,8 @@ interface EditScenarioFormData {
   recommendation_question_durations: { [questionId: string]: number }
   instructions: string
   customer_emotion_level: CustomerEmotionLevel
+  voice_id: string
+  use_random_voice: boolean
 }
 
 interface EditScenarioFormProps {
@@ -75,7 +78,9 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     recommendation_question_ids: scenario.recommendation_question_ids || [],
     recommendation_question_durations: scenario.recommendation_question_durations || {},
     instructions: scenario.instructions || '',
-    customer_emotion_level: scenario.customer_emotion_level || 'calm'
+    customer_emotion_level: scenario.customer_emotion_level || 'calm',
+    voice_id: scenario.voice_id || RANDOM_VOICE_OPTION,
+    use_random_voice: !scenario.voice_id || scenario.voice_id === RANDOM_VOICE_OPTION
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -211,6 +216,7 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
         body: JSON.stringify({
           company_id: companyId,
           ...formData,
+          voice_id: formData.use_random_voice ? RANDOM_VOICE_OPTION : formData.voice_id,
           topic_ids: formData.topic_ids.length > 0 ? formData.topic_ids : undefined
         })
       })
@@ -415,6 +421,51 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               </p>
             </div>
 
+            {/* Voice Selection */}
+            <div className="space-y-3">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.use_random_voice}
+                  onChange={(e) => {
+                    const useRandom = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      use_random_voice: useRandom,
+                      voice_id: useRandom ? RANDOM_VOICE_OPTION : (ELEVENLABS_VOICES[0]?.id || RANDOM_VOICE_OPTION)
+                    }))
+                  }}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Use a Random Voice</span>
+              </label>
+              <p className="text-sm text-gray-500">
+                {formData.use_random_voice
+                  ? 'A random voice will be selected each time this scenario is played'
+                  : 'Select a specific voice for this scenario'}
+              </p>
+
+              {!formData.use_random_voice && (
+                <div>
+                  <label htmlFor="voice_id_edit" className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Voice
+                  </label>
+                  <select
+                    id="voice_id_edit"
+                    value={formData.voice_id}
+                    onChange={(e) => handleInputChange('voice_id', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {ELEVENLABS_VOICES.map(voice => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
             {/* Milestones Section - Only for Service Practice */}
             <div className="space-y-4">
               <h4 className="text-md font-medium text-gray-900">Milestones</h4>
@@ -477,6 +528,51 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
                 <strong>Recommendations scenarios</strong> are video response training where TTS asks questions and
                 employees respond through voice and video. Select questions from your recommendation question pool.
               </p>
+            </div>
+
+            {/* Voice Selection */}
+            <div className="space-y-3">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.use_random_voice}
+                  onChange={(e) => {
+                    const useRandom = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      use_random_voice: useRandom,
+                      voice_id: useRandom ? RANDOM_VOICE_OPTION : (ELEVENLABS_VOICES[0]?.id || RANDOM_VOICE_OPTION)
+                    }))
+                  }}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Use a Random Voice</span>
+              </label>
+              <p className="text-sm text-gray-500">
+                {formData.use_random_voice
+                  ? 'A random voice will be selected each time this scenario is played'
+                  : 'Select a specific voice for this scenario'}
+              </p>
+
+              {!formData.use_random_voice && (
+                <div>
+                  <label htmlFor="voice_id_edit_recommendations" className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Voice
+                  </label>
+                  <select
+                    id="voice_id_edit_recommendations"
+                    value={formData.voice_id}
+                    onChange={(e) => handleInputChange('voice_id', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {ELEVENLABS_VOICES.map(voice => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Question Selection */}
@@ -611,6 +707,51 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               <p className="text-sm text-gray-500 mt-1">
                 Maximum duration for this theory session (1-60 minutes)
               </p>
+            </div>
+
+            {/* Voice Selection */}
+            <div className="space-y-3">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.use_random_voice}
+                  onChange={(e) => {
+                    const useRandom = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      use_random_voice: useRandom,
+                      voice_id: useRandom ? RANDOM_VOICE_OPTION : (ELEVENLABS_VOICES[0]?.id || RANDOM_VOICE_OPTION)
+                    }))
+                  }}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Use a Random Voice</span>
+              </label>
+              <p className="text-sm text-gray-500">
+                {formData.use_random_voice
+                  ? 'A random voice will be selected each time this scenario is played'
+                  : 'Select a specific voice for this scenario'}
+              </p>
+
+              {!formData.use_random_voice && (
+                <div>
+                  <label htmlFor="voice_id_edit_theory" className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Voice
+                  </label>
+                  <select
+                    id="voice_id_edit_theory"
+                    value={formData.voice_id}
+                    onChange={(e) => handleInputChange('voice_id', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {ELEVENLABS_VOICES.map(voice => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Topic Selection */}

@@ -23,6 +23,7 @@ interface RecommendationTTSSessionProps {
   language?: string
   assignmentId?: string
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
+  voiceId?: string  // ElevenLabs Voice ID or 'random'
   onSessionEnd?: (sessionData: any) => void
   className?: string
 }
@@ -43,6 +44,7 @@ export function RecommendationTTSSession({
   language = 'en',
   assignmentId,
   videoAspectRatio = '16:9',
+  voiceId,
   onSessionEnd,
   className = ''
 }: RecommendationTTSSessionProps) {
@@ -172,7 +174,8 @@ export function RecommendationTTSSession({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: currentQuestion.question_text, // Includes audio tags
-          language: language
+          language: language,
+          voiceId: voiceId  // Pass voice ID for selection
         })
       })
 
