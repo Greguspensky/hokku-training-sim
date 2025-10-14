@@ -47,17 +47,45 @@ export async function GET(request: NextRequest) {
       // Continue without employee names
     }
 
+    // Get unique scenario IDs
+    const scenarioIds = [...new Set(sessions.map(s => s.scenario_id).filter(Boolean))]
+
+    // Fetch scenario information
+    let scenarios: any[] = []
+    if (scenarioIds.length > 0) {
+      const { data: scenarioData, error: scenariosError } = await supabaseAdmin
+        .from('scenarios')
+        .select('id, title, scenario_type')
+        .in('id', scenarioIds)
+
+      if (scenariosError) {
+        console.error('❌ Error fetching scenarios:', scenariosError)
+        // Continue without scenario names
+      } else {
+        scenarios = scenarioData || []
+      }
+    }
+
     // Create employee lookup map
     const employeeMap = new Map(
       (employees || []).map(emp => [emp.id, emp])
     )
 
-    // Transform the data to include employee_name
+    // Create scenario lookup map
+    const scenarioMap = new Map(
+      scenarios.map(scenario => [scenario.id, scenario])
+    )
+
+    // Transform the data to include employee_name and scenario_name
     const sessionsWithEmployeeNames = sessions.map(session => {
       const employee = employeeMap.get(session.employee_id)
+      const scenario = scenarioMap.get(session.scenario_id)
+
       return {
         ...session,
-        employee_name: employee?.name || employee?.email || 'Unknown Employee'
+        employee_name: employee?.name || employee?.email || 'Unknown Employee',
+        scenario_name: scenario?.title || null,
+        scenario_type: scenario?.scenario_type || null
       }
     })
 

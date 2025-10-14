@@ -6,6 +6,8 @@ import { trainingSessionsService, type TrainingSession } from '@/lib/training-se
 
 interface SessionWithEmployee extends TrainingSession {
   employee_name?: string
+  scenario_name?: string | null
+  scenario_type?: string | null
 }
 
 export default function SessionFeed({ companyId }: { companyId: string }) {
@@ -152,7 +154,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 </div>
 
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {session.session_name}
+                  {session.scenario_name || session.session_name}
                 </h3>
 
                 <div className="flex items-center text-sm text-gray-500">

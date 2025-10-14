@@ -28,7 +28,7 @@ export async function DELETE(
   }
 }
 
-// Update a specific question's answer
+// Update a specific question's answer or move to different topic
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -36,18 +36,37 @@ export async function PATCH(
   console.log(`✏️ Updating question: ${params.id}`)
 
   try {
-    const { correct_answer } = await request.json()
+    const body = await request.json()
+    const { correct_answer, topic_id } = body
 
-    if (!correct_answer || typeof correct_answer !== 'string') {
-      return NextResponse.json({ error: 'correct_answer is required' }, { status: 400 })
+    // Validate that at least one field is provided
+    if (!correct_answer && !topic_id) {
+      return NextResponse.json({ error: 'Either correct_answer or topic_id is required' }, { status: 400 })
+    }
+
+    // Build update object dynamically
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+
+    if (correct_answer) {
+      if (typeof correct_answer !== 'string') {
+        return NextResponse.json({ error: 'correct_answer must be a string' }, { status: 400 })
+      }
+      updateData.correct_answer = correct_answer.trim()
+    }
+
+    if (topic_id) {
+      if (typeof topic_id !== 'string') {
+        return NextResponse.json({ error: 'topic_id must be a string' }, { status: 400 })
+      }
+      updateData.topic_id = topic_id
+      console.log(`📦 Moving question ${params.id} to topic ${topic_id}`)
     }
 
     const { data, error } = await supabaseAdmin
       .from('topic_questions')
-      .update({
-        correct_answer: correct_answer.trim(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', params.id)
       .select()
       .single()

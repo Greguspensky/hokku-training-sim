@@ -41,6 +41,19 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
   const [editingTopic, setEditingTopic] = useState<string | null>(null)
   const [editTopicName, setEditTopicName] = useState('')
 
+  // New state for topic creation
+  const [showCreateTopic, setShowCreateTopic] = useState(false)
+  const [newTopicName, setNewTopicName] = useState('')
+  const [newTopicDescription, setNewTopicDescription] = useState('')
+  const [newTopicCategory, setNewTopicCategory] = useState('manual')
+  const [creatingTopic, setCreatingTopic] = useState(false)
+
+  // New state for question selection and moving
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set())
+  const [showMoveDialog, setShowMoveDialog] = useState(false)
+  const [targetTopicId, setTargetTopicId] = useState('')
+  const [movingQuestions, setMovingQuestions] = useState(false)
+
   useEffect(() => {
     loadTopics()
   }, [companyId])
@@ -204,6 +217,114 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     }
   }
 
+  const createTopic = async () => {
+    if (!newTopicName.trim()) {
+      alert('Topic name is required')
+      return
+    }
+
+    try {
+      setCreatingTopic(true)
+      const response = await fetch('/api/knowledge-assessment/topics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: newTopicName.trim(),
+          description: newTopicDescription.trim(),
+          category: newTopicCategory,
+          company_id: companyId
+        })
+      })
+
+      if (response.ok) {
+        await loadTopics()
+        setShowCreateTopic(false)
+        setNewTopicName('')
+        setNewTopicDescription('')
+        setNewTopicCategory('manual')
+        alert('Topic created successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to create topic: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error creating topic:', error)
+      alert('Failed to create topic. Please try again.')
+    } finally {
+      setCreatingTopic(false)
+    }
+  }
+
+  const toggleQuestionSelection = (questionId: string) => {
+    const newSelected = new Set(selectedQuestions)
+    if (newSelected.has(questionId)) {
+      newSelected.delete(questionId)
+    } else {
+      newSelected.add(questionId)
+    }
+    setSelectedQuestions(newSelected)
+  }
+
+  const selectAllQuestionsInTopic = (topicId: string) => {
+    const topic = topics.find(t => t.id === topicId)
+    if (!topic || !topic.topic_questions) return
+
+    const newSelected = new Set(selectedQuestions)
+    topic.topic_questions.forEach(q => newSelected.add(q.id))
+    setSelectedQuestions(newSelected)
+  }
+
+  const deselectAllQuestions = () => {
+    setSelectedQuestions(new Set())
+  }
+
+  const moveSelectedQuestions = async () => {
+    if (selectedQuestions.size === 0) {
+      alert('No questions selected')
+      return
+    }
+
+    if (!targetTopicId) {
+      alert('Please select a target topic')
+      return
+    }
+
+    try {
+      setMovingQuestions(true)
+
+      // Move each selected question
+      const movePromises = Array.from(selectedQuestions).map(questionId =>
+        fetch(`/api/questions/${questionId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ topic_id: targetTopicId })
+        })
+      )
+
+      const results = await Promise.all(movePromises)
+      const failedMoves = results.filter(r => !r.ok)
+
+      if (failedMoves.length === 0) {
+        alert(`Successfully moved ${selectedQuestions.size} question(s)!`)
+        await loadTopics()
+        setSelectedQuestions(new Set())
+        setShowMoveDialog(false)
+        setTargetTopicId('')
+      } else {
+        alert(`Failed to move ${failedMoves.length} question(s). Please try again.`)
+      }
+    } catch (error) {
+      console.error('Error moving questions:', error)
+      alert('Failed to move questions. Please try again.')
+    } finally {
+      setMovingQuestions(false)
+    }
+  }
+
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
       case 'multiple_choice': return '📝'
@@ -302,17 +423,48 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                 <span className="bg-green-50 px-3 py-1 rounded-full">
                   ❓ {totalQuestions} Questions
                 </span>
+                {selectedQuestions.size > 0 && (
+                  <span className="bg-purple-50 px-3 py-1 rounded-full">
+                    ✅ {selectedQuestions.size} Selected
+                  </span>
+                )}
               </div>
-              {topics.length > 0 && (
+              <div className="flex items-center space-x-2">
                 <button
-                  onClick={clearAllQuestions}
-                  disabled={clearing}
-                  className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                  onClick={() => setShowCreateTopic(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
                 >
-                  <span>🗑️</span>
-                  <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
+                  <span>➕</span>
+                  <span>Create Topic</span>
                 </button>
-              )}
+                {selectedQuestions.size > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowMoveDialog(true)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                    >
+                      <span>📦</span>
+                      <span>Move Selected</span>
+                    </button>
+                    <button
+                      onClick={deselectAllQuestions}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Clear Selection
+                    </button>
+                  </>
+                )}
+                {topics.length > 0 && (
+                  <button
+                    onClick={clearAllQuestions}
+                    disabled={clearing}
+                    className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                  >
+                    <span>🗑️</span>
+                    <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -412,6 +564,16 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                           >
                             ✏️
                           </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              selectAllQuestionsInTopic(topic.id)
+                            }}
+                            className="text-purple-600 hover:text-purple-800 text-sm ml-2"
+                            title="Select all questions in this topic"
+                          >
+                            ☑️ Select All
+                          </button>
                         </>
                       )}
                     </div>
@@ -438,7 +600,13 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                   <div className="p-4 space-y-4">
                     {topic.topic_questions.map(question => (
                       <div key={question.id} className="bg-white rounded-lg p-4 border">
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedQuestions.has(question.id)}
+                            onChange={() => toggleQuestionSelection(question.id)}
+                            className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded cursor-pointer"
+                          />
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900 mb-3">{question.question_template}</h4>
 
@@ -472,28 +640,28 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                                 <p className="text-sm font-medium text-green-700">{question.correct_answer}</p>
                               </div>
                             )}
-                          </div>
 
-                          <div className="flex items-center space-x-2 ml-4">
-                            {editingQuestion !== question.id && (
-                              <>
-                                <button
-                                  onClick={() => startEditAnswer(question.id, question.correct_answer)}
-                                  className="text-blue-600 hover:text-blue-800 text-sm"
-                                  title="Edit answer"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  onClick={() => deleteQuestion(question.id)}
-                                  disabled={deletingQuestion === question.id}
-                                  className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
-                                  title="Delete question"
-                                >
-                                  {deletingQuestion === question.id ? '⏳' : '🗑️'}
-                                </button>
-                              </>
-                            )}
+                            <div className="flex items-center space-x-2">
+                              {editingQuestion !== question.id && (
+                                <>
+                                  <button
+                                    onClick={() => startEditAnswer(question.id, question.correct_answer)}
+                                    className="text-blue-600 hover:text-blue-800 text-sm"
+                                    title="Edit answer"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={() => deleteQuestion(question.id)}
+                                    disabled={deletingQuestion === question.id}
+                                    className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
+                                    title="Delete question"
+                                  >
+                                    {deletingQuestion === question.id ? '⏳' : '🗑️'}
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -503,6 +671,141 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Create Topic Modal */}
+      {showCreateTopic && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Topic</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Topic Name *
+                </label>
+                <input
+                  type="text"
+                  value={newTopicName}
+                  onChange={(e) => setNewTopicName(e.target.value)}
+                  placeholder="e.g., Coffee Brewing Techniques"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={newTopicDescription}
+                  onChange={(e) => setNewTopicDescription(e.target.value)}
+                  placeholder="Brief description of this topic..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
+                <select
+                  value={newTopicCategory}
+                  onChange={(e) => setNewTopicCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="manual">Manual</option>
+                  <option value="menu">Menu</option>
+                  <option value="procedures">Procedures</option>
+                  <option value="policies">Policies</option>
+                  <option value="general">General</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateTopic(false)
+                  setNewTopicName('')
+                  setNewTopicDescription('')
+                  setNewTopicCategory('manual')
+                }}
+                disabled={creatingTopic}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createTopic}
+                disabled={creatingTopic || !newTopicName.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creatingTopic ? 'Creating...' : 'Create Topic'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Questions Modal */}
+      {showMoveDialog && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Move {selectedQuestions.size} Question{selectedQuestions.size !== 1 ? 's' : ''}
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Target Topic *
+                </label>
+                <select
+                  value={targetTopicId}
+                  onChange={(e) => setTargetTopicId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                  autoFocus
+                >
+                  <option value="">-- Select a topic --</option>
+                  {topics.map(topic => (
+                    <option key={topic.id} value={topic.id}>
+                      {topic.name} ({topic.category})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                <p className="text-sm text-purple-800">
+                  <strong>{selectedQuestions.size}</strong> question{selectedQuestions.size !== 1 ? 's' : ''} will be moved to the selected topic.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowMoveDialog(false)
+                  setTargetTopicId('')
+                }}
+                disabled={movingQuestions}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={moveSelectedQuestions}
+                disabled={movingQuestions || !targetTopicId}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {movingQuestions ? 'Moving...' : 'Move Questions'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

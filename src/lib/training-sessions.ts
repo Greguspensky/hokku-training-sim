@@ -14,6 +14,7 @@ export interface TrainingSession {
   employee_id: string
   assignment_id: string
   company_id: string
+  scenario_id?: string | null
   session_name: string
   training_mode: 'theory' | 'service_practice' | 'recommendation_tts'
   language: string

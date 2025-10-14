@@ -1190,24 +1190,6 @@ Start the conversation by presenting your customer problem or situation.`
             </div>
           )}
 
-          {/* Structured Questions Status - Only show for Theory mode */}
-          {scenarioContext?.type === 'theory' && structuredQuestions.length > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="font-semibold text-green-900 mb-2">
-                📋 Structured Questions Loaded
-              </h3>
-              <div className="text-green-800 text-sm space-y-1">
-                <p><strong>Questions Available:</strong> {structuredQuestions.length} questions</p>
-                <p><strong>Unanswered:</strong> {structuredQuestions.filter(q => q.status === 'unanswered').length}</p>
-                <p><strong>Incorrect:</strong> {structuredQuestions.filter(q => q.status === 'incorrect').length}</p>
-                <p><strong>Correct:</strong> {structuredQuestions.filter(q => q.status === 'correct').length}</p>
-                <p className="text-xs text-green-600 mt-1">
-                  ElevenLabs agent will ask these specific questions during the session
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Controls */}
           <div className="flex items-center gap-4">
             {!isSessionActive ? (

@@ -8,9 +8,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const scenarioId = searchParams.get('scenario_id')
     const employeeId = searchParams.get('employee_id')
-    const limit = parseInt(searchParams.get('limit') || '8')
+    const limitParam = searchParams.get('limit')
+    const limit = limitParam ? parseInt(limitParam) : null
 
-    console.log(`🎯 Fetching questions for scenario: ${scenarioId}, employee: ${employeeId}`)
+    console.log(`🎯 Fetching questions for scenario: ${scenarioId}, employee: ${employeeId}, limit: ${limit || 'all'}`)
 
     if (!scenarioId) {
       return NextResponse.json({
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       console.log(`📖 Theory scenario found with ${scenario.topic_ids.length} topics:`, scenario.topic_ids)
 
       // Get questions for the specific topics
-      const { data: questionsData, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('topic_questions')
         .select(`
           id,
@@ -58,7 +59,13 @@ export async function GET(request: NextRequest) {
         .in('topic_id', scenario.topic_ids)
         .eq('is_active', true)
         .order('difficulty_level', { ascending: true })
-        .limit(limit)
+
+      // Only apply limit if specified
+      if (limit) {
+        query = query.limit(limit)
+      }
+
+      const { data: questionsData, error } = await query
 
       if (error) {
         console.error('❌ Error fetching scenario questions:', error)
