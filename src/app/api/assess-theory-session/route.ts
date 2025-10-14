@@ -6,6 +6,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
+// Correctness threshold: answers with score >= 80% are considered correct
+const CORRECTNESS_THRESHOLD = 80
+
 interface ConversationMessage {
   role: 'user' | 'assistant'
   content: string
@@ -142,12 +145,15 @@ export async function POST(request: NextRequest) {
           ? matchedQuestion.knowledge_topics[0]
           : matchedQuestion.knowledge_topics
 
+        // Apply threshold for correctness
+        const isCorrectByThreshold = assessment.isCorrect || assessment.score >= CORRECTNESS_THRESHOLD
+
         const result: AssessmentResult = {
           questionId: matchedQuestion.id,
           questionAsked: exchange.question,
           userAnswer: exchange.answer,
           correctAnswer: matchedQuestion.correct_answer,
-          isCorrect: assessment.isCorrect,
+          isCorrect: isCorrectByThreshold,
           score: assessment.score,
           feedback: assessment.feedback,
           topicName: topic.name,
@@ -376,6 +382,11 @@ async function recordQuestionAttempt(
 
     const employeeId = employee.id
 
+    // Apply correctness threshold
+    const isCorrectByThreshold = assessment.isCorrect || assessment.score >= CORRECTNESS_THRESHOLD
+
+    console.log(`🎯 Answer assessment: score=${assessment.score}%, AI says=${assessment.isCorrect}, threshold result=${isCorrectByThreshold}`)
+
     // Record the question attempt
     const attemptData = {
       training_session_id: sessionId,
@@ -385,8 +396,8 @@ async function recordQuestionAttempt(
       question_asked: exchange.question,
       employee_answer: exchange.answer,
       correct_answer: question.correct_answer,
-      is_correct: assessment.isCorrect,
-      points_earned: assessment.isCorrect ? (question.points || 1) : 0,
+      is_correct: isCorrectByThreshold,
+      points_earned: isCorrectByThreshold ? (question.points || 1) : 0,
       time_spent_seconds: 30, // Estimate for voice answers
       attempt_number: 1,
       created_at: new Date().toISOString()
@@ -395,7 +406,7 @@ async function recordQuestionAttempt(
     console.log('💾 Recording question attempt:', {
       question_id: question.id,
       employee_id: employeeId,
-      is_correct: assessment.isCorrect
+      is_correct: isCorrectByThreshold
     })
 
     const { error: attemptError } = await supabaseAdmin
@@ -407,7 +418,7 @@ async function recordQuestionAttempt(
       throw attemptError
     }
 
-    console.log(`✅ Recorded attempt for question ${question.id}: ${assessment.isCorrect ? 'CORRECT' : 'INCORRECT'}`)
+    console.log(`✅ Recorded attempt for question ${question.id}: ${isCorrectByThreshold ? 'CORRECT' : 'INCORRECT'}`)
 
     // Update employee topic progress
     const { data: currentProgress } = await supabaseAdmin
@@ -418,7 +429,7 @@ async function recordQuestionAttempt(
       .single()
 
     const totalAttempts = (currentProgress?.total_attempts || 0) + 1
-    const correctAttempts = (currentProgress?.correct_attempts || 0) + (assessment.isCorrect ? 1 : 0)
+    const correctAttempts = (currentProgress?.correct_attempts || 0) + (isCorrectByThreshold ? 1 : 0)
     const masteryLevel = totalAttempts > 0 ? correctAttempts / totalAttempts : 0
 
     const { error: progressError } = await supabaseAdmin

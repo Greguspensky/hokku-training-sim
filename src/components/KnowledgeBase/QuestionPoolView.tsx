@@ -53,6 +53,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
   const [showMoveDialog, setShowMoveDialog] = useState(false)
   const [targetTopicId, setTargetTopicId] = useState('')
   const [movingQuestions, setMovingQuestions] = useState(false)
+  const [deletingQuestions, setDeletingQuestions] = useState(false)
 
   useEffect(() => {
     loadTopics()
@@ -325,6 +326,44 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     }
   }
 
+  const deleteSelectedQuestions = async () => {
+    if (selectedQuestions.size === 0) {
+      alert('No questions selected')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedQuestions.size} selected question(s)? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      setDeletingQuestions(true)
+
+      const response = await fetch('/api/questions', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ question_ids: Array.from(selectedQuestions) })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Successfully deleted ${data.deleted_count} question(s)!`)
+        await loadTopics()
+        setSelectedQuestions(new Set())
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete questions: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting questions:', error)
+      alert('Failed to delete questions. Please try again.')
+    } finally {
+      setDeletingQuestions(false)
+    }
+  }
+
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
       case 'multiple_choice': return '📝'
@@ -383,95 +422,107 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 mb-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">AI-Generated Question Pool</h2>
+        {/* Header with Title and View Toggle */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">AI-Generated Question Pool</h2>
+
+          {/* View Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('grouped')}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'grouped'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span>📁</span>
+              <span>Grouped by Topic</span>
+            </button>
+            <button
+              onClick={() => setViewMode('flat')}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'flat'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span>📄</span>
+              <span>Flat List</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Stats and Actions */}
+        <div className="flex items-center justify-between">
+          {/* Stats */}
+          <div className="flex items-center space-x-3">
+            <span className="bg-blue-50 px-3 py-1.5 rounded-full text-sm font-medium text-blue-700">
+              📚 {topics.length} Topics
+            </span>
+            <span className="bg-green-50 px-3 py-1.5 rounded-full text-sm font-medium text-green-700">
+              ❓ {totalQuestions} Questions
+            </span>
+            {selectedQuestions.size > 0 && (
+              <span className="bg-purple-50 px-3 py-1.5 rounded-full text-sm font-medium text-purple-700">
+                ✅ {selectedQuestions.size} Selected
+              </span>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-            {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grouped')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'grouped'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <span>📁</span>
-                <span>Grouped by Topic</span>
-              </button>
-              <button
-                onClick={() => setViewMode('flat')}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'flat'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <span>📄</span>
-                <span>Flat List</span>
-              </button>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowCreateTopic(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
+            >
+              <span>➕</span>
+              <span>Create Topic</span>
+            </button>
 
-            <div className="flex items-center space-x-4">
-              <div className="flex space-x-4 text-sm text-gray-600">
-                <span className="bg-blue-50 px-3 py-1 rounded-full">
-                  📚 {topics.length} Topics
-                </span>
-                <span className="bg-green-50 px-3 py-1 rounded-full">
-                  ❓ {totalQuestions} Questions
-                </span>
-                {selectedQuestions.size > 0 && (
-                  <span className="bg-purple-50 px-3 py-1 rounded-full">
-                    ✅ {selectedQuestions.size} Selected
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
+            {selectedQuestions.size > 0 && (
+              <>
                 <button
-                  onClick={() => setShowCreateTopic(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
+                  onClick={() => setShowMoveDialog(true)}
+                  disabled={movingQuestions}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
                 >
-                  <span>➕</span>
-                  <span>Create Topic</span>
+                  <span>📦</span>
+                  <span>{movingQuestions ? 'Moving...' : 'Move Selected'}</span>
                 </button>
-                {selectedQuestions.size > 0 && (
-                  <>
-                    <button
-                      onClick={() => setShowMoveDialog(true)}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
-                    >
-                      <span>📦</span>
-                      <span>Move Selected</span>
-                    </button>
-                    <button
-                      onClick={deselectAllQuestions}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
-                    >
-                      Clear Selection
-                    </button>
-                  </>
-                )}
-                {topics.length > 0 && (
-                  <button
-                    onClick={clearAllQuestions}
-                    disabled={clearing}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center space-x-1"
-                  >
-                    <span>🗑️</span>
-                    <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
-                  </button>
-                )}
-              </div>
-            </div>
+                <button
+                  onClick={deleteSelectedQuestions}
+                  disabled={deletingQuestions}
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
+                >
+                  <span>🗑️</span>
+                  <span>{deletingQuestions ? 'Deleting...' : 'Delete Selected'}</span>
+                </button>
+                <button
+                  onClick={deselectAllQuestions}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Clear Selection
+                </button>
+              </>
+            )}
+
+            {topics.length > 0 && (
+              <button
+                onClick={clearAllQuestions}
+                disabled={clearing}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
+              >
+                <span>🗑️</span>
+                <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Category Filter - only show for grouped view */}
         {viewMode === 'grouped' && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mt-4">
             {categories.map(category => (
               <button
                 key={category}

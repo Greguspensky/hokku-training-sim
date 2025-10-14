@@ -29,7 +29,12 @@ interface TopicSummary {
   mastery_percentage: number
 }
 
-export default function QuestionProgressDashboard() {
+interface QuestionProgressDashboardProps {
+  userId?: string
+  companyId?: string
+}
+
+export default function QuestionProgressDashboard({ userId: propUserId, companyId: propCompanyId }: QuestionProgressDashboardProps = {}) {
   const { user } = useAuth()
   const [questions, setQuestions] = useState<QuestionProgress[]>([])
   const [topics, setTopics] = useState<TopicSummary[]>([])
@@ -38,8 +43,9 @@ export default function QuestionProgressDashboard() {
   const [selectedTopic, setSelectedTopic] = useState<string>('all')
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
-  const userId = user?.id
-  const companyId = user?.company_id
+  // Use props if provided, otherwise fall back to auth context
+  const userId = propUserId || user?.id
+  const companyId = propCompanyId || user?.company_id
 
   useEffect(() => {
     if (!userId) return

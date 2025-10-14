@@ -23,9 +23,11 @@ interface ScenarioStats {
 
 interface TrainingTrackCardProps {
   assignment: AssignmentWithDetails
+  managerView?: boolean
+  employeeUserId?: string
 }
 
-export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps) {
+export default function TrainingTrackCard({ assignment, managerView = false, employeeUserId }: TrainingTrackCardProps) {
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [scenariosLoading, setScenariosLoading] = useState(true)
   const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
@@ -33,7 +35,8 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
   const router = useRouter()
   const { user } = useAuth()
 
-  const userId = user?.id
+  // Use provided employeeUserId in manager view, otherwise use auth user
+  const userId = employeeUserId || user?.id
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -190,6 +193,34 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
     }
   }
 
+  // Calculate actual progress based on scenario completion
+  const calculateRealProgress = (): number => {
+    if (scenarios.length === 0) return 0
+
+    let completedCount = 0
+    scenarios.forEach(scenario => {
+      const stats = scenarioStats[scenario.id]
+      if (stats) {
+        // For theory scenarios, consider completed if 100% completion
+        // For other scenarios, check isCompleted flag
+        if (scenario.scenario_type === 'theory') {
+          if (stats.completionPercentage === 100) {
+            completedCount++
+          }
+        } else {
+          if (stats.isCompleted) {
+            completedCount++
+          }
+        }
+      }
+    })
+
+    return Math.round((completedCount / scenarios.length) * 100)
+  }
+
+  // Use real progress if scenarios are loaded, otherwise fall back to assignment progress
+  const displayProgress = scenarios.length > 0 ? calculateRealProgress() : assignment.progress_percentage
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="p-6">
@@ -235,18 +266,18 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">Progress</span>
-            <span className="text-sm text-gray-500">{assignment.progress_percentage}%</span>
+            <span className="text-sm text-gray-500">{displayProgress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
               className={`h-3 rounded-full transition-all duration-300 ${
-                assignment.progress_percentage === 100
+                displayProgress === 100
                   ? 'bg-green-500'
-                  : assignment.progress_percentage > 0
+                  : displayProgress > 0
                   ? 'bg-blue-500'
                   : 'bg-gray-300'
               }`}
-              style={{ width: `${assignment.progress_percentage}%` }}
+              style={{ width: `${displayProgress}%` }}
             />
           </div>
         </div>
@@ -318,15 +349,17 @@ export default function TrainingTrackCard({ assignment }: TrainingTrackCardProps
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleStartScenario(scenario)}
-                      className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Start
-                    </button>
+                    {!managerView && (
+                      <button
+                        onClick={() => handleStartScenario(scenario)}
+                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Start
+                      </button>
+                    )}
                   </div>
                 )
               })}

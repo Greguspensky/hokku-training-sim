@@ -42,24 +42,38 @@ export default function SessionTranscriptPage() {
       setError(null)
 
       console.log('📖 Loading training session transcript:', sessionId)
-      const sessionData = await trainingSessionsService.getSessionById(sessionId)
 
-      if (!sessionData) {
-        setError('Training session not found')
+      // Use API endpoint with admin client to bypass RLS
+      const response = await fetch(`/api/training-session/${sessionId}`)
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        setError(data.error || 'Training session not found')
         return
       }
 
-      // Verify user has access to this session (always use auth user ID for consistency)
-      const employeeId = user?.id
-      console.log('🔐 Access check - Session employee_id:', sessionData.employee_id, 'User ID:', employeeId)
+      const sessionData = data.session
 
-      if (sessionData.employee_id !== employeeId) {
-        console.error('❌ Access denied - IDs do not match')
-        setError('Access denied: This session belongs to another user')
+      // Verify user has access to this session
+      const userId = user?.id
+      const userRole = user?.role
+      const userCompanyId = user?.company_id
+
+      console.log('🔐 Access check - Session employee_id:', sessionData.employee_id, 'User ID:', userId, 'Role:', userRole)
+
+      // Allow access if:
+      // 1. User is viewing their own session
+      // 2. User is a manager viewing a session from their company
+      const isOwnSession = sessionData.employee_id === userId
+      const isManagerViewingCompanySession = userRole === 'manager' && sessionData.company_id === userCompanyId
+
+      if (!isOwnSession && !isManagerViewingCompanySession) {
+        console.error('❌ Access denied - User cannot view this session')
+        setError('Access denied: You do not have permission to view this session')
         return
       }
 
-      console.log('✅ Access granted')
+      console.log('✅ Access granted:', isOwnSession ? 'Own session' : 'Manager viewing company session')
 
       setSession(sessionData)
       console.log('✅ Session transcript loaded successfully')

@@ -49,3 +49,46 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { question_ids } = await request.json()
+
+    if (!question_ids || !Array.isArray(question_ids) || question_ids.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'question_ids array is required' },
+        { status: 400 }
+      )
+    }
+
+    console.log(`🗑️ Deleting ${question_ids.length} questions...`)
+
+    // Delete questions from topic_questions table
+    const { error } = await supabaseAdmin
+      .from('topic_questions')
+      .delete()
+      .in('id', question_ids)
+
+    if (error) {
+      console.error('❌ Error deleting questions:', error)
+      return NextResponse.json(
+        { success: false, error: 'Failed to delete questions' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`✅ Successfully deleted ${question_ids.length} questions`)
+
+    return NextResponse.json({
+      success: true,
+      deleted_count: question_ids.length
+    })
+
+  } catch (error) {
+    console.error('❌ Error in bulk delete API:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

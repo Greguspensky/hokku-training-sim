@@ -289,10 +289,16 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                 Feed
               </button>
               <button
+                onClick={() => router.push('/manager?tab=progress')}
+                className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
+              >
+                Progress
+              </button>
+              <button
                 onClick={() => router.push('/manager?tab=training')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Training
+                Scenarios and Tracks
               </button>
               <button
                 onClick={() => {}}

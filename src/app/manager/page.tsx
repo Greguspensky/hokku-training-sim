@@ -9,9 +9,11 @@ import EditScenarioForm from '@/components/EditScenarioForm'
 import AddScenariosDialog from '@/components/AddScenariosDialog'
 import UserHeader from '@/components/UserHeader'
 import SessionFeed from '@/components/Manager/SessionFeed'
+import EmployeeProgressList from '@/components/Manager/EmployeeProgressList'
+import EmployeeDashboardView from '@/components/Manager/EmployeeDashboardView'
 import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario, scenarioService } from '@/lib/scenarios'
-import { employeeService } from '@/lib/employees'
+import { employeeService, Employee } from '@/lib/employees'
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName } from '@/lib/elevenlabs-voices'
@@ -116,9 +118,10 @@ export default function ManagerDashboard() {
   const [loading, setLoading] = useState(true)
   const [roleChecking, setRoleChecking] = useState(true)
   const [isEmployee, setIsEmployee] = useState(false)
-  const [activeTab, setActiveTab] = useState<'feed' | 'training' | 'knowledge' | 'employees'>('feed')
+  const [activeTab, setActiveTab] = useState<'feed' | 'progress' | 'training' | 'knowledge' | 'employees'>('feed')
   const [defaultLanguage, setDefaultLanguage] = useState('en')
   const [savingLanguage, setSavingLanguage] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
 
   // Read tab from URL query parameter
   useEffect(() => {
@@ -528,6 +531,16 @@ export default function ManagerDashboard() {
                 Feed
               </button>
               <button
+                onClick={() => setActiveTab('progress')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'progress'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Progress
+              </button>
+              <button
                 onClick={() => setActiveTab('training')}
                 className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'training'
@@ -535,7 +548,7 @@ export default function ManagerDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Training
+                Scenarios and Tracks
               </button>
               <button
                 onClick={() => router.push('/manager/knowledge-base')}
@@ -896,6 +909,37 @@ export default function ManagerDashboard() {
             </div>
             </div>
           )
+        ) : activeTab === 'progress' ? (
+          /* Progress View - Employee Training Progress */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Employee List - Left Side */}
+            <div className="lg:col-span-1">
+              <EmployeeProgressList
+                companyId={companyId}
+                selectedEmployeeId={selectedEmployee?.id || null}
+                onSelectEmployee={setSelectedEmployee}
+              />
+            </div>
+
+            {/* Employee Dashboard - Right Side */}
+            <div className="lg:col-span-2">
+              {selectedEmployee ? (
+                <EmployeeDashboardView employee={selectedEmployee} />
+              ) : (
+                <div className="bg-white rounded-lg shadow p-12 text-center">
+                  <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Select an Employee
+                  </h3>
+                  <p className="text-gray-500">
+                    Choose an employee from the list to view their training progress and performance
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         ) : null}
 
         {/* Track Form Modal */}
