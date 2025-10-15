@@ -82,7 +82,7 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     recommendation_question_ids: [],
     recommendation_question_durations: {},
     instructions: '',
-    customer_emotion_level: 'calm',
+    customer_emotion_level: 'sunshine',
     voice_id: RANDOM_VOICE_OPTION,
     use_random_voice: true
   })

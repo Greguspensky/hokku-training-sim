@@ -5,83 +5,52 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2025-10-12)
-**🤬 LATEST (2025-10-12 PM)**: Customer Emotional States System COMPLETE & WORKING ✅
-**⏱️ EARLIER (2025-10-12 AM)**: Session Time Limit System COMPLETE ✅
-**🎉 PREVIOUS (2025-10-10)**: Knowledge System Refactoring & Question Scoring COMPLETE ✅
-**🎥 WORKING**: Complete Video Recording Audio Capture System WORKING ✅
-**Status**: ElevenLabs Conversational AI integration COMPLETE and WORKING ✅
-**NEW**: AI Knowledge Extraction System COMPLETE and TESTED ✅
-**🔥 COMPLETE**: Recommendation Training with TTS Video Recording COMPLETE ✅
-**🎬 BREAKTHROUGH**: Mobile Video Recording with Cross-Platform Compatibility ✅
-**✅ FIXED**: Scenario-Specific Question Selection and Language Initialization FIXED ✅
-**📚 Documentation**: Comprehensive system documentation complete
+## Current Project State (2025-10-15)
 
-### What's Working Now ✅
+### Latest Features ✅
+- **🧊 Customer Emotion System Redesign (2025-10-15)**: 5 emotion levels - renamed + NEW "Cold" customer type ✅ **CODE COMPLETE**
+- **🤬 Customer Emotional States (2025-10-12 PM)**: Authentic AI behavior with dynamic emotion responses ✅ **TESTED & WORKING**
+- **⏱️ Session Time Limit System (2025-10-12 AM)**: Configurable time limits (1-60 minutes) ✅
+- **📊 Question Scoring System (2025-10-10)**: Complete mastery tracking per topic ✅
+- **🎥 Video Recording**: Records BOTH user voice AND AI agent audio (ElevenLabs + TTS) ✅
+- **ElevenLabs AI**: Conversational AI integration COMPLETE and WORKING ✅
 
-#### **Core Training Systems**
-- **Theory Q&A System**: Agent acts as strict examiner asking scenario-specific questions
-- **🔥 Scenario-Specific Questions**: Agent asks ONLY the questions assigned to the specific scenario (e.g., 8 pastry questions) instead of general knowledge base
-- **🎬 Recommendation Training**: TTS-based product recommendation sessions with video recording
-- **Service Practice**: Hands-on customer service scenario training
+### Core Training Systems
+- **Theory Q&A**: Agent acts as strict examiner asking scenario-specific questions
+- **Recommendation Training**: TTS-based product recommendation sessions with video recording
+- **Service Practice**: Hands-on customer service scenario training with emotional states
 
-#### **Advanced Features**
-- **🤬 Customer Emotional States (2025-10-12 PM)**: 4 emotion levels (Calm, Frustrated, Angry, Extremely Angry) with authentic AI behavior, linguistic markers, and de-escalation progression ✅ **TESTED & WORKING**
-- **⏱️ Session Time Limit System (2025-10-12 AM)**: Configurable time limits (1-60 minutes) for Theory Q&A and Service Practice scenarios ✅
-- **📊 Question Scoring System (2025-10-10)**: Complete mastery tracking per topic with automatic progress updates ✅
-- **🎯 Mastery Level Calculation**: Real-time calculation of employee mastery (correct/total attempts) per topic
-- **🗄️ Database-Driven Content (2025-10-10)**: 100% dynamic knowledge loading - no hard-coded fallbacks ✅
-- **🎥 Complete Audio Capture (2025-10-10)**: Records BOTH user voice AND AI agent audio (ElevenLabs + TTS) in single video - 100% success rate ✅
-- **🎵 LiveKit Audio Integration**: Direct extraction of ElevenLabs agent speech via LiveKit RemoteParticipant API
-- **📹 Video Preview System**: Real-time camera preview with proper stream re-attachment on React re-renders
-- **⏱️ Perfect TTS Timing**: First question audio always captured via proper async flow control
-- **📱 Mobile Cross-Platform Compatibility**: Dynamic MIME type detection (video/mp4 for iOS, video/webm for Android)
-- **Multi-language Support**: 13 languages with flag dropdown selection and immediate language initialization
-- **Dynamic Knowledge**: Database-driven knowledge loading (3 documents, 1744 chars)
-- **Dynamic Variables**: Successfully passing instructions and knowledge to agent
-- **Question Preview**: UI shows exactly which questions the agent will ask with priority status
-
-#### **AI-Powered Systems**
-- **✅ AI Knowledge Extraction**: GPT-4 analyzes documents → 18 topics → 54 questions automatically
-- **✅ Assessment Scoring**: Real Q&A evaluation scores instead of "No Assessment Available"
-- **✅ Transcript Analysis**: Manual transcript retrieval and Q&A analysis system
-- **✅ Language-Specific Initialization**: Agent starts immediately in selected language without English greeting
-
-#### **Technical Achievements**
-- **AudioBuffer TTS Mixing**: Sophisticated Web Audio API implementation for perfect audio synchronization
-- **Ref-Based Chunk Storage**: Reliable video data handling avoiding React state timing issues
-- **Cross-Platform MediaRecorder**: Automatic format detection and device optimization
-- **Real-Time Debug Logging**: Comprehensive monitoring and error tracking system
+### Key Technical Features
+- **Dynamic Knowledge System**: 100% database-driven content loading
+- **AI Assessment Scoring**: Real Q&A evaluation with GPT-4
+- **Multilingual Support**: 13 languages with immediate language initialization
+- **Mobile Compatible**: Cross-platform video recording (iOS/Android)
+- **Progress Tracking**: Automatic mastery calculations per topic
 
 ### Key URLs
-- Training Page: http://localhost:3000/employee/training/demo-assignment-1758312913428-7qtmmsq
-- Test Page: http://localhost:3000/test-elevenlabs
-- **🔥 Transcript Test Page**: http://localhost:3000/test-transcript (NEW - Test ElevenLabs transcript retrieval)
+- Training: http://localhost:3000/employee/training/demo-assignment-1758312913428-7qtmmsq
 - Employee Dashboard: http://localhost:3000/employee
 - Manager Dashboard: http://localhost:3000/manager
 - Session History: http://localhost:3000/employee/history
-- **AI Extraction API**: http://localhost:3000/api/test-ai-extraction (POST)
 
-### 📚 Comprehensive Documentation Library
-- **PROJECT_DOCUMENTATION.md** - Complete project overview and architecture
-- **DATABASE_REFERENCE.md** - Full database schema and current issues
-- **API_REFERENCE.md** - All API endpoints with examples and performance data
+### 📚 Documentation Library
+- **PROJECT_DOCUMENTATION.md** - Complete project overview
+- **DATABASE_REFERENCE.md** - Full database schema
+- **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
-- **AI_KNOWLEDGE_EXTRACTION_DOCUMENTATION.md** - Complete AI extraction system documentation
-- **LANGUAGE_INITIALIZATION_FIX.md** - Language-specific initialization system documentation
-- **🎬 RECOMMENDATION_TRAINING_DOCUMENTATION.md** - Complete recommendation training system with TTS integration
-- **🎥 VIDEO_RECORDING_SYSTEM_DOCUMENTATION.md** - Advanced video recording with TTS audio mixing technical guide
-- **📱 MOBILE_COMPATIBILITY_DOCUMENTATION.md** - Cross-platform mobile compatibility and MIME type detection system
-- **🎉 VIDEO_RECORDING_FIXES_2025-10-10.md** - Complete audio capture fixes for ElevenLabs + TTS recording
-- **📊 REFACTORING_2025-10-10.md** - Knowledge system refactoring & question scoring implementation
-- **⏱️ CLAUDE.md** - ✅ LATEST (2025-10-12): Complete session time limit system documentation (see bottom of file)
+- **VIDEO_UPLOAD_FIX_2025-10-15.md** - Video size limit fix (200 MB) for long sessions ✅ **FIXED**
+- **EMOTION_SYSTEM_UPDATE_2025-10-15.md** - Customer emotion redesign (Sunshine, Cold, In a Hurry) ✅ **COMPLETE**
+- **MANAGER_QUESTION_STATUS_FIX_2025-10-15.md** - Manager status update & progress calculation fixes
+- **EMOTION_SYSTEM_COMPLETE_2025-10-12.md** - Customer emotional states system (original)
+- **VIDEO_RECORDING_SYSTEM_DOCUMENTATION.md** - Video recording technical guide
+- **CLAUDE_ARCHIVE_2025.md** - Historical feature documentation (archived)
 
 ## ElevenLabs Configuration
 
 ### Agent Details
 - **Current Agent ID**: `agent_5101k5ksv08newj9b4aa2wt282hv` (UPDATED)
 - **Previous Agent**: `agent_9301k5efjt1sf81vhzc3pjmw0fy9` (may still work)
-- **Dashboard**: Configured with dynamic variable placeholders in system prompt
+- **Dashboard**: Configured with dynamic variable placeholders
 - **API Key**: Has convai_write permissions (confirmed working)
 
 ### System Prompt (in ElevenLabs Dashboard)
@@ -97,69 +66,12 @@ Available documents: {{documents_available}}
 You are operating in {{training_mode}} mode. Follow the examiner instructions above strictly
 ```
 
-### Knowledge System (2025-10-10)
+### Knowledge System
 **Status**: ✅ Fully Database-Driven
 - All knowledge loaded from `knowledge_base_documents` table
 - Scenario-specific document assignment via `knowledge_category_ids` and `knowledge_document_ids`
 - No hard-coded fallbacks - system validates and warns if knowledge missing
 - Works for any business vertical (not limited to coffee shops)
-
-## If Session Needs to Continue
-
-### Immediate Next Steps
-1. ✅ **COMPLETED (2025-10-12)**: Session Time Limit System fully implemented and documented
-2. ✅ **COMPLETED (2025-10-12)**: Auth State Caching with localStorage for robust user data persistence
-3. ✅ **COMPLETED (2025-10-12)**: Topic Display Fix - dynamic company_id loading in scenario cards
-4. ✅ **COMPLETED (2025-10-10)**: Replace Hard-coded Knowledge with dynamic database loading
-5. ✅ **COMPLETED (2025-10-10)**: Knowledge Service working - loads 3 documents (1744 chars) from database
-6. ✅ **COMPLETED (2025-10-10)**: Question Scoring system with mastery tracking implemented
-
-### Potential Future Improvements
-1. **Real-time Progress Dashboard** - Live mastery metrics visualization for managers
-2. **Learning Path Recommendations** - AI-suggested topics based on prerequisites and performance
-3. **Spaced Repetition System** - Revisit mastered topics periodically to prevent forgetting
-4. **Adaptive Difficulty** - Dynamically adjust question difficulty based on employee mastery
-5. **Team Analytics** - Benchmark employee progress against team averages
-
-### Known Issues Status ⚠️
-- **⏱️ ✅ FIXED (2025-10-12): Session Time Limit System**: Configurable time limits now working for all scenario types with proper data flow
-- **⏱️ ✅ FIXED (2025-10-12): Topic Display in Cards**: Topic names now load properly from database using dynamic company_id
-- **⏱️ ✅ FIXED (2025-10-12): Auth State Caching**: localStorage caching prevents "Company ID Missing" errors on tab switch
-- **📊 ✅ FIXED (2025-10-10 PM): Hard-coded Knowledge Removed**: System now 100% database-driven, works for any business vertical
-- **📊 ✅ FIXED (2025-10-10 PM): Question Scoring Implemented**: Complete mastery tracking with automatic progress updates per topic
-- **📊 ✅ FIXED (2025-10-10 PM): Progress Tracking**: employee_topic_progress table automatically updated with mastery calculations
-- **🎉 ✅ FIXED (2025-10-10 AM): ElevenLabs Agent Audio Capture**: Video recordings now include BOTH user voice AND agent speech via LiveKit RemoteParticipant API
-- **🎉 ✅ FIXED (2025-10-10 AM): TTS First Question Missing**: Recommendation sessions now capture complete first question audio via proper async flow
-- **🎉 ✅ FIXED (2025-10-10 AM): Video Preview Black Screen**: Camera preview now shows properly with stream re-attachment on React re-renders
-- **🔥 ✅ FIXED: Scenario-Specific Question Selection**: Agent now uses ONLY scenario questions (e.g., 8 pastry questions) instead of general knowledge base (16 questions)
-- **✅ FIXED: Language-Specific Initialization**: Agent now starts immediately in selected language using ElevenLabs overrides
-- **✅ FIXED: Transcript Attribution**: Training sessions now show proper "You" vs "AI Trainer" messages
-- **✅ FIXED: Assessment Scoring**: Real Q&A evaluation results instead of "No Assessment Available"
-- **Knowledge Service**: ✅ WORKING - loads 3 documents (1744 chars) from database
-- **Database Schema**: Missing `avatar_mode` column in `tracks` table (minor, not affecting functionality)
-- **Demo UUID Warnings**: Demo scenarios use string IDs (expected, but generates warnings)
-
-### Key Files to Know
-- **⏱️ `src/components/ScenarioForm.tsx`** - Scenario creation form with session time limit (UPDATED 2025-10-12)
-- **⏱️ `src/components/EditScenarioForm.tsx`** - Scenario editing form with session time limit (UPDATED 2025-10-12)
-- **⏱️ `src/app/manager/page.tsx`** - Manager dashboard with scenario cards and TopicTag fix (UPDATED 2025-10-12)
-- **⏱️ `src/contexts/AuthContext.tsx`** - Auth context with localStorage caching (ENHANCED 2025-10-12)
-- **⏱️ `src/lib/scenarios.ts`** - Scenario service with session time limit support (UPDATED 2025-10-12)
-- **⏱️ `src/app/api/scenarios/route.ts`** - Scenario create/list API with time limit (UPDATED 2025-10-12)
-- **⏱️ `src/app/api/scenarios/[id]/route.ts`** - Scenario update/delete API with time limit (UPDATED 2025-10-12)
-- **📊 `src/components/ElevenLabsAvatarSession.tsx`** - Theory Q&A component, hard-coded knowledge REMOVED (REFACTORED 2025-10-10 PM)
-- **📊 `src/app/api/assess-theory-session/route.ts`** - Assessment scoring with mastery tracking (ENHANCED 2025-10-10 PM)
-- **📊 `src/app/api/record-question-attempt/route.ts`** - Question attempt recording API (NEW 2025-10-10 PM)
-- **🎉 `src/lib/elevenlabs-conversation.ts`** - Conversation service with LiveKit audio extraction (UPDATED 2025-10-10 AM)
-- **🎉 `src/components/RecommendationTTSSession.tsx`** - TTS session with proper timing and video preview (UPDATED 2025-10-10 AM)
-- **🔥 `src/app/api/scenario-questions/route.ts`** - API endpoint for loading scenario-specific questions
-- **🔥 `src/app/employee/training/[assignmentId]/page.tsx`** - Training page with scenario question loading
-- `src/lib/elevenlabs-knowledge.ts` - Knowledge service (working, no changes needed)
-- `src/app/api/scenario-knowledge/route.ts` - Knowledge loading API endpoint
-- `src/services/VideoRecordingService.ts` - Video recording service with audio mixing
-- `src/hooks/useVideoRecording.ts` - React hook for video recording management
-- `src/app/api/elevenlabs-token/route.ts` - Token API (GET method)
-- `src/app/api/elevenlabs-conversation-transcript/route.ts` - Production transcript endpoint
 
 ## Environment Variables Required
 ```bash
@@ -170,780 +82,196 @@ OPENAI_API_KEY=[CONFIGURED]
 ELEVENLABS_API_KEY=[CONFIGURED with convai_write permissions]
 ```
 
-## Testing Instructions
+## Critical Files Reference
+
+### Latest Features (2025-10-12)
+- **`src/lib/customer-emotions.ts`** - Complete emotion definitions (NEW)
+- **`src/components/ScenarioForm.tsx`** - Scenario creation with time limit & emotions
+- **`src/components/EditScenarioForm.tsx`** - Scenario editing with time limit & emotions
+- **`src/app/manager/page.tsx`** - Manager dashboard with emotion badges
+- **`src/contexts/AuthContext.tsx`** - Auth context with localStorage caching
+- **`src/lib/scenarios.ts`** - Scenario service with time limit & emotion support
+
+### Core Systems
+- **`src/components/ElevenLabsAvatarSession.tsx`** - Theory Q&A component
+- **`src/components/RecommendationTTSSession.tsx`** - TTS session with video recording
+- **`src/lib/elevenlabs-conversation.ts`** - Conversation service with emotion-aware prompts
+- **`src/lib/elevenlabs-knowledge.ts`** - Knowledge service
+- **`src/services/VideoRecordingService.ts`** - Video recording with audio mixing
+- **`src/app/api/assess-theory-session/route.ts`** - Assessment scoring API
+- **`src/app/api/record-question-attempt/route.ts`** - Question attempt recording
+
+## Known Issues Status ⚠️
+- **Database Schema**: Missing `avatar_mode` column in `tracks` table (minor, not affecting functionality)
+- **Demo UUID Warnings**: Demo scenarios use string IDs (expected, but generates warnings)
+- **Stale Auth Cache (2025-10-15)**: If user data is updated in database (e.g., company_id assigned), localStorage cache can become stale, causing "Company ID Missing" errors. **Workaround**: Clear cache via console: `Object.keys(localStorage).filter(k => k.startsWith('user_cache_')).forEach(k => localStorage.removeItem(k)); location.reload()`
+  - **Potential fixes**: Auto-clear cache when incomplete, add "Clear Cache" button to error UI, allow managers to proceed without company_id in fallback mode
+
+**All Major Issues FIXED** ✅:
+- ✅ **Video Upload Size Limit (2025-10-15 PM)**: Increased Supabase storage limit to 200 MB - supports 10+ minute sessions
+- ✅ **Customer Emotion System Redesign (2025-10-15 PM)**: Renamed emotions + NEW "Cold" customer type
+- ✅ **Manager Question Status Update (2025-10-15 AM)**: Schema mismatch fixed - now uses `user_id`, `user_answer`, `user_topic_progress`
+- ✅ **Progress Calculation (2025-10-15 AM)**: Fixed formula to show correct/total instead of correct/attempted
+- ✅ Session Time Limit System working
+- ✅ Customer Emotional States working
+- ✅ Topic Display in scenario cards
+- ✅ Auth State Caching
+- ✅ Hard-coded Knowledge removed
+- ✅ Question Scoring implemented
+- ✅ Progress Tracking working
+- ✅ ElevenLabs Agent Audio Capture
+- ✅ TTS First Question audio
+- ✅ Video Preview fixed
+- ✅ Scenario-Specific Question Selection
+- ✅ Language-Specific Initialization
+
+## Testing Quick Guide
+
+### Theory Q&A Test
 1. Go to employee training page
 2. Select "Theory Q&A" mode
-3. Choose language from dropdown (try Russian 🇷🇺)
-4. Start session - should ask coffee shop specific questions
-5. Answer anything - should immediately move to next question
-
-## Critical Success Factors
-1. **ElevenLabs Dashboard**: Must have {{variable_name}} placeholders in system prompt
-2. **Agent Behavior**: Instructions prevent getting stuck on wrong answers
-3. **Dynamic Variables**: All working via SDK properly
-4. **Hard-coded Content**: Provides stable testing while we fix dynamic loading
-
-## Company Knowledge Base Content
-Coffee shop menu in Russian:
-- Drinks: Эспрессо, Капучино, Латте (250/350/450 мл), Раф variants
-- Pastries: Паштель де ната, чизкейк сан себастьян, various cakes
-
-Agent asks specific questions like "What sizes are available for cappuccino?" based on this content.
-
-## AI Knowledge Extraction System ✅ NEW
-
-### Overview
-Intelligent question pool generation system that replaces manual question writing with GPT-4 powered document analysis.
-
-### Test Results (2025-09-24)
-- **Documents Analyzed**: 2 (Russian "Prices" + English "Drinks info")
-- **Topics Extracted**: 18 intelligent topics with difficulty levels
-- **Questions Generated**: 54 contextual questions (multiple choice, open-ended, true/false)
-- **Processing Time**: ~60 seconds total
-- **Accuracy**: 100% relevant to document content
-- **Languages**: Perfect Russian/English processing
-
-### Key Features Proven
-✅ **Multilingual Intelligence** - Understands Russian coffee shop pricing
-✅ **Context-Aware Questions** - References YOUR specific menu items
-✅ **Intelligent Categorization** - menu, procedures, policies, general
-✅ **Adaptive Difficulty** - Levels 1-3 based on content complexity
-✅ **Multiple Question Types** - MC, open-ended, true/false with explanations
-
-### Sample AI-Generated Content
-- *Topic*: "Specialty Drinks Knowledge" (category: menu, difficulty: 2)
-- *Question*: "What flavors are available for Raffa specialty drinks?"
-- *Answer*: "Vanilla, Citrus, Spicy" (extracted from Russian document)
-- *Explanation*: "The menu specifies that Raffa drinks can be made in three flavors..."
-
-### Performance vs Manual Approach
-- **Speed**: 60x faster (3 hours → 3 minutes)
-- **Volume**: 9x more questions (6 → 54)
-- **Coverage**: 3.6x more topics (5 → 18)
-- **Quality**: Higher specificity and document relevance
-
-### Integration Points
-- **Adaptive Selection**: Questions integrate with existing priority algorithm
-- **ElevenLabs Sessions**: Can load structured questions into conversational AI
-- **Database Storage**: Ready to save AI-generated content to production tables
-- **Progress Tracking**: Compatible with employee progress dashboards
-
-### Quick Test
-```bash
-curl -X POST http://localhost:3000/api/test-ai-extraction
-# Returns: 18 topics, 54 questions, performance metrics
-```
-
-**Status**: Production-ready intelligent question generation system
-
-## 🔥 Manual Transcript Analysis System (2025-09-25)
-
-### New Approach Implemented
-- **Issue Solved**: Automatic transcript fetching at session end was unreliable and timing-dependent
-- **New Solution**: Manual "Get Transcript and Analysis" button on session completion page
-- **User Experience**: After completing a training session, users can trigger transcript analysis when ready
-- **Benefits**: Eliminates timing issues, provides immediate feedback, more reliable results
-
-### Key Technical Fix
-**Wrong ElevenLabs Response Format Expected:**
-```typescript
-// Old (incorrect) format assumptions
-conversationData.messages // ❌ Wrong property
-msg.content || msg.text   // ❌ Wrong message property
-msg.timestamp            // ❌ Wrong time property
-```
-
-**Correct ElevenLabs Response Format:**
-```typescript
-// Fixed format (working)
-conversationData.transcript           // ✅ Correct property
-msg.message                          // ✅ Correct message property
-msg.time_in_call_secs * 1000        // ✅ Convert seconds to milliseconds
-msg.role === 'agent' ? 'assistant' : msg.role  // ✅ Transform agent → assistant
-```
-
-### Files Updated
-1. **`/src/app/api/session-transcript-analysis/route.ts`** - NEW: On-demand transcript analysis endpoint
-   - Fetches transcript from ElevenLabs API when user requests it
-   - Runs full assessment scoring with OpenAI GPT-4o-mini
-   - Updates session with proper transcript data
-   - Returns comprehensive analysis results
-
-2. **`/src/components/ElevenLabsAvatarSession.tsx`** - Session completion flow
-   - Removed automatic transcript fetching (was unreliable)
-   - Now saves minimal session record and lets user trigger analysis manually
-   - Simplified session end logic, improved reliability
-
-3. **`/src/app/employee/training/[assignmentId]/page.tsx`** - Training completion UI
-   - Added "Get Transcript and Analysis" button on session completion page
-   - Added comprehensive transcript analysis results display
-   - Shows Q&A pairs, assessment scores, and conversation breakdown
-   - Provides visual feedback during analysis process
-
-### Test Results Verified
-- **Conversation ID**: `conv_1101k5yr5zdefnga05pyaqfd0ffn`
-- **Q&A Pairs Found**: 11 exchanges successfully extracted
-- **Assessment Score**: Real evaluation scores instead of "No Assessment Available"
-- **Message Attribution**: Proper "You" vs "AI Trainer" display working
-- **Multilingual Support**: Russian questions + English database matching working perfectly
-
-### API Endpoints
-- **Test Transcript**: `POST /api/test-elevenlabs-transcript` - Test ElevenLabs transcript retrieval
-- **Production Transcript**: `POST /api/elevenlabs-conversation-transcript` - Now uses fixed format
-- **Assessment**: `POST /api/assess-theory-session` - Q&A evaluation with OpenAI
-
-### Testing Instructions
-1. Visit http://localhost:3000/test-transcript
-2. Enter conversation ID: `conv_1101k5yr5zdefnga05pyaqfd0ffn`
-3. Click "Fetch Transcript" - should show proper user/assistant messages
-4. Review Q&A Analysis section - should find ~11 question-answer pairs
-5. Check Assessment Results - should show real scores and feedback
-
-### New User Workflow
-1. **Complete Training Session**: User completes ElevenLabs conversation as normal
-2. **Session Completion Page**: Shows success message with basic session stats
-3. **Manual Analysis**: User clicks "📊 Get Transcript & Analysis" when ready
-4. **Real-time Processing**: System fetches ElevenLabs transcript and runs assessment
-5. **Detailed Results**: Shows Q&A pairs found, assessment scores, and conversation breakdown
-
-### Impact
-✅ **Reliability**: No more timing-dependent transcript fetching issues
-✅ **User Control**: Users can trigger analysis when they're ready
-✅ **Better UX**: Clear feedback during processing with loading indicators
-✅ **Complete Data**: Proper transcript with both user and AI messages
-✅ **Assessment Scoring**: Real evaluation results instead of "No Assessment Available"
-✅ **Multilingual**: Russian/English Q&A processing works seamlessly
-
-### API Endpoints
-- **Manual Analysis**: `POST /api/session-transcript-analysis` - On-demand transcript fetch and assessment
-- **Production Transcript**: `POST /api/elevenlabs-conversation-transcript` - ElevenLabs API integration
-- **Assessment**: `POST /api/assess-theory-session` - Q&A evaluation with OpenAI
-
-## 🔥 Language-Specific Initialization System (2025-09-26)
-
-### Problem Solved
-Agent was starting with "Hello! How can I help you today?" in English regardless of language selection. When Russian was selected, users had to manually ask agent to switch languages.
-
-### Root Cause Analysis
-**Critical API Usage Error:** Implementation was using `initialMessage` parameter which **doesn't exist** in ElevenLabs SDK.
-
-**Wrong Implementation:**
-```javascript
-await Conversation.startSession({
-  agentId: 'agent_id',
-  initialMessage: "You are now acting as..." // ❌ This parameter doesn't exist
-})
-```
-
-**Correct Implementation:**
-```javascript
-await Conversation.startSession({
-  agentId: 'agent_id',
-  overrides: {
-    agent: {
-      first_message: "Привет! Давайте начнем нашу теоретическую сессию.",
-      prompt: { prompt: "You are a strict theory examiner..." },
-      language: "ru"
-    }
-  }
-})
-```
-
-### Technical Solution Details
-
-#### 1. Language Greeting Mapping (`/src/lib/elevenlabs-conversation.ts:10-24`)
-```javascript
-const LANGUAGE_GREETINGS = {
-  'en': "Hi! Let's start our theory session.",
-  'ru': "Привет! Давайте начнем нашу теоретическую сессию.",
-  'it': "Ciao! Iniziamo la sessione teorica.",
-  'es': "¡Hola! Empecemos la sesión teórica.",
-  // + 9 other languages
-}
-```
-
-#### 2. ElevenLabs Overrides Implementation (`/src/lib/elevenlabs-conversation.ts:149-159`)
-```javascript
-...(this.config.dynamicVariables?.training_mode === 'theory' && {
-  overrides: {
-    agent: {
-      first_message: this.getLanguageSpecificGreeting(this.config.language),
-      prompt: {
-        prompt: this.getLanguageAwareSystemPrompt(this.config.dynamicVariables)
-      },
-      language: this.config.language
-    }
-  }
-})
-```
-
-#### 3. Helper Methods (`/src/lib/elevenlabs-conversation.ts:59-94`)
-- **`getLanguageSpecificGreeting()`**: Returns localized greeting only
-- **`getLanguageAwareSystemPrompt()`**: Creates complete system prompt with dynamic variables
-
-### Key API Parameters Explained
-
-1. **`first_message`**: Sets agent's opening words (replaces default greeting)
-2. **`prompt.prompt`**: Completely overrides dashboard system prompt
-3. **`language`**: Switches agent to v2.5 Multilingual model for non-English languages
-
-### Expected Behavior After Fix
-
-**Russian Selection (`ru`):**
-```
-✅ Agent: "Привет! Давайте начнем нашу теоретическую сессию."
-✅ [Immediately asks first question in Russian]
-❌ No "Hello! How can I help you today?" phase
-```
-
-**Italian Selection (`it`):**
-```
-✅ Agent: "Ciao! Iniziamo la sessione teorica."
-✅ [Immediately asks first question in Italian]
-```
-
-**English Selection (`en`):**
-```
-✅ Agent: "Hi! Let's start our theory session."
-✅ [Immediately asks first question in English]
-```
-
-### Debug Logging Added
-When session starts, console shows:
-```
-🌍 Selected language-specific greeting for: ru
-💬 Localized greeting: "Привет! Давайте начнем нашу теоретическую сессию."
-📝 Created language-aware system prompt (1247 characters)
-```
-
-### Files Modified
-1. **`/src/lib/elevenlabs-conversation.ts`**
-   - Added `LANGUAGE_GREETINGS` mapping (13 languages)
-   - Replaced `initialMessage` with `overrides` system
-   - Added `getLanguageSpecificGreeting()` and `getLanguageAwareSystemPrompt()` methods
-   - Added comprehensive debug logging
-
-### Testing Instructions
-1. Visit: `http://localhost:3000/employee/training/demo-assignment-1758312913428-7qtmmsq`
-2. **Select Russian (🇷🇺)** from language dropdown
-3. Click "Start Session"
-4. **Expected**: Agent immediately starts with "Привет! Давайте начнем нашу теоретическую сессию."
-5. **Check console** for `🌍`, `💬`, `📝` debug messages
-
-### Impact
-✅ **Immediate Language Engagement**: No English greeting phase
-✅ **Seamless UX**: Users don't need to request language switch
-✅ **Proper API Usage**: Uses correct ElevenLabs overrides system
-✅ **All 13 Languages**: Complete multilingual support ready
-✅ **Comprehensive Logging**: Easy debugging and troubleshooting
-
-**Status**: Language-specific initialization now working with proper ElevenLabs API usage
-
-## 🔥 Scenario-Specific Question Selection System (2025-09-29)
-
-### Problem Solved
-ElevenLabs agent was asking 16 general questions from the knowledge base instead of the 8 specific scenario questions that were correctly loaded and displayed in the UI.
-
-### Root Cause Analysis
-**Data Flow Disconnect:** The scenario questions were being loaded in the training page state but weren't being passed to the ElevenLabsAvatarSession component, causing the agent to fall back to the hard-coded general knowledge base.
-
-### Technical Solution Details
-
-#### 1. New API Endpoint (`/src/app/api/scenario-questions/route.ts`)
-```javascript
-export async function GET(request: NextRequest) {
-  // Loads questions based on scenario's topic_ids
-  // Implements priority-based sorting: unanswered → incorrect → correct
-  // Returns scenario-specific questions with status tracking
-}
-```
-
-#### 2. Component Data Flow (`/src/app/employee/training/[assignmentId]/page.tsx:100-116`)
-```javascript
-// Load scenario questions if it's a theory scenario
-if (selectedScenario.scenario_type === 'theory') {
-  loadScenarioQuestions(selectedScenario.id, user?.id)
-}
-
-// Pass scenario questions to ElevenLabs component
-<ElevenLabsAvatarSession
-  scenarioQuestions={scenarioQuestions} // NEW: Scenario-specific questions
-  // ... other props
-/>
-```
-
-#### 3. Question Prioritization Logic (`/src/components/ElevenLabsAvatarSession.tsx:209-217`)
-```javascript
-// Use scenario-specific questions first, then fall back to other sources
-const questionsToUse = scenarioQuestions.length > 0 ? scenarioQuestions :
-  loadedQuestions || sessionQuestions || structuredQuestions
-
-console.log('📋 Questions source:',
-  scenarioQuestions.length > 0 ? 'scenarioQuestions (scenario-specific)' :
-  loadedQuestions ? 'loadedQuestions' :
-  sessionQuestions.length > 0 ? 'sessionQuestions (new API)' :
-  'structuredQuestions (legacy)'
-)
-```
-
-#### 4. Enhanced UI Features
-- **Question Preview Section**: Shows exactly which questions the agent will ask
-- **Priority Status Indicators**: Visual indicators for unanswered/incorrect/correct questions
-- **Scenario Context Display**: Shows agent will ask scenario-specific questions vs general knowledge base
-
-### Expected Behavior After Fix
-
-**Before Fix:**
-```
-❌ Agent asks 16 general questions from knowledge base (drinks topics)
-❌ UI shows 8 pastry questions but agent ignores them
-❌ No connection between UI preview and agent behavior
-```
-
-**After Fix:**
-```
-✅ Agent asks ONLY the 8 specific pastry questions shown in UI
-✅ Perfect sync between question preview and agent behavior
-✅ Priority-based question ordering: unanswered → incorrect → correct
-✅ Scenario-specific context: "Theory Pastry" questions only
-```
-
-### Files Modified
-1. **NEW: `/src/app/api/scenario-questions/route.ts`** - API endpoint for loading scenario questions
-2. **`/src/components/ElevenLabsAvatarSession.tsx`** - Added `scenarioQuestions` prop and priority logic
-3. **`/src/app/employee/training/[assignmentId]/page.tsx`** - Load and pass scenario questions to component
-4. **`/src/components/ScenarioForm.tsx`** & **`EditScenarioForm.tsx`** - Added mandatory Name field for Theory scenarios
-
-### Testing Instructions
-1. Visit Theory Pastry scenario training page
-2. **Verify Question Preview**: Should show exactly 8 pastry-specific questions with priority status
-3. **Start ElevenLabs Session**: Agent should ask ONLY the 8 pastry questions, not general drinks questions
-4. **Check Console Logs**: Should show "scenarioQuestions (scenario-specific)" as questions source
-
-### Impact
-✅ **Perfect Question Targeting**: Agent now asks only relevant scenario questions
-✅ **UI/Agent Sync**: Question preview matches exactly what agent will ask
-✅ **Enhanced UX**: Users see exactly what to expect before starting session
-✅ **Priority Learning**: Questions ordered by learning needs (unanswered first)
-✅ **Scenario Focus**: Agent stays on topic instead of asking random knowledge base questions
-
-**Status**: Critical ElevenLabs agent question selection issue completely resolved
-
-## 🎬 Recommendation Training with Video Recording System (2025-10-01)
-
-### **BREAKTHROUGH ACHIEVEMENT** ✅
-Successfully implemented complete **TTS-based recommendation training** with **advanced video recording** that captures both **user voice AND ElevenLabs TTS audio** in a single video file, with **full cross-platform mobile compatibility**.
-
-### **Key Technical Innovations**
-
-#### **1. TTS Audio Mixing with Video Recording** 🎵
-- **Challenge**: Recording TTS audio from ElevenLabs along with user voice in video
-- **Solution**: Advanced Web Audio API implementation using AudioBuffer approach
-- **Result**: Perfect audio synchronization in recorded videos across all devices
-
-#### **2. Mobile Cross-Platform Compatibility** 📱
-- **Challenge**: iOS Safari requires video/mp4, Android uses video/webm formats
-- **Solution**: Dynamic MIME type detection with device-specific optimization
-- **Result**: 100% success rate on both iOS and Android devices
-
-#### **3. Reliable Video Data Management** 🔄
-- **Challenge**: React state timing issues caused video chunks to be lost during upload
-- **Solution**: Ref-based video chunk storage avoiding React state dependencies
-- **Result**: Consistent video upload success with proper chunk management
-
-### **Core Components**
-
-#### **RecommendationTTSSession Component** (`src/components/RecommendationTTSSession.tsx`)
-```javascript
-// AudioBuffer approach for TTS mixing
-const playTTSAudio = async (audioUrl: string) => {
-  const response = await fetch(audioUrl)
-  const arrayBuffer = await response.arrayBuffer()
-  const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer)
-  const bufferSource = audioContextRef.current.createBufferSource()
-  bufferSource.buffer = audioBuffer
-  bufferSource.connect(recordingDestinationRef.current)
-  bufferSource.start()
-}
-
-// Dynamic MIME type detection
-const getSupportedMimeType = () => {
-  const types = ['video/mp4', 'video/webm;codecs=vp8', 'video/webm']
-  for (const type of types) {
-    if (MediaRecorder.isTypeSupported(type)) return type
-  }
-  return 'video/webm'
-}
-
-// Ref-based chunk storage
-const videoChunksRef = useRef<Blob[]>([])
-recorder.ondataavailable = (event) => {
-  if (event.data.size > 0) {
-    videoChunksRef.current.push(event.data)
-  }
-}
-```
-
-### **Mobile Device Testing Results** ✅
-- **iOS Safari**: video/mp4 format, full TTS audio mixing, 100% success
-- **Android Chrome**: video/webm format, full TTS audio mixing, 100% success
-- **Desktop Browsers**: All formats supported, perfect functionality
-- **Edge Cases**: Comprehensive error handling and fallback mechanisms
-
-### **User Experience Flow**
-1. **Employee starts recommendation training session**
-2. **Video recording begins automatically with camera + microphone**
-3. **TTS plays product recommendations** (captured in recording)
-4. **Employee responds verbally** (captured in recording)
-5. **Session continues through all questions** (single continuous recording)
-6. **Video uploads to Supabase with metadata** (immediate availability)
-7. **Recording appears in training history** (with both TTS and user voice)
-
-### **Technical Achievements** 🏆
-- ✅ **Perfect TTS Audio Capture**: 100% success rate across all platforms
-- ✅ **Mobile Native Experience**: Identical functionality on mobile and desktop
-- ✅ **Cross-Platform Video Recording**: Dynamic format selection for all devices
-- ✅ **Reliable Upload System**: Robust file storage with comprehensive error handling
-- ✅ **Real-Time Debug Monitoring**: Complete visibility into recording process
-- ✅ **Production-Ready Mobile Support**: Tested and verified on real devices
-
-### **Impact and Success Metrics**
-- **Training Effectiveness**: Complete audio fidelity enables proper review and assessment
-- **Mobile Accessibility**: Full functionality available on employee personal devices
-- **Technical Reliability**: Zero data loss with proper error handling and retries
-- **Cross-Platform Consistency**: Identical experience regardless of device or browser
-- **Production Readiness**: Comprehensive testing and documentation complete
-
-**Status**: **PRODUCTION READY** with full mobile compatibility and advanced TTS audio recording ✅
-
-## ⏱️ Session Time Limit System (2025-10-12)
-
-### **Feature Overview** ✅
-Implemented configurable session time limits for Theory Q&A and Service Practice scenarios, replacing the legacy "difficulty level" and "estimated duration" fields with a cleaner, more purposeful system.
-
-### **Problem Solved**
-- **Old System**: Had separate "difficulty level" and "estimated duration" fields that were confusing and redundant
-- **New System**: Single "session time limit" field (1-60 minutes) that directly controls maximum session duration
-- **Removed Fields**: "Description" field removed from Service Practice scenarios for cleaner UI
-
-### **Technical Implementation**
-
-#### **1. Database Schema** (`scenarios` table)
-```sql
-ALTER TABLE scenarios
-ADD COLUMN IF NOT EXISTS session_time_limit_minutes INTEGER DEFAULT 10;
-
-COMMENT ON COLUMN scenarios.session_time_limit_minutes IS 'Maximum duration in minutes for theory and service practice sessions (1-60 minutes)';
-```
-
-#### **2. TypeScript Interfaces** (`src/lib/scenarios.ts`)
-```typescript
-export interface Scenario {
-  // ... other fields
-  session_time_limit_minutes?: number;  // NEW: Session time limit
-  // REMOVED: difficulty, estimated_duration_minutes (legacy)
-}
-
-export interface CreateScenarioData {
-  // ... other fields
-  session_time_limit_minutes?: number;  // NEW: Added to create interface
-}
-
-export interface UpdateScenarioData {
-  // ... other fields
-  session_time_limit_minutes?: number;  // NEW: Added to update interface
-}
-```
-
-#### **3. UI Components Updated**
-
-**ScenarioForm.tsx** (lines 375-393, 604-622)
-```typescript
-<div>
-  <label htmlFor="session_time_limit" className="block text-sm font-medium text-gray-700 mb-2">
-    Session Time Limit (minutes)
-  </label>
-  <input
-    type="number"
-    id="session_time_limit"
-    min="1"
-    max="60"
-    value={formData.session_time_limit_minutes}
-    onChange={(e) => handleInputChange('session_time_limit_minutes', parseInt(e.target.value) || 10)}
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    placeholder="10"
-  />
-  <p className="text-sm text-gray-500 mt-1">
-    Maximum duration for this role-play session (1-60 minutes)
-  </p>
-</div>
-```
-
-**EditScenarioForm.tsx** (lines 358-376, 586-604)
-- Added session_time_limit_minutes field for both Service Practice and Theory scenarios
-- Removed Description field from Service Practice scenarios
-- Removed Difficulty Level and Estimated Duration fields
-
-**Manager Dashboard** (`src/app/manager/page.tsx` lines 790-792, 666, 821)
-- Updated scenario cards to display session time limit instead of difficulty/duration
-- Removed description display from scenario cards
-- Fixed TopicTag component to accept companyId prop for proper topic loading
-
-#### **4. API Routes**
-
-**Create Endpoint** (`src/app/api/scenarios/route.ts` line 32)
-```typescript
-const scenarioData: CreateScenarioData = {
-  // ... other fields
-  session_time_limit_minutes: body.session_time_limit_minutes || 10,
-  recommendation_question_durations: body.recommendation_question_durations || {},
-}
-```
-
-**Update Endpoint** (`src/app/api/scenarios/[id]/route.ts` line 84)
-```typescript
-const updateData = {
-  // ... other fields
-  session_time_limit_minutes: body.session_time_limit_minutes,
-}
-```
-
-#### **5. Service Layer** (`src/lib/scenarios.ts`)
-
-**createScenario method** (line 210, 212)
-```typescript
-const insertData = {
-  // ... other fields
-  session_time_limit_minutes: scenarioData.session_time_limit_minutes || 10,
-  topic_ids: scenarioData.topic_ids || [],
-}
-```
-
-**updateScenario method** (line 331)
-```typescript
-const updateData = {
-  // ... other fields
-  session_time_limit_minutes: updates.session_time_limit_minutes,
-}
-```
-
-### **Issues Fixed During Implementation**
-
-#### **1. Auth State Issue**
-- **Problem**: "Company ID Missing" error when returning to page after leaving or switching tabs
-- **Root Cause**: Auth listener fired on tab focus, database timed out (3s), fallback user had no company_id
-- **Solution**: Added localStorage caching with 5-minute TTL, improved skip logic to check for company_id
-
-**AuthContext.tsx** (lines 36-69, 331-341, 280-285)
-```typescript
-function getCachedUserData(userId: string): ExtendedUser | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const cached = localStorage.getItem(`user_cache_${userId}`)
-    if (cached) {
-      const data = JSON.parse(cached)
-      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
-        console.log('📦 Using cached user data')
-        return data.user
-      }
-    }
-  } catch (err) {
-    console.debug('Could not read cached user data:', err)
-  }
-  return null
-}
-```
-
-#### **2. Update Not Saving**
-- **Problem**: Session time limit changes weren't persisted to database
-- **Solution**: Added session_time_limit_minutes to update API route and service layer
-
-#### **3. Creation Not Saving Topics/Duration**
-- **Problem**: Theory scenario creation didn't save topic_ids or session_time_limit_minutes
-- **Solution**: Added both fields to createScenario database insert statement
-
-#### **4. Database Schema Error**
-- **Problem**: "Could not find the 'session_time_limit_minutes' column"
-- **Solution**: Provided SQL migration to add column with INTEGER type and default value 10
-
-#### **5. Topic Display Error**
-- **Problem**: "Topic not found" shown instead of actual topic names in scenario cards
-- **Root Cause**: TopicTag component used hardcoded `company_id=test` in API call
-- **Solution**: Added companyId as required prop, updated API call to use actual companyId parameter
-
-**TopicTag Component Fix** (`src/app/manager/page.tsx` lines 18-21, 35, 666, 821)
-```typescript
-interface TopicTagProps {
-  topicId: string
-  companyId: string  // NEW: Required prop
-}
-
-// Changed from:
-const response = await fetch('/api/knowledge-assessment/topics?company_id=test')
-// To:
-const response = await fetch(`/api/knowledge-assessment/topics?company_id=${companyId}`)
-
-// Usage:
-<TopicTag key={topicId} topicId={topicId} companyId={user?.company_id || ''} />
-```
-
-### **Files Modified**
-1. **src/components/ScenarioForm.tsx** - Added session time limit field for create
-2. **src/components/EditScenarioForm.tsx** - Added session time limit field for edit, removed description
-3. **src/app/manager/page.tsx** - Updated scenario cards, fixed TopicTag component
-4. **src/contexts/AuthContext.tsx** - Added localStorage caching for user data
-5. **src/lib/scenarios.ts** - Added field to interfaces and service methods
-6. **src/app/api/scenarios/route.ts** - Added field to create endpoint
-7. **src/app/api/scenarios/[id]/route.ts** - Added field to update endpoint
-
-### **Database Migration Required**
-```sql
-ALTER TABLE scenarios
-ADD COLUMN IF NOT EXISTS session_time_limit_minutes INTEGER DEFAULT 10;
-
-COMMENT ON COLUMN scenarios.session_time_limit_minutes IS 'Maximum duration in minutes for theory and service practice sessions (1-60 minutes)';
-```
-
-### **User Experience**
-- **Create Scenario**: Managers set session time limit (default 10 minutes)
-- **Edit Scenario**: Managers can adjust time limit (1-60 minute range)
-- **Scenario Cards**: Display time limit instead of difficulty/duration
-- **Theory Scenarios**: Show topic tags with proper names loaded from database
-- **Service Practice**: Cleaner form without unnecessary description field
-
-### **Impact**
-✅ **Simplified Scenario Configuration**: Single clear field instead of multiple confusing ones
-✅ **Complete Data Flow**: Field properly saved from form → API → database
-✅ **Consistent UI**: Works across Service Practice and Theory Q&A scenarios
-✅ **Auth Reliability**: Robust user data caching prevents "Company ID Missing" errors
-✅ **Topic Display**: Proper topic names loaded dynamically from database
-✅ **Production Ready**: All CRUD operations working correctly with proper validation
-
-**Status**: **COMPLETE** with full create/edit functionality and robust error handling ✅
-
----
-
-## 🤬 Customer Emotional States System (2025-10-12 PM)
-
-### **Feature Overview** ✅ TESTED & WORKING IN PRODUCTION
-
-Comprehensive dynamic customer emotional states system for service practice roleplay scenarios. Managers can create challenging, realistic training with 4 emotion levels. ElevenLabs AI agent adapts personality, tone, linguistic markers, and de-escalation behavior based on selected emotion.
-
-### **Four Emotion Levels**
-
-#### 🟢 **Calm Customer** (Default)
-- **Behavior**: Polite, patient, shows appreciation
-- **Greeting**: "Извините, мне нужна помощь." (Excuse me, I need help)
-- **Markers**: "Please", "Thank you", "I appreciate"
-- **Use**: Standard service training, baseline confidence building
-
-#### 🟡 **Frustrated Customer**
-- **Behavior**: Impatient, time pressure, shorter responses
-- **Greeting**: "Извините, мне срочно нужна помощь." (Excuse me, I need help right away)
-- **Markers**: "I'm in a hurry", "Come on", "Seriously?"
-- **Use**: Time management, efficiency under pressure
-
-#### 🟠 **Angry Customer**
-- **Behavior**: Very upset, uses CAPS, challenges explanations
-- **Greeting**: "Послушайте, у меня серьезная проблема!" (Listen, I have a serious problem!)
-- **Markers**: "This is UNACCEPTABLE", "What?!?!", "That's not good enough"
-- **Use**: De-escalation basics, conflict resolution
-
-#### 🔴 **Extremely Angry Customer** ⚠️ ADVANCED
-- **Behavior**: Furious, confrontational, HEAVY CAPS, threatens consequences
-- **Greeting**: "Это НЕПРИЕМЛЕМО! Мне нужен менеджер!" (This is UNACCEPTABLE! I need the manager!)
-- **Markers**: "I've HAD IT!!!", "Get me your MANAGER", "COMPLETE JOKE"
-- **Use**: Advanced de-escalation, stress management, masterful empathy
-
-### **Technical Implementation**
-
-**Complete Data Flow** ✅:
+3. Choose language (try Russian 🇷🇺)
+4. Start session - should ask scenario-specific questions in selected language
+5. Answer questions - should see mastery progress update
+
+### Service Practice Test
+1. Select "Service Practice" mode
+2. Choose customer emotion level (try "Extremely Angry" 🔴)
+3. Start session - AI should match selected emotion intensity
+4. Practice de-escalation - AI should respond authentically to your approach
+
+### Recommendation Training Test
+1. Select "Recommendation" mode
+2. Start session - video recording begins automatically
+3. TTS plays recommendations - audio captured in video
+4. Respond verbally - your voice captured in video
+5. Complete session - video uploads with both audio tracks
+
+## 🧊 Customer Emotional States System (Updated 2025-10-15)
+
+### Five Emotion Levels (Redesigned)
+
+#### ☀️ **Sunshine Customer** (Renamed from "Calm")
+- **Personality**: Warm, positive, brightens your day
+- **Speech**: "Please", "Thank you", "That sounds great", "Perfect"
+- **Use**: Standard service training, baseline confidence building, product knowledge
+
+#### 🧊 **Cold Customer** ⭐ NEW
+- **Personality**: Neutral, skeptical urban customer - ironical but cooperative if reasonable
+- **Speech**: "Mm.", "Sure.", "Whatever.", "*That's* interesting." (sarcastic), "Really?"
+- **Behavior**: Emotionally reserved, tests authenticity, dismisses fake enthusiasm
+- **Use**: Reading subtle cues, staying professional with skeptics, earning trust through competence
+- **Training Focus**: Not over-selling, handling sarcasm, authenticity over charm
+
+#### ⏱️ **In a Hurry** (Renamed from "Frustrated")
+- **Personality**: Time-pressured customer needing quick, efficient service
+- **Speech**: "Come on", "I'm in a hurry", "Seriously?", "Just...", "Finally"
+- **Behavior**: Shorter responses, shows impatience, softens with quick service
+- **Use**: Efficiency training, time management under pressure, urgency recognition
+
+#### 😠 **Angry Customer**
+- **Personality**: Very upset, demanding customer who's hard to please
+- **Speech**: Uses CAPS for emphasis "This is UNACCEPTABLE!!!", challenges explanations
+- **Use**: De-escalation basics, conflict resolution, empathy + action plan delivery
+
+#### 🤬 **Extremely Angry Customer** ⚠️ ADVANCED
+- **Personality**: Furious, confrontational customer refusing simple solutions
+- **Speech**: HEAVY CAPS everywhere, multiple exclamation marks!!!, threatens consequences
+- **Use**: Advanced de-escalation mastery, stress management, exceptional empathy
+
+### Technical Implementation
+
+**Complete Data Flow**:
 ```
 Database (customer_emotion_level) → Training Page → ElevenLabsAvatarSession →
 elevenlabs-conversation.ts → ElevenLabs API → AI Agent Behavior
 ```
 
-**Files Modified** (10 files, ~1000 lines):
-- **NEW**: `src/lib/customer-emotions.ts` (350 lines) - Complete emotion definitions
-- **UPDATED**: `src/lib/scenarios.ts` - Database operations (lines 221, 349)
-- **UPDATED**: `src/lib/elevenlabs-conversation.ts` - Emotion-aware prompts & greetings
-- **UPDATED**: `src/components/ScenarioForm.tsx` - Emotion dropdown (lines 428-448)
-- **UPDATED**: `src/components/EditScenarioForm.tsx` - Emotion dropdown (lines 396-416)
-- **UPDATED**: `src/components/ElevenLabsAvatarSession.tsx` - Dynamic variables (line 334)
-- **UPDATED**: `src/app/employee/training/[assignmentId]/page.tsx` - Emotion display (lines 890-918, 1182)
-- **UPDATED**: `src/app/manager/page.tsx` - Emotion badges (lines 643-652, 795-804)
-- **UPDATED**: `src/app/api/scenarios/route.ts` - POST endpoint (line 40)
-- **UPDATED**: `src/app/api/scenarios/[id]/route.ts` - PATCH endpoint (line 90)
+**Files Modified** (10 files):
+- **NEW**: `src/lib/customer-emotions.ts` - Complete emotion definitions
+- **UPDATED**: All scenario management components, APIs, and services
 
-**Database Migration** ✅:
+**Database Migration**:
+⚠️ **MANUAL MIGRATION REQUIRED** - See `MANUAL_MIGRATION_INSTRUCTIONS.md`
 ```sql
 ALTER TABLE scenarios
-ADD COLUMN IF NOT EXISTS customer_emotion_level TEXT DEFAULT 'calm'
-CHECK (customer_emotion_level IN ('calm', 'frustrated', 'angry', 'extremely_angry'));
+DROP CONSTRAINT IF EXISTS scenarios_customer_emotion_level_check;
+
+UPDATE scenarios SET customer_emotion_level = 'sunshine' WHERE customer_emotion_level = 'calm';
+UPDATE scenarios SET customer_emotion_level = 'in_a_hurry' WHERE customer_emotion_level = 'frustrated';
+
+ALTER TABLE scenarios
+ADD CONSTRAINT scenarios_customer_emotion_level_check
+CHECK (customer_emotion_level IN ('sunshine', 'cold', 'in_a_hurry', 'angry', 'extremely_angry'));
 ```
 
-### **De-Escalation Progression** ✅ VALIDATED
-
-- **Calm** → Remains calm throughout
-- **Frustrated** → Calmer (if quick service + acknowledgment of time pressure)
-- **Angry** → Cautiously Cooperative (if genuine empathy + concrete action + visible effort)
+### De-Escalation Progression ✅
+- **Sunshine** ☀️ → Remains warm and positive throughout
+- **Cold** 🧊 → Softens SLIGHTLY to "respectfully neutral" or "reluctantly amused" (if genuine/competent)
+- **In a Hurry** ⏱️ → Becomes calmer and more pleasant (if quick service + acknowledgment)
+- **Angry** → Cautiously Cooperative (if empathy + action + effort)
 - **Extremely Angry** → Grudging Acceptance (if exceptional empathy + multiple solutions + accountability)
 
-### **Testing Results** ✅ ALL PASS
-
-**Before Fix**:
-```
-AI: "Извините, мне нужна помощь." (polite)
-[Stayed calm even when barista was rude]
-❌ Not emotional at all
-```
-
-**After Fix**:
-```
-AI: "Это НЕПРИЕМЛЕМО! Мне нужен менеджер!" (extremely angry)
-[Uses CAPS, demands accountability, rejects weak solutions]
-✅ Genuinely extremely angry, maintains intensity
-```
-
-**Key Validations**:
-- ✅ Emotion-specific greeting works
-- ✅ Linguistic markers (CAPS, !!!) present
-- ✅ Maintains emotion throughout conversation
-- ✅ Only softens with proper de-escalation
-- ✅ Gets angrier if dismissed or met with excuses
-- ✅ Rejects first 2-3 solutions (extremely angry)
-- ✅ Multilingual support (Russian, English, Spanish, Italian)
-
-### **Documentation**
-
-**Complete Documentation Set**:
-- **EMOTION_SYSTEM_COMPLETE_2025-10-12.md** - Full implementation guide with testing results
-- **EMOTION_SYSTEM_QUICK_REFERENCE.md** - Quick reference for managers and employees
-- **EMOTION_SYSTEM_MIGRATION_2025-10-12.sql** - Database migration with verification
-- **src/lib/customer-emotions.ts** - Complete emotion definitions with behavioral profiles
-
-### **Console Logs for Verification**
-
-When session starts, check for:
+### Console Logs for Verification
 ```
 😤 Customer emotion level: extremely_angry
 🎯 Starting session with dynamic variables: {customer_emotion_level: 'extremely_angry'}
-🔧 Dynamic variables being sent to ElevenLabs:
-- Customer emotion level: extremely_angry
 🎭 🤬 Extremely Angry Customer greeting for ru: "Это НЕПРИЕМЛЕМО!..."
-📝 Created language-aware system prompt for service_practice mode (5000 characters)
+📝 Created language-aware system prompt for service_practice mode
 ```
 
-### **Impact**
-
-✅ **For Managers**: Easy emotion selection via dropdown, visual feedback with color-coded badges
-✅ **For Employees**: Clear expectations, realistic de-escalation practice, progressive difficulty
-✅ **For Training**: Stress inoculation, empathy development, conflict resolution skills
-✅ **For System**: No performance degradation, production-ready and stable
-
-### **Performance**
-- System prompt generation: <5ms
-- ElevenLabs response: ~100-300ms (no change)
-- Overall impact: ✅ No performance degradation
-
 **Status**: ✅ **PRODUCTION READY & TESTED** - Working in live conversations
+
+---
+
+## ⏱️ Session Time Limit System (2025-10-12 AM)
+
+### Feature Overview ✅
+Configurable session time limits for Theory Q&A and Service Practice scenarios, replacing legacy "difficulty level" and "estimated duration" fields.
+
+### Database Schema
+```sql
+ALTER TABLE scenarios
+ADD COLUMN IF NOT EXISTS session_time_limit_minutes INTEGER DEFAULT 10;
+```
+
+### TypeScript Interfaces
+```typescript
+export interface Scenario {
+  session_time_limit_minutes?: number;  // 1-60 minutes
+}
+```
+
+### Key Fixes During Implementation
+1. **Auth State Caching**: Added localStorage caching with 5-minute TTL to prevent "Company ID Missing" errors
+2. **Topic Display**: Fixed TopicTag component to use dynamic company_id instead of hardcoded "test"
+3. **Complete Data Flow**: Field properly saved from form → API → database
+
+### Files Modified
+1. `src/components/ScenarioForm.tsx` - Added time limit field
+2. `src/components/EditScenarioForm.tsx` - Added time limit field
+3. `src/app/manager/page.tsx` - Display time limit in cards
+4. `src/contexts/AuthContext.tsx` - Added localStorage caching
+5. `src/lib/scenarios.ts` - Added field to interfaces
+6. API routes updated for create/update operations
+
+**Status**: ✅ **COMPLETE** with full CRUD functionality
+
+---
+
+## Future Improvements (Potential)
+1. **Real-time Progress Dashboard** - Live mastery metrics for managers
+2. **Learning Path Recommendations** - AI-suggested topics based on performance
+3. **Spaced Repetition System** - Revisit mastered topics periodically
+4. **Adaptive Difficulty** - Dynamic question difficulty adjustment
+5. **Team Analytics** - Benchmark employee progress against team averages
+
+---
+
+## Historical Documentation
+See **CLAUDE_ARCHIVE_2025.md** for:
+- AI Knowledge Extraction System (2025-09-24)
+- Manual Transcript Analysis System (2025-09-25)
+- Language-Specific Initialization (2025-09-26)
+- Scenario-Specific Question Selection (2025-09-29)
+- Recommendation Training with Video Recording (2025-10-01)

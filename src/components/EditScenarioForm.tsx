@@ -78,7 +78,7 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     recommendation_question_ids: scenario.recommendation_question_ids || [],
     recommendation_question_durations: scenario.recommendation_question_durations || {},
     instructions: scenario.instructions || '',
-    customer_emotion_level: scenario.customer_emotion_level || 'calm',
+    customer_emotion_level: scenario.customer_emotion_level || 'sunshine',
     voice_id: scenario.voice_id || RANDOM_VOICE_OPTION,
     use_random_voice: !scenario.voice_id || scenario.voice_id === RANDOM_VOICE_OPTION
   })
