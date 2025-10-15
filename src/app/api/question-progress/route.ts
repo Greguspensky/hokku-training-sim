@@ -173,10 +173,9 @@ export async function GET(request: NextRequest) {
         topicSummary.unanswered_questions++
       }
 
-      // Calculate mastery percentage (correct answers / attempted questions)
-      const attempted = topicSummary.correct_questions + topicSummary.incorrect_questions
-      topicSummary.mastery_percentage = attempted > 0
-        ? Math.round((topicSummary.correct_questions / attempted) * 100)
+      // Calculate mastery percentage (correct answers / total questions)
+      topicSummary.mastery_percentage = topicSummary.total_questions > 0
+        ? Math.round((topicSummary.correct_questions / topicSummary.total_questions) * 100)
         : 0
     })
 

@@ -313,6 +313,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
               <QuestionProgressDashboard
                 userId={authUserId || undefined}
                 companyId={employee.company_id}
+                managerView={true}
               />
             </div>
           )}

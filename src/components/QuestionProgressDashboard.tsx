@@ -32,9 +32,10 @@ interface TopicSummary {
 interface QuestionProgressDashboardProps {
   userId?: string
   companyId?: string
+  managerView?: boolean  // NEW: Enable manager actions like status override
 }
 
-export default function QuestionProgressDashboard({ userId: propUserId, companyId: propCompanyId }: QuestionProgressDashboardProps = {}) {
+export default function QuestionProgressDashboard({ userId: propUserId, companyId: propCompanyId, managerView = false }: QuestionProgressDashboardProps = {}) {
   const { user } = useAuth()
   const [questions, setQuestions] = useState<QuestionProgress[]>([])
   const [topics, setTopics] = useState<TopicSummary[]>([])
@@ -42,6 +43,7 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
   const [error, setError] = useState<string | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<string>('all')
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [updatingQuestionId, setUpdatingQuestionId] = useState<string | null>(null)
 
   // Use props if provided, otherwise fall back to auth context
   const userId = propUserId || user?.id
@@ -91,6 +93,56 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
       setError('Failed to load progress data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (questionId: string, newStatus: 'correct' | 'incorrect' | 'unanswered') => {
+    if (!userId) {
+      console.error('❌ Cannot update status: userId is missing')
+      return
+    }
+
+    try {
+      setUpdatingQuestionId(questionId)
+
+      console.log('🔄 Updating question status:', { questionId, newStatus, userId })
+
+      const response = await fetch('/api/update-question-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: userId,
+          question_id: questionId,
+          new_status: newStatus,
+          manager_id: user?.id
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        console.log('✅ Status updated successfully')
+
+        // Update local state optimistically
+        setQuestions(prevQuestions =>
+          prevQuestions.map(q =>
+            q.id === questionId
+              ? { ...q, status: newStatus as 'correct' | 'incorrect' | 'unanswered' }
+              : q
+          )
+        )
+
+        // Reload fresh data to get updated topic summaries
+        await loadQuestionProgress()
+      } else {
+        console.error('❌ Failed to update status:', data.error)
+        alert(`Failed to update status: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('❌ Error updating status:', error)
+      alert('Failed to update question status')
+    } finally {
+      setUpdatingQuestionId(null)
     }
   }
 
@@ -427,20 +479,44 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                 </div>
 
                 <div className="ml-4 text-right">
-                  {question.status === 'unanswered' && (
-                    <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-                      Unanswered
-                    </span>
-                  )}
-                  {question.status === 'incorrect' && (
-                    <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                      Incorrect
-                    </span>
-                  )}
-                  {question.status === 'correct' && (
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                      Correct
-                    </span>
+                  {managerView ? (
+                    <div className="flex flex-col space-y-2">
+                      <select
+                        value={question.status}
+                        onChange={(e) => handleStatusChange(question.id, e.target.value as 'correct' | 'incorrect' | 'unanswered')}
+                        disabled={updatingQuestionId === question.id}
+                        className={`px-3 py-1 rounded-md text-sm font-medium border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          question.status === 'correct' ? 'bg-green-50 border-green-300 text-green-800' :
+                          question.status === 'incorrect' ? 'bg-red-50 border-red-300 text-red-800' :
+                          'bg-gray-50 border-gray-300 text-gray-800'
+                        } ${updatingQuestionId === question.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md'}`}
+                      >
+                        <option value="unanswered">Unanswered</option>
+                        <option value="incorrect">Incorrect</option>
+                        <option value="correct">Correct</option>
+                      </select>
+                      {updatingQuestionId === question.id && (
+                        <span className="text-xs text-blue-600">Updating...</span>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {question.status === 'unanswered' && (
+                        <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
+                          Unanswered
+                        </span>
+                      )}
+                      {question.status === 'incorrect' && (
+                        <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                          Incorrect
+                        </span>
+                      )}
+                      {question.status === 'correct' && (
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                          Correct
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
