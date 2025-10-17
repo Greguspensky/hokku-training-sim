@@ -249,7 +249,7 @@ class ElevenLabsKnowledgeService {
     if (scenarioType === 'theory') {
       return this.formatTheoryContext(chunks)
     } else {
-      return this.formatServiceContext(chunks)
+      return this.formatServiceContext(chunks, documents)
     }
   }
 
@@ -330,18 +330,113 @@ Focus on testing the employee's knowledge of specific facts, procedures, prices,
   }
 
   /**
-   * Format knowledge context for Service Practice scenarios
+   * Extract menu item names only (for service practice scenarios)
+   * OLD FUNCTION - extracts document titles only
    */
-  private formatServiceContext(chunks: KnowledgeChunk[]): string {
-    const context = chunks.map(chunk =>
-      `**${chunk.category} - ${chunk.title}:**\n${chunk.content}`
-    ).join('\n\n')
+  private extractMenuNamesOnly(documents: KnowledgeBaseDocument[]): { menuItems: string[], addOns: string[] } {
+    const menuItems = documents
+      .filter(doc => doc.item_type === 'menu_item')
+      .map(doc => doc.title)
 
-    return `You are a customer in a service practice scenario. Use this company knowledge to create realistic customer interactions:
+    const addOns = documents
+      .filter(doc => doc.item_type === 'add_on')
+      .map(doc => doc.title)
 
-${context}
+    return { menuItems, addOns }
+  }
 
-Act as a customer who might ask about these products, services, or policies. Present realistic scenarios that test the employee's ability to help customers using this knowledge.`
+  /**
+   * Parse document content and extract individual menu item names with category structure
+   * Used for service practice scenarios - returns structured menu with categories
+   */
+  private parseIndividualMenuItems(documents: KnowledgeBaseDocument[]): string[] {
+    const menuItems: string[] = []
+
+    for (const doc of documents) {
+      // Only process menu_item documents
+      if (doc.item_type !== 'menu_item') continue
+
+      const lines = doc.content.split('\n')
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+
+        // Skip empty lines
+        if (!trimmedLine) continue
+
+        // Skip description lines
+        if (trimmedLine.startsWith('Состав:') ||
+            trimmedLine.startsWith('Отличается:') ||
+            trimmedLine.startsWith('Приготовление:')) {
+          continue
+        }
+
+        // Check if this is a category header (starts with emoji)
+        const categoryMatch = trimmedLine.match(/^[\p{Emoji}\s]+(.+)$/u)
+        if (categoryMatch) {
+          const categoryName = categoryMatch[1].trim()
+          // Add category as a header (will be uppercase in final output)
+          menuItems.push(`CATEGORY:${categoryName}`)
+          continue
+        }
+
+        // Skip markdown headers
+        if (trimmedLine.startsWith('#')) {
+          continue
+        }
+
+        // Match lines that look like menu items:
+        // Pattern 1: "Item Name (volume info)"
+        // Pattern 2: "Item Name" followed by newline
+        const itemMatch = trimmedLine.match(/^([А-Яа-яёЁA-Za-z\s\-\/]+?)(?:\s*\(|$)/)
+
+        if (itemMatch) {
+          const itemName = itemMatch[1].trim()
+
+          // Filter out common non-item text patterns
+          if (itemName.length > 2 &&
+              !itemName.includes('Состав') &&
+              !itemName.includes('Отличается') &&
+              !itemName.includes('Приготовление') &&
+              !itemName.toLowerCase().includes('выпечка') &&
+              !itemName.toLowerCase().includes('классика')) {
+            menuItems.push(itemName)
+          }
+        }
+      }
+    }
+
+    return menuItems
+  }
+
+  /**
+   * Format knowledge context for Service Practice scenarios
+   * Includes: Menu items with category structure (for customer ordering)
+   * Excludes: Company info, SOPs, procedures, internal training materials
+   */
+  private formatServiceContext(chunks: KnowledgeChunk[], documents: KnowledgeBaseDocument[]): string {
+    // Parse individual menu item names from document content with categories
+    const menuItemNames = this.parseIndividualMenuItems(documents)
+
+    if (menuItemNames.length === 0) {
+      return 'No menu items available.'
+    }
+
+    // Build formatted knowledge with category structure
+    let formattedKnowledge = ''
+
+    for (const item of menuItemNames) {
+      if (item.startsWith('CATEGORY:')) {
+        // Extract category name and format as header
+        const categoryName = item.substring(9) // Remove "CATEGORY:" prefix
+        formattedKnowledge += (formattedKnowledge ? '\n\n' : '') + categoryName.toUpperCase() + '\n\n'
+      } else {
+        // Regular menu item
+        formattedKnowledge += item + '\n'
+      }
+    }
+
+    return formattedKnowledge.trim()
   }
 
   /**
