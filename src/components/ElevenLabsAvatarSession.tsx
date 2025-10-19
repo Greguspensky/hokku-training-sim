@@ -239,11 +239,14 @@ export function ElevenLabsAvatarSession({
       setError(null)
       console.log('🚀 Initializing ElevenLabs Avatar Session...')
 
-      // Generate sessionId for this training session
-      const newSessionId = crypto.randomUUID()
-      setSessionId(newSessionId)
-      sessionIdRef.current = newSessionId
-      console.log('🆔 Generated session ID:', newSessionId)
+      // Use the sessionId that was already generated in startSession
+      // (No longer generating it here since we need it earlier for attempt counting)
+      const currentSessionId = sessionIdRef.current
+      if (!currentSessionId) {
+        console.error('❌ No sessionId found - should have been generated in startSession')
+        throw new Error('Session ID not initialized')
+      }
+      console.log('🆔 Using session ID:', currentSessionId)
 
       // Use the passed context or fall back to state
       const contextToUse = loadedKnowledgeContext || knowledgeContext
@@ -776,6 +779,44 @@ Ask specific, factual questions based on the company knowledge context provided.
   const startSession = useCallback(async () => {
     console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs')
 
+    // STEP 0: Generate sessionId and record attempt immediately
+    const newSessionId = crypto.randomUUID()
+    setSessionId(newSessionId)
+    sessionIdRef.current = newSessionId
+    console.log('🆔 Generated session ID:', newSessionId)
+
+    // Record the attempt immediately (counts even if user abandons session)
+    if (user && scenarioId) {
+      try {
+        const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice'
+        console.log('📊 Recording session start for attempt counting...')
+
+        const response = await fetch('/api/start-training-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: newSessionId,
+            employeeId: user.id,
+            assignmentId: 'standalone', // Will be updated if part of assignment
+            companyId: companyId,
+            scenarioId: scenarioId,
+            trainingMode: trainingMode,
+            language: language,
+            agentId: agentId
+          })
+        })
+
+        if (!response.ok) {
+          console.warn('⚠️ Failed to record session start, but continuing anyway')
+        } else {
+          console.log('✅ Session start recorded - attempt counted')
+        }
+      } catch (error) {
+        console.warn('⚠️ Error recording session start:', error)
+        // Continue anyway - don't block the session
+      }
+    }
+
     // STEP 1: Start recording FIRST (get camera/mic permissions before agent speaks)
     if (recordingPreference !== 'none') {
       console.log('🎬 Pre-initializing recording to get permissions before agent starts speaking...')
@@ -793,7 +834,7 @@ Ask specific, factual questions based on the company knowledge context provided.
     // STEP 3: Initialize ElevenLabs conversation (agent can start speaking now)
     console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...')
     await initializeConversation(loadedContext, loadedQuestions)
-  }, [recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation])
+  }, [recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation, user, scenarioId, companyId, scenarioContext, language, agentId])
 
   /**
    * Stop the avatar session

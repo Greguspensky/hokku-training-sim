@@ -91,12 +91,8 @@ export function RecommendationTTSSession({
     ? (scenario?.recommendation_question_durations?.[currentQuestion.id] || 30)
     : 30
 
-  // Initialize session
-  useEffect(() => {
-    if (questions.length > 0 && !sessionId) {
-      initializeSession()
-    }
-  }, [questions])
+  // Note: Session initialization moved to startSession() for better attempt counting
+  // (Session should only be counted when user actually clicks "Start Session")
 
   // Load TTS for current question
   useEffect(() => {
@@ -148,10 +144,41 @@ export function RecommendationTTSSession({
 
   const initializeSession = async () => {
     try {
-      const newSessionId = `rec_tts_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      const newSessionId = crypto.randomUUID()
       setSessionId(newSessionId)
       setSessionStartTime(new Date())
       console.log('✅ Initialized TTS recommendation session:', newSessionId)
+
+      // Record the attempt immediately (counts even if user abandons session)
+      if (user && scenarioId) {
+        try {
+          console.log('📊 Recording session start for attempt counting...')
+
+          const response = await fetch('/api/start-training-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: newSessionId,
+              employeeId: user.id,
+              assignmentId: assignmentId || 'standalone',
+              companyId: companyId,
+              scenarioId: scenarioId,
+              trainingMode: 'recommendation_tts',
+              language: language,
+              agentId: voiceId || 'tts'
+            })
+          })
+
+          if (!response.ok) {
+            console.warn('⚠️ Failed to record session start, but continuing anyway')
+          } else {
+            console.log('✅ Session start recorded - attempt counted')
+          }
+        } catch (error) {
+          console.warn('⚠️ Error recording session start:', error)
+          // Continue anyway - don't block the session
+        }
+      }
     } catch (error) {
       console.error('❌ Error initializing session:', error)
     }
@@ -541,6 +568,11 @@ export function RecommendationTTSSession({
 
   const startSession = async () => {
     console.log('🚀 Starting session from user button click (user gesture)')
+
+    // Initialize session and record attempt FIRST
+    if (!sessionId) {
+      await initializeSession()
+    }
 
     // Start video recording FIRST and wait for it to be ready (required for iOS)
     console.log('🎬 Starting video recording from user gesture')

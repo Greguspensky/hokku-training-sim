@@ -15,6 +15,7 @@ import type { RecordingPreference } from '@/lib/training-sessions'
 import Link from 'next/link'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName, resolveVoiceId } from '@/lib/elevenlabs-voices'
+import { getDefaultVideoAspectRatio } from '@/lib/device-detection'
 
 interface TrainingQuestion {
   id: string
@@ -58,7 +59,14 @@ export default function TrainingSessionPage() {
   const [recommendationQuestions, setRecommendationQuestions] = useState<any[]>([])
   const [recommendationQuestionsLoading, setRecommendationQuestionsLoading] = useState(false)
   const [preAuthorizedTabAudio, setPreAuthorizedTabAudio] = useState<MediaStream | null>(null)
-  const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16' | '4:3' | '1:1'>('16:9')
+  // Auto-detect device type and set default aspect ratio: portrait (9:16) for mobile, landscape (16:9) for desktop
+  const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16' | '4:3' | '1:1'>(() => {
+    // Only run detection on client-side
+    if (typeof window !== 'undefined') {
+      return getDefaultVideoAspectRatio()
+    }
+    return '16:9' // SSR fallback
+  })
   const [resolvedVoiceId, setResolvedVoiceId] = useState<string | undefined>(undefined)
   const [scenarioStats, setScenarioStats] = useState<{attemptCount: number; lastAttempt: string | null; completionPercentage: number; isCompleted: boolean} | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
