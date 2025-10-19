@@ -823,19 +823,6 @@ export default function ManagerDashboard() {
                             </span>
                           </div>
 
-                          {scenario.scenario_type === 'service_practice' && (
-                            <div className="mt-4 space-y-2">
-                              <div>
-                                <span className="text-sm font-medium text-gray-700">Client Behavior:</span>
-                                <p className="text-sm text-gray-600 mt-1">{scenario.client_behavior}</p>
-                              </div>
-                              <div>
-                                <span className="text-sm font-medium text-gray-700">Expected Response:</span>
-                                <p className="text-sm text-gray-600 mt-1">{scenario.expected_response}</p>
-                              </div>
-                            </div>
-                          )}
-
                           {scenario.scenario_type === 'theory' && (
                             <div className="mt-4">
                               <span className="text-sm font-medium text-gray-700">Topics:</span>
@@ -980,14 +967,6 @@ export default function ManagerDashboard() {
 
                         {scenario.scenario_type === 'service_practice' && (
                           <div className="mt-4 space-y-2">
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Client Behavior:</span>
-                              <p className="text-sm text-gray-600 mt-1">{scenario.client_behavior}</p>
-                            </div>
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Expected Response:</span>
-                              <p className="text-sm text-gray-600 mt-1">{scenario.expected_response}</p>
-                            </div>
                             {scenario.milestones && scenario.milestones.length > 0 && (
                               <div>
                                 <span className="text-sm font-medium text-gray-700">Milestones:</span>
