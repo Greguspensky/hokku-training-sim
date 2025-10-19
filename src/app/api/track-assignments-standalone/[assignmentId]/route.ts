@@ -218,6 +218,84 @@ export async function GET(
   }
 }
 
+// PATCH /api/track-assignments-standalone/[assignmentId] - Update scenario attempts limits
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ assignmentId: string }> }
+) {
+  try {
+    const { assignmentId } = await params
+    const body = await request.json()
+    const { scenario_id, max_attempts } = body
+
+    console.log('📝 Updating track scenario attempts limit:', { assignmentId, scenario_id, max_attempts })
+
+    if (!scenario_id) {
+      return NextResponse.json({ success: false, error: 'scenario_id is required' }, { status: 400 })
+    }
+
+    // Validate max_attempts (should be null or a positive integer)
+    if (max_attempts !== null && max_attempts !== undefined) {
+      const attemptsNum = parseInt(max_attempts)
+      if (isNaN(attemptsNum) || attemptsNum < 1) {
+        return NextResponse.json(
+          { success: false, error: 'max_attempts must be null (unlimited) or a positive integer' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Get current assignment
+    const { data: assignment, error: fetchError } = await supabaseAdmin
+      .from('track_assignments')
+      .select('scenario_attempts_limits')
+      .eq('id', assignmentId)
+      .single()
+
+    if (fetchError || !assignment) {
+      console.error('Error fetching assignment:', fetchError)
+      return NextResponse.json({ success: false, error: 'Assignment not found' }, { status: 404 })
+    }
+
+    // Update the scenario_attempts_limits JSON
+    const currentLimits = (assignment.scenario_attempts_limits as Record<string, number>) || {}
+
+    if (max_attempts === null || max_attempts === undefined) {
+      // Remove the limit (unlimited)
+      delete currentLimits[scenario_id]
+    } else {
+      // Set the limit
+      currentLimits[scenario_id] = parseInt(max_attempts)
+    }
+
+    // Update the assignment
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('track_assignments')
+      .update({ scenario_attempts_limits: currentLimits })
+      .eq('id', assignmentId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating track assignment:', updateError)
+      return NextResponse.json({ success: false, error: updateError.message }, { status: 500 })
+    }
+
+    console.log('✅ Successfully updated track scenario attempts limit')
+
+    return NextResponse.json({
+      success: true,
+      assignment: updated
+    })
+  } catch (error) {
+    console.error('Error in track assignment PATCH:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 // DELETE /api/track-assignments-standalone/[assignmentId] - Delete a track assignment
 export async function DELETE(
   request: NextRequest,

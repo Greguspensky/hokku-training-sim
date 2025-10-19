@@ -123,10 +123,28 @@ export async function GET(request: NextRequest) {
 
           if (!trackError && tracks && tracks.length > 0) {
             const track = tracks[0] // Take the first match
+
+            // Get scenarios for this track
+            const { data: scenarios, error: scenariosError } = await supabaseAdmin
+              .from('scenarios')
+              .select('*')
+              .eq('track_id', track.id)
+              .eq('is_active', true)
+              .order('created_at', { ascending: true })
+
+            if (!scenariosError && scenarios) {
+              track.scenarios = scenarios
+              console.log(`✅ Found ${scenarios.length} scenarios for track: ${track.name}`)
+            } else {
+              track.scenarios = []
+              console.log(`⚠️ No scenarios found for track ${track.id}`)
+            }
+
             enrichedAssignments.push({
               ...assignment,
               track: track,
-              progress_percentage: 0 // Default for now
+              progress_percentage: 0, // Default for now
+              scenario_attempts_limits: assignment.scenario_attempts_limits || {}
             })
             console.log(`✅ Found track: ${track.name}`)
           } else {

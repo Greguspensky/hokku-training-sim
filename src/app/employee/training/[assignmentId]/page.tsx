@@ -60,6 +60,10 @@ export default function TrainingSessionPage() {
   const [preAuthorizedTabAudio, setPreAuthorizedTabAudio] = useState<MediaStream | null>(null)
   const [videoAspectRatio, setVideoAspectRatio] = useState<'16:9' | '9:16' | '4:3' | '1:1'>('16:9')
   const [resolvedVoiceId, setResolvedVoiceId] = useState<string | undefined>(undefined)
+  const [scenarioStats, setScenarioStats] = useState<{attemptCount: number; lastAttempt: string | null; completionPercentage: number; isCompleted: boolean} | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [allowedTheoryRecordingOptions, setAllowedTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
+  const [allowedServicePracticeRecordingOptions, setAllowedServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
 
   // Handle authentication - redirect if not authenticated after timeout
   useEffect(() => {
@@ -85,9 +89,9 @@ export default function TrainingSessionPage() {
     loadTrainingData()
   }, [assignmentId, user])
 
-  // Load default language from company settings
+  // Load default language and recording options from company settings
   useEffect(() => {
-    const loadDefaultLanguage = async () => {
+    const loadCompanySettings = async () => {
       if (!user || !user.company_id) return
 
       const companyId = user.company_id
@@ -95,27 +99,50 @@ export default function TrainingSessionPage() {
       try {
         const response = await fetch(`/api/company-settings?company_id=${companyId}`)
         const data = await response.json()
-        if (data.success && data.settings?.default_training_language) {
-          console.log('✅ Loaded default training language:', data.settings.default_training_language)
-          setSelectedLanguage(data.settings.default_training_language as SupportedLanguageCode)
+        if (data.success && data.settings) {
+          if (data.settings.default_training_language) {
+            console.log('✅ Loaded default training language:', data.settings.default_training_language)
+            setSelectedLanguage(data.settings.default_training_language as SupportedLanguageCode)
+          }
+          if (data.settings.theory_recording_options) {
+            console.log('✅ Loaded theory recording options:', data.settings.theory_recording_options)
+            setAllowedTheoryRecordingOptions(data.settings.theory_recording_options)
+          }
+          if (data.settings.service_practice_recording_options) {
+            console.log('✅ Loaded service practice recording options:', data.settings.service_practice_recording_options)
+            setAllowedServicePracticeRecordingOptions(data.settings.service_practice_recording_options)
+          }
         }
       } catch (error) {
-        console.error('Failed to load default language:', error)
+        console.error('Failed to load company settings:', error)
       }
     }
 
-    loadDefaultLanguage()
+    loadCompanySettings()
   }, [user])
 
   // Auto-set recording preference for different scenario types
   useEffect(() => {
     if (currentScenario?.scenario_type === 'recommendations') {
       setRecordingPreference('audio_video')
-    } else if ((currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'service_practice') && recordingPreference === 'none') {
-      // Default to audio recording for theory and service practice (no "none" option available)
-      setRecordingPreference('audio')
+    } else if (currentScenario?.scenario_type === 'theory') {
+      // Set to first available option for theory
+      if (allowedTheoryRecordingOptions.length > 0) {
+        const currentPrefAllowed = allowedTheoryRecordingOptions.includes(recordingPreference as string)
+        if (!currentPrefAllowed || recordingPreference === 'none') {
+          setRecordingPreference(allowedTheoryRecordingOptions[0] as RecordingPreference)
+        }
+      }
+    } else if (currentScenario?.scenario_type === 'service_practice') {
+      // Set to first available option for service practice
+      if (allowedServicePracticeRecordingOptions.length > 0) {
+        const currentPrefAllowed = allowedServicePracticeRecordingOptions.includes(recordingPreference as string)
+        if (!currentPrefAllowed || recordingPreference === 'none') {
+          setRecordingPreference(allowedServicePracticeRecordingOptions[0] as RecordingPreference)
+        }
+      }
     }
-  }, [currentScenario])
+  }, [currentScenario, allowedTheoryRecordingOptions, allowedServicePracticeRecordingOptions])
 
   // Resolve random voice to actual voice when scenario loads
   useEffect(() => {
@@ -125,6 +152,13 @@ export default function TrainingSessionPage() {
       console.log('🎤 Voice resolved:', currentScenario.voice_id === 'random' ? `Random → ${getVoiceName(resolved)} (${resolved})` : `${getVoiceName(resolved)} (${resolved})`)
     }
   }, [currentScenario])
+
+  // Load scenario stats when scenario changes
+  useEffect(() => {
+    if (currentScenario?.id && user?.id) {
+      loadScenarioStats(currentScenario.id)
+    }
+  }, [currentScenario?.id, user?.id])
 
   const loadTrainingData = async () => {
     if (!user) return
@@ -219,6 +253,25 @@ export default function TrainingSessionPage() {
       console.error('Failed to load training data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadScenarioStats = async (scenarioId: string) => {
+    if (!user?.id) return
+
+    try {
+      setStatsLoading(true)
+      const response = await fetch(`/api/scenario-stats?scenario_id=${scenarioId}&user_id=${user.id}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setScenarioStats(data.stats)
+        console.log('📊 Loaded scenario stats:', data.stats)
+      }
+    } catch (error) {
+      console.error('Failed to load scenario stats:', error)
+    } finally {
+      setStatsLoading(false)
     }
   }
 
@@ -715,6 +768,19 @@ export default function TrainingSessionPage() {
             {/* Configuration Section */}
             {showRecordingConsent && (
               <div className="bg-white rounded-lg shadow-lg p-8">
+                {/* Go Back Button */}
+                <div className="mb-6">
+                  <Link
+                    href="/employee"
+                    className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    <span className="font-medium">Go Back</span>
+                  </Link>
+                </div>
+
                 {/* Session Configuration Header */}
                 <div className="mb-8">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -722,26 +788,58 @@ export default function TrainingSessionPage() {
                       ? '📖 Theory Q&A Session'
                       : currentScenario.scenario_type === 'recommendations'
                       ? '🎯 Product Recommendations Session'
-                      : '🗣️ Service Practice Session'
+                      : `🗣️ ${currentScenario.title}`
                     }
                   </h1>
-                  <p className="text-gray-600">
-                    {currentScenario.scenario_type === 'theory'
-                      ? 'Structured knowledge assessment - Answer questions accurately and concisely'
-                      : currentScenario.scenario_type === 'recommendations'
-                      ? 'Product recommendation training - Learn to suggest appropriate products and services'
-                      : 'Interactive roleplay scenario - Practice real customer service situations'
-                    }
-                  </p>
+                  {currentScenario.scenario_type !== 'service_practice' && (
+                    <p className="text-gray-600">
+                      {currentScenario.scenario_type === 'theory'
+                        ? 'Structured knowledge assessment - Answer questions accurately and concisely'
+                        : 'Product recommendation training - Learn to suggest appropriate products and services'
+                      }
+                    </p>
+                  )}
                 </div>
 
                 {/* Session Configuration */}
                 <div className="space-y-8">
-                  {/* Language Selection - First for Service Practice */}
+                  {/* Scenario Goals - First for Service Practice */}
+                  {currentScenario.scenario_type === 'service_practice' && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+                      {/* Goals (Expected Response) */}
+                      {currentScenario.expected_response && (
+                        <div className="mb-4">
+                          <h4 className="text-lg font-semibold text-gray-700 mb-3">🎯 Your Goals</h4>
+                          <p className="text-base text-gray-800 leading-relaxed">
+                            {currentScenario.expected_response}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Milestones */}
+                      {currentScenario.milestones && currentScenario.milestones.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-700 mb-3">✅ Key Milestones</h4>
+                          <ul className="space-y-2">
+                            {currentScenario.milestones.map((milestone, index) => (
+                              <li key={index} className="flex items-start text-base text-gray-800">
+                                <span className="inline-block w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2 mt-0.5 flex-shrink-0">
+                                  {index + 1}
+                                </span>
+                                <span className="leading-relaxed">{milestone}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Language Selection - Second for Service Practice */}
                   {currentScenario.scenario_type === 'service_practice' && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
-                      <p className="text-gray-600 mb-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">🌍 Language Selection</h3>
+                      <p className="text-sm text-gray-600 mb-3">
                         Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
                       </p>
 
@@ -749,7 +847,7 @@ export default function TrainingSessionPage() {
                         <select
                           value={selectedLanguage}
                           onChange={(e) => setSelectedLanguage(e.target.value as SupportedLanguageCode)}
-                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                          className="block w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
                         >
                           {SUPPORTED_LANGUAGES.map((language) => (
                             <option key={language.code} value={language.code}>
@@ -763,20 +861,14 @@ export default function TrainingSessionPage() {
                           </svg>
                         </div>
                       </div>
-
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">
-                          <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
-                        </p>
-                      </div>
                     </div>
                   )}
 
                   {/* Session Recording - Second for Service Practice */}
                   {currentScenario.scenario_type === 'service_practice' && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
-                      <p className="text-gray-600 mb-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">🎥 Session Recording</h3>
+                      <p className="text-sm text-gray-600 mb-3">
                         Recording is required for this training session. Choose your preferred recording format.
                       </p>
 
@@ -784,10 +876,14 @@ export default function TrainingSessionPage() {
                         <select
                           value={recordingPreference}
                           onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
-                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                          className="block w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
                         >
-                          <option value="audio">🎤 Audio Recording</option>
-                          <option value="audio_video">🎬 Audio + Video Recording</option>
+                          {allowedServicePracticeRecordingOptions.includes('audio') && (
+                            <option value="audio">🎤 Audio Recording</option>
+                          )}
+                          {allowedServicePracticeRecordingOptions.includes('audio_video') && (
+                            <option value="audio_video">🎬 Audio + Video Recording</option>
+                          )}
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -795,25 +891,14 @@ export default function TrainingSessionPage() {
                           </svg>
                         </div>
                       </div>
-
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">
-                          {recordingPreference === 'audio' && (
-                            <><strong>Selected:</strong> 🎤 Audio Recording - Your voice will be captured for review</>
-                          )}
-                          {recordingPreference === 'audio_video' && (
-                            <><strong>Selected:</strong> 🎬 Audio + Video Recording - Full session recording for detailed analysis</>
-                          )}
-                        </p>
-                      </div>
                     </div>
                   )}
 
                   {/* Video Aspect Ratio - Third for Service Practice (only if video selected) */}
                   {currentScenario.scenario_type === 'service_practice' && recordingPreference === 'audio_video' && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">📐 Video Aspect Ratio</h3>
-                      <p className="text-gray-600 mb-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">📐 Video Aspect Ratio</h3>
+                      <p className="text-sm text-gray-600 mb-3">
                         Choose the video format that works best for your device and viewing preferences.
                       </p>
 
@@ -821,7 +906,7 @@ export default function TrainingSessionPage() {
                         <select
                           value={videoAspectRatio}
                           onChange={(e) => setVideoAspectRatio(e.target.value as '16:9' | '9:16' | '4:3' | '1:1')}
-                          className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+                          className="block w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
                         >
                           <option value="16:9">📺 16:9 Widescreen (Landscape)</option>
                           <option value="9:16">📱 9:16 Vertical (Portrait)</option>
@@ -833,15 +918,6 @@ export default function TrainingSessionPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
-                      </div>
-
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">
-                          <strong>Selected:</strong> {videoAspectRatio === '16:9' && '📺 16:9 Widescreen - Best for desktop viewing'}
-                          {videoAspectRatio === '9:16' && '📱 9:16 Portrait - Best for mobile devices'}
-                          {videoAspectRatio === '4:3' && '📺 4:3 Standard - Classic video format'}
-                          {videoAspectRatio === '1:1' && '⬛ 1:1 Square - Perfect for social media'}
-                        </p>
                       </div>
                     </div>
                   )}
@@ -866,16 +942,45 @@ export default function TrainingSessionPage() {
                   )}
 
                   {/* Start Session Button - Fifth for Service Practice */}
-                  {currentScenario.scenario_type === 'service_practice' && (
-                    <div className="text-center">
-                      <button
-                        onClick={handleStartSessionWithPreAuth}
-                        className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
-                      >
-                        🚀 Start Training Session
-                      </button>
-                    </div>
-                  )}
+                  {currentScenario.scenario_type === 'service_practice' && (() => {
+                    // Check if attempt limit is reached
+                    const isIndividual = assignmentId.startsWith('individual-')
+                    let maxAttempts: number | null = null
+
+                    if (isIndividual) {
+                      // For individual scenarios, we'd need to fetch from scenario_assignments
+                      // For now, no limit check for individual (would need additional API call)
+                      maxAttempts = null
+                    } else if (assignment) {
+                      // For track scenarios, get from scenario_attempts_limits
+                      maxAttempts = (assignment as any).scenario_attempts_limits?.[currentScenario.id] || null
+                    }
+
+                    const currentAttempts = scenarioStats?.attemptCount || 0
+                    const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+
+                    return (
+                      <div className="text-center">
+                        <button
+                          onClick={handleStartSessionWithPreAuth}
+                          disabled={isLimitReached || statsLoading}
+                          className={`inline-flex items-center px-8 py-4 text-lg font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-lg transform transition ${
+                            isLimitReached
+                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                              : 'text-white bg-green-600 hover:bg-green-700 focus:ring-green-500 hover:scale-105'
+                          }`}
+                          title={isLimitReached ? `Attempt limit reached (${currentAttempts}/${maxAttempts})` : undefined}
+                        >
+                          {isLimitReached ? '🚫 Attempt Limit Reached' : '🚀 Start Training Session'}
+                        </button>
+                        {isLimitReached && (
+                          <p className="mt-2 text-sm text-red-600">
+                            You have reached the maximum number of attempts ({maxAttempts}) for this scenario.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Training Mode Display */}
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
@@ -1169,8 +1274,12 @@ export default function TrainingSessionPage() {
                             <option value="audio_video">🎬 Video Recording (Required)</option>
                           ) : currentScenario?.scenario_type === 'theory' ? (
                             <>
-                              <option value="audio">🎤 Audio Recording</option>
-                              <option value="audio_video">🎬 Audio + Video Recording</option>
+                              {allowedTheoryRecordingOptions.includes('audio') && (
+                                <option value="audio">🎤 Audio Recording</option>
+                              )}
+                              {allowedTheoryRecordingOptions.includes('audio_video') && (
+                                <option value="audio_video">🎬 Audio + Video Recording</option>
+                              )}
                             </>
                           ) : (
                             <>
@@ -1261,16 +1370,45 @@ export default function TrainingSessionPage() {
                 </div>
 
                 {/* Start Session Button - Only show for Theory and Recommendations (Service Practice button is at top) */}
-                {currentScenario.scenario_type !== 'service_practice' && (
-                  <div className="mt-8 text-center">
-                    <button
-                      onClick={handleStartSessionWithPreAuth}
-                      className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-lg transform transition hover:scale-105"
-                    >
-                      🚀 Start Training Session
-                    </button>
-                  </div>
-                )}
+                {currentScenario.scenario_type !== 'service_practice' && (() => {
+                  // Check if attempt limit is reached
+                  const isIndividual = assignmentId.startsWith('individual-')
+                  let maxAttempts: number | null = null
+
+                  if (isIndividual) {
+                    // For individual scenarios, we'd need to fetch from scenario_assignments
+                    // For now, no limit check for individual (would need additional API call)
+                    maxAttempts = null
+                  } else if (assignment) {
+                    // For track scenarios, get from scenario_attempts_limits
+                    maxAttempts = (assignment as any).scenario_attempts_limits?.[currentScenario.id] || null
+                  }
+
+                  const currentAttempts = scenarioStats?.attemptCount || 0
+                  const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+
+                  return (
+                    <div className="mt-8 text-center">
+                      <button
+                        onClick={handleStartSessionWithPreAuth}
+                        disabled={isLimitReached || statsLoading}
+                        className={`inline-flex items-center px-8 py-4 text-lg font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-lg transform transition ${
+                          isLimitReached
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'text-white bg-green-600 hover:bg-green-700 focus:ring-green-500 hover:scale-105'
+                        }`}
+                        title={isLimitReached ? `Attempt limit reached (${currentAttempts}/${maxAttempts})` : undefined}
+                      >
+                        {isLimitReached ? '🚫 Attempt Limit Reached' : '🚀 Start Training Session'}
+                      </button>
+                      {isLimitReached && (
+                        <p className="mt-2 text-sm text-red-600">
+                          You have reached the maximum number of attempts ({maxAttempts}) for this scenario.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )}
 

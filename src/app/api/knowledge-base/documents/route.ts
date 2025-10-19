@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       category_id: body.category_id,
       title: body.title,
       content: body.content,
+      item_type: body.item_type || 'info',
       file_url: body.file_url,
       file_type: body.file_type || 'text',
       file_size: body.file_size,

@@ -26,6 +26,7 @@ interface ScenarioAssignment {
   assigned_at: string
   status: 'assigned' | 'in_progress' | 'completed'
   notes?: string
+  max_attempts?: number | null
   scenarios: {
     id: string
     title: string
@@ -256,9 +257,9 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         </span>
                       )}
 
-                      {/* Attempts */}
+                      {/* Attempts with limit */}
                       <span className="text-xs text-gray-600">
-                        Attempts: {scenarioStats[assignment.scenario_id].attemptCount}
+                        Attempts: {scenarioStats[assignment.scenario_id].attemptCount}/{assignment.max_attempts || '∞'}
                       </span>
 
                       {/* Last Attempt */}
@@ -286,21 +287,39 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
               </div>
 
               <div className="ml-4 flex-shrink-0">
-                {assignment.status !== 'completed' && (
-                  <button
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    onClick={() => {
-                      // Navigate to training session using scenario ID, not assignment ID
-                      const assignmentId = `individual-${assignment.scenario_id}`
-                      window.location.href = `/employee/training/${assignmentId}`
-                    }}
-                  >
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {assignment.status === 'in_progress' ? 'Continue Training' : 'Start Training'}
-                  </button>
-                )}
+                {assignment.status !== 'completed' && (() => {
+                  const stats = scenarioStats[assignment.scenario_id]
+                  const maxAttempts = assignment.max_attempts
+                  const currentAttempts = stats?.attemptCount || 0
+                  const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+
+                  return (
+                    <button
+                      disabled={isLimitReached}
+                      className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                        isLimitReached
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                      onClick={() => {
+                        if (!isLimitReached) {
+                          // Navigate to training session using scenario ID, not assignment ID
+                          const assignmentId = `individual-${assignment.scenario_id}`
+                          window.location.href = `/employee/training/${assignmentId}`
+                        }
+                      }}
+                      title={isLimitReached ? 'Attempt limit reached' : undefined}
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {isLimitReached
+                        ? 'Limit Reached'
+                        : assignment.status === 'in_progress' ? 'Continue Training' : 'Start Training'
+                      }
+                    </button>
+                  )
+                })()}
               </div>
             </div>
           </div>

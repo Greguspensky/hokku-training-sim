@@ -17,7 +17,8 @@ export default function DocumentForm({ document, companyId, categories, selected
     title: document?.title || '',
     content: document?.content || '',
     category_id: document?.category_id || selectedCategoryId || (categories[0]?.id || ''),
-    file_type: document?.file_type || 'text' as const
+    file_type: document?.file_type || 'text' as const,
+    item_type: document?.item_type || 'info' as const
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -133,22 +134,45 @@ export default function DocumentForm({ document, companyId, categories, selected
           </div>
         </div>
 
-        <div>
-          <label htmlFor="file_type" className="block text-sm font-medium text-gray-700 mb-2">
-            Document Type
-          </label>
-          <select
-            id="file_type"
-            value={formData.file_type}
-            onChange={(e) => handleInputChange('file_type', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="text">Text Document</option>
-            <option value="pdf">PDF</option>
-            <option value="doc">Word Document</option>
-            <option value="docx">Word Document (DOCX)</option>
-            <option value="txt">Plain Text</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="file_type" className="block text-sm font-medium text-gray-700 mb-2">
+              Document Type
+            </label>
+            <select
+              id="file_type"
+              value={formData.file_type}
+              onChange={(e) => handleInputChange('file_type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="text">Text Document</option>
+              <option value="pdf">PDF</option>
+              <option value="doc">Word Document</option>
+              <option value="docx">Word Document (DOCX)</option>
+              <option value="txt">Plain Text</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="item_type" className="block text-sm font-medium text-gray-700 mb-2">
+              Item Type *
+            </label>
+            <select
+              id="item_type"
+              value={formData.item_type}
+              onChange={(e) => handleInputChange('item_type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              <option value="menu_item">Menu Item (orderable product)</option>
+              <option value="add_on">Add-on (modifier/extra)</option>
+              <option value="sop">SOP (standard procedure)</option>
+              <option value="info">Info (general information)</option>
+            </select>
+            <div className="mt-1 text-xs text-gray-500">
+              Classifies how this knowledge is used in training
+            </div>
+          </div>
         </div>
 
         <div>

@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         assigned_at,
         status,
         notes,
+        max_attempts,
         scenarios (
           id,
           title,
@@ -148,6 +149,56 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in scenario assignments POST:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { assignment_id, max_attempts } = body
+
+    console.log('📝 Updating scenario assignment attempts limit:', { assignment_id, max_attempts })
+
+    if (!assignment_id) {
+      return NextResponse.json({ success: false, error: 'Assignment ID is required' }, { status: 400 })
+    }
+
+    // Validate max_attempts (should be null or a positive integer)
+    if (max_attempts !== null && max_attempts !== undefined) {
+      const attemptsNum = parseInt(max_attempts)
+      if (isNaN(attemptsNum) || attemptsNum < 1) {
+        return NextResponse.json(
+          { success: false, error: 'max_attempts must be null (unlimited) or a positive integer' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Update the assignment
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('scenario_assignments')
+      .update({ max_attempts: max_attempts === null ? null : parseInt(max_attempts) })
+      .eq('id', assignment_id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating scenario assignment:', updateError)
+      return NextResponse.json({ success: false, error: updateError.message }, { status: 500 })
+    }
+
+    console.log('✅ Successfully updated scenario assignment attempts limit')
+
+    return NextResponse.json({
+      success: true,
+      assignment: updated
+    })
+  } catch (error) {
+    console.error('Error in scenario assignments PATCH:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

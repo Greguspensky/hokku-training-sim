@@ -62,11 +62,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const resolvedParams = await params
     const body = await request.json()
-    
+
     const updateData: Partial<CreateDocumentData> = {
       title: body.title,
       content: body.content,
       category_id: body.category_id,
+      item_type: body.item_type,
       file_url: body.file_url,
       file_type: body.file_type,
       file_size: body.file_size

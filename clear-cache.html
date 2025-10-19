@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Clear Auth Cache</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      margin-top: 20px;
+    }
+    button:hover {
+      background: #dc2626;
+    }
+    .success {
+      color: #10b981;
+      margin-top: 20px;
+      font-weight: 500;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧹 Clear Auth Cache</h1>
+    <p>This will clear all cached authentication data from localStorage.</p>
+    <p>Use this if you're seeing:</p>
+    <ul>
+      <li>"Company ID Missing" errors</li>
+      <li>Stale user data after database updates</li>
+      <li>Auth state not refreshing properly</li>
+    </ul>
+
+    <button onclick="clearCache()">Clear Cache & Reload</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function clearCache() {
+      let cleared = 0
+
+      // Clear all user_cache_* entries
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('user_cache_')) {
+          localStorage.removeItem(key)
+          cleared++
+        }
+      }
+
+      document.getElementById('result').innerHTML =
+        `<div class="success">✅ Cleared ${cleared} cache entries. Reloading...</div>`
+
+      setTimeout(() => {
+        window.location.href = '/manager/knowledge-base'
+      }, 1000)
+    }
+  </script>
+</body>
+</html>

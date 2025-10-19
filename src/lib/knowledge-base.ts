@@ -1,5 +1,7 @@
 import { supabaseAdmin } from './supabase'
 
+export type ItemType = 'menu_item' | 'add_on' | 'sop' | 'info'
+
 export interface KnowledgeBaseCategory {
   id: string
   company_id: string
@@ -16,6 +18,7 @@ export interface KnowledgeBaseDocument {
   category_id: string
   title: string
   content: string
+  item_type: ItemType
   file_url?: string
   file_type: 'text' | 'pdf' | 'doc' | 'docx' | 'txt'
   file_size?: number
@@ -34,6 +37,7 @@ export interface CreateDocumentData {
   category_id: string
   title: string
   content: string
+  item_type: ItemType
   file_url?: string
   file_type: KnowledgeBaseDocument['file_type']
   file_size?: number
@@ -215,6 +219,7 @@ class KnowledgeBaseService {
         category_id: data.category_id,
         title: data.title,
         content: data.content,
+        item_type: data.item_type,
         file_url: data.file_url,
         file_type: data.file_type,
         file_size: data.file_size,

@@ -5,9 +5,10 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2025-10-15)
+## Current Project State (2025-10-17)
 
 ### Latest Features ✅
+- **📚 Knowledge Base Integration (2025-10-17)**: AI customers only order real menu items ✅ **PRODUCTION READY**
 - **🧊 Customer Emotion System Redesign (2025-10-15)**: 5 emotion levels - renamed + NEW "Cold" customer type ✅ **CODE COMPLETE**
 - **🤬 Customer Emotional States (2025-10-12 PM)**: Authentic AI behavior with dynamic emotion responses ✅ **TESTED & WORKING**
 - **⏱️ Session Time Limit System (2025-10-12 AM)**: Configurable time limits (1-60 minutes) ✅
@@ -38,6 +39,8 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **KNOWLEDGE_BASE_FINAL_IMPLEMENTATION.md** - Knowledge base system (menu items in Service Practice) ✅ **PRODUCTION**
+- **RAG_KNOWLEDGE_BASE_IMPLEMENTATION.md** - RAG approach (disabled, preserved for future per-company agents)
 - **VIDEO_UPLOAD_FIX_2025-10-15.md** - Video size limit fix (200 MB) for long sessions ✅ **FIXED**
 - **EMOTION_SYSTEM_UPDATE_2025-10-15.md** - Customer emotion redesign (Sunshine, Cold, In a Hurry) ✅ **COMPLETE**
 - **MANAGER_QUESTION_STATUS_FIX_2025-10-15.md** - Manager status update & progress calculation fixes

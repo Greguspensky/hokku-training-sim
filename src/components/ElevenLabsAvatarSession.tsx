@@ -321,6 +321,54 @@ INSTRUCTIONS:
       // Get establishment type from user's company
       const establishmentType = user?.business_type || 'coffee_shop'
 
+      // FEATURE FLAG: RAG Knowledge Base API (DISABLED - using dynamic variables instead)
+      //
+      // REASON FOR DISABLING: Race conditions occur when multiple companies use the same agent.
+      // PATCH /v1/convai/agents/{agentId} changes global agent config, affecting all active sessions.
+      //
+      // CURRENT APPROACH: Include menu data in dynamic variables (knowledge_context below)
+      // - Works for small KB (<20KB)
+      // - No race conditions
+      // - Per-session isolation
+      //
+      // FUTURE: Set USE_RAG_KNOWLEDGE_BASE = true when:
+      // - Using per-company agents (add elevenlabs_agent_id to companies table)
+      // - Menu size exceeds 20KB
+      // - Need advanced RAG features
+      //
+      // See RAG_KNOWLEDGE_BASE_IMPLEMENTATION.md for complete documentation
+      const USE_RAG_KNOWLEDGE_BASE = false
+
+      if (USE_RAG_KNOWLEDGE_BASE && trainingMode === 'service_practice' && scenarioId && contextToUse) {
+        console.log('📤 Syncing knowledge base to ElevenLabs...')
+        try {
+          const kbSyncResponse = await fetch('/api/elevenlabs-knowledge-sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              companyId,
+              scenarioId,
+              agentId,
+            }),
+          })
+
+          if (kbSyncResponse.ok) {
+            const kbResult = await kbSyncResponse.json()
+            console.log(`✅ KB synced successfully: document ${kbResult.documentId}`)
+            console.log(`📊 KB contains ${kbResult.documentsCount} documents, ${kbResult.knowledgeLength} characters`)
+          } else {
+            console.warn('⚠️ KB sync failed, continuing with dynamic variables fallback')
+          }
+        } catch (kbError) {
+          console.error('❌ KB sync error:', kbError)
+          console.warn('⚠️ Continuing session without KB sync')
+        }
+      } else if (trainingMode === 'service_practice') {
+        console.log('ℹ️ Using dynamic variables for knowledge context (RAG KB disabled)')
+      }
+
       // Create dynamic variables for ElevenLabs agent
       const dynamicVariables = {
         training_mode: trainingMode,
@@ -329,8 +377,13 @@ INSTRUCTIONS:
         session_type: 'assessment',
         language: language,
         establishment_type: establishmentType,
-        // Use dynamic knowledge base content (no fallback - must be loaded from database)
-        knowledge_context: contextToUse?.formattedContext || 'No specific company knowledge available for this scenario. Ask general training questions.',
+        // Knowledge context - included for BOTH Theory and Service Practice modes
+        // - Theory mode: Contains training material for examiner to ask questions about
+        // - Service Practice: Contains menu items for customer to order from
+        // NOTE: This uses dynamic variables instead of RAG KB API to prevent race conditions
+        //       when multiple companies use the same agent concurrently
+        knowledge_context: contextToUse?.formattedContext ||
+          'No specific company knowledge available for this scenario.',
         knowledge_scope: contextToUse?.knowledgeScope || 'restricted',
         documents_available: contextToUse?.documents?.length || 0,
         questions_available: questionsToUse.length,
@@ -339,7 +392,8 @@ INSTRUCTIONS:
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
         expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
         customer_emotion_level: scenarioContext?.customer_emotion_level || 'sunshine',
-        // Use structured questions if available, otherwise use knowledge-based instructions
+        // examiner_instructions only used for Theory mode
+        // For Service Practice, the system prompt in elevenlabs-conversation.ts handles everything
         examiner_instructions: trainingMode === 'theory' ?
           (questionsToUse.length > 0 ?
             `You are a STRICT THEORY EXAMINER for a company training.
@@ -365,29 +419,7 @@ CRITICAL BEHAVIOR RULES:
 
 Ask specific, factual questions based on the company knowledge context provided. Focus on testing the employee's knowledge of facts, procedures, and policies.`
           ) :
-          `You are a CUSTOMER in a service training roleplay scenario.
-
-CUSTOMER BEHAVIOR INSTRUCTIONS:
-${scenarioContext?.client_behavior || 'Act as a typical customer seeking help'}
-
-SCENARIO CONTEXT:
-You are roleplaying as a customer in the following situation: ${scenarioContext?.title || 'General customer service scenario'}
-
-COMPANY KNOWLEDGE CONTEXT (for reference - you are the CUSTOMER, not the employee):
-${contextToUse?.formattedContext || 'Use general service industry knowledge for this roleplay.'}
-
-EXPECTED EMPLOYEE RESPONSE (for evaluation context):
-${scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable'}
-
-ROLEPLAY INSTRUCTIONS:
-- Act as the customer described in the behavior instructions above
-- Be realistic and stay in character throughout the conversation
-- Present the problem or situation naturally
-- Respond to the employee's attempts to help as this type of customer would
-- Do not break character or provide training guidance
-- Let the employee practice their customer service skills by interacting with you as a real customer would
-
-Start the conversation by presenting your customer problem or situation.`
+          undefined  // Service practice doesn't need examiner_instructions - system prompt handles everything
       }
 
       console.log('🎯 Starting session with dynamic variables:', dynamicVariables)

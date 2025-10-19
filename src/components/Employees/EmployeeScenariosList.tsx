@@ -11,6 +11,7 @@ interface ScenarioAssignment {
   assigned_at: string
   status: 'assigned' | 'in_progress' | 'completed'
   notes?: string
+  max_attempts?: number | null
   scenarios: {
     id: string
     title: string
@@ -33,6 +34,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
   const [scenarios, setScenarios] = useState<ScenarioAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
+  const [savingAttempts, setSavingAttempts] = useState<Set<string>>(new Set())
 
   const loadScenarios = async () => {
     if (!employee.id) {
@@ -86,6 +88,45 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
       alert('Failed to remove scenario assignment. Please try again.')
     } finally {
       setRemovingIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(assignmentId)
+        return newSet
+      })
+    }
+  }
+
+  const handleUpdateAttemptsLimit = async (assignmentId: string, maxAttempts: number | null) => {
+    setSavingAttempts(prev => new Set([...prev, assignmentId]))
+
+    try {
+      const response = await fetch('/api/scenario-assignments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignment_id: assignmentId,
+          max_attempts: maxAttempts
+        })
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        console.error('Failed to update attempts limit:', data.error)
+        alert('Failed to update attempts limit. Please try again.')
+      } else {
+        console.log('✅ Successfully updated attempts limit')
+        // Update local state to reflect the change
+        setScenarios(prev => prev.map(scenario =>
+          scenario.id === assignmentId
+            ? { ...scenario, max_attempts: maxAttempts }
+            : scenario
+        ))
+      }
+    } catch (error) {
+      console.error('Error updating attempts limit:', error)
+      alert('Failed to update attempts limit. Please try again.')
+    } finally {
+      setSavingAttempts(prev => {
         const newSet = new Set(prev)
         newSet.delete(assignmentId)
         return newSet
@@ -181,18 +222,65 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 text-xs">
-            <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-blue-100 text-blue-800">
-              {assignment.scenarios.tracks.name}
-            </span>
-            <span className={`inline-flex items-center px-2 py-1 rounded-full font-medium ${getScenarioTypeColor(assignment.scenarios.scenario_type)}`}>
-              {getScenarioTypeText(assignment.scenarios.scenario_type)}
-            </span>
-            {assignment.scenarios.session_time_limit_minutes && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-700">
-                ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-blue-100 text-blue-800">
+                {assignment.scenarios.tracks.name}
               </span>
-            )}
+              <span className={`inline-flex items-center px-2 py-1 rounded-full font-medium ${getScenarioTypeColor(assignment.scenarios.scenario_type)}`}>
+                {getScenarioTypeText(assignment.scenarios.scenario_type)}
+              </span>
+              {assignment.scenarios.session_time_limit_minutes && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-700">
+                  ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <label className="text-xs text-gray-600" title="Leave empty for unlimited attempts">
+                Attempts limit:
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+                  value={assignment.max_attempts || ''}
+                  onChange={(e) => {
+                    // Update local state immediately for responsive UI
+                    const value = e.target.value ? parseInt(e.target.value) : null
+                    setScenarios(prev => prev.map(s =>
+                      s.id === assignment.id ? { ...s, max_attempts: value } : s
+                    ))
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value ? parseInt(e.target.value) : null
+                    handleUpdateAttemptsLimit(assignment.id, value)
+                  }}
+                  disabled={savingAttempts.has(assignment.id)}
+                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  placeholder="∞"
+                  title="Leave empty for unlimited attempts"
+                />
+                {assignment.max_attempts && !savingAttempts.has(assignment.id) && (
+                  <button
+                    onClick={() => handleUpdateAttemptsLimit(assignment.id, null)}
+                    className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear limit (set to unlimited)"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+                {savingAttempts.has(assignment.id) && (
+                  <svg className="animate-spin h-4 w-4 text-gray-400 ml-1" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+              </div>
+            </div>
           </div>
 
           {assignment.notes && (

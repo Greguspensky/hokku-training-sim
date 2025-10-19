@@ -122,6 +122,9 @@ export default function ManagerDashboard() {
   const [defaultLanguage, setDefaultLanguage] = useState('en')
   const [savingLanguage, setSavingLanguage] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [theoryRecordingOptions, setTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
+  const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
+  const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
 
   // Read tab from URL query parameter
   useEffect(() => {
@@ -183,6 +186,8 @@ export default function ManagerDashboard() {
       const data = await response.json()
       if (data.success && data.settings) {
         setDefaultLanguage(data.settings.default_training_language || 'en')
+        setTheoryRecordingOptions(data.settings.theory_recording_options || ['audio', 'audio_video'])
+        setServicePracticeRecordingOptions(data.settings.service_practice_recording_options || ['audio', 'audio_video'])
       }
     } catch (error) {
       console.error('Failed to load company settings:', error)
@@ -213,6 +218,38 @@ export default function ManagerDashboard() {
       alert('Failed to update default language')
     } finally {
       setSavingLanguage(false)
+    }
+  }
+
+  const handleRecordingOptionsChange = async (scenarioType: 'theory' | 'service_practice', options: string[]) => {
+    setSavingRecordingOptions(true)
+    try {
+      const settingKey = scenarioType === 'theory' ? 'theory_recording_options' : 'service_practice_recording_options'
+      const response = await fetch('/api/company-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: companyId,
+          [settingKey]: options
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        if (scenarioType === 'theory') {
+          setTheoryRecordingOptions(options)
+        } else {
+          setServicePracticeRecordingOptions(options)
+        }
+        console.log(`✅ ${scenarioType} recording options updated to:`, options)
+      } else {
+        alert('Failed to update recording options')
+      }
+    } catch (error) {
+      console.error('Failed to update recording options:', error)
+      alert('Failed to update recording options')
+    } finally {
+      setSavingRecordingOptions(false)
     }
   }
 
@@ -609,6 +646,120 @@ export default function ManagerDashboard() {
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
                     This will be the default language for all employee training sessions
+                  </p>
+                </div>
+              </div>
+
+              {/* Recording Options Configuration */}
+              <div className="mt-6 border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Recording Options by Scenario Type</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Configure which recording options will be available to employees for each scenario type.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Theory Q&A Recording Options */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-900 mb-3">
+                      📖 Theory Q&A
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={theoryRecordingOptions.includes('audio')}
+                          onChange={(e) => {
+                            const newOptions = e.target.checked
+                              ? [...theoryRecordingOptions, 'audio']
+                              : theoryRecordingOptions.filter(opt => opt !== 'audio')
+                            if (newOptions.length > 0) {
+                              handleRecordingOptionsChange('theory', newOptions)
+                            }
+                          }}
+                          disabled={savingRecordingOptions}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">🎤 Audio Recording</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={theoryRecordingOptions.includes('audio_video')}
+                          onChange={(e) => {
+                            const newOptions = e.target.checked
+                              ? [...theoryRecordingOptions, 'audio_video']
+                              : theoryRecordingOptions.filter(opt => opt !== 'audio_video')
+                            if (newOptions.length > 0) {
+                              handleRecordingOptionsChange('theory', newOptions)
+                            }
+                          }}
+                          disabled={savingRecordingOptions}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">🎥 Video Recording</span>
+                      </label>
+                    </div>
+                    {savingRecordingOptions && (
+                      <div className="mt-2 flex items-center text-xs text-gray-500">
+                        <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
+                        Saving...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Service Practice Recording Options */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-900 mb-3">
+                      🗣️ Service Practice
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={servicePracticeRecordingOptions.includes('audio')}
+                          onChange={(e) => {
+                            const newOptions = e.target.checked
+                              ? [...servicePracticeRecordingOptions, 'audio']
+                              : servicePracticeRecordingOptions.filter(opt => opt !== 'audio')
+                            if (newOptions.length > 0) {
+                              handleRecordingOptionsChange('service_practice', newOptions)
+                            }
+                          }}
+                          disabled={savingRecordingOptions}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">🎤 Audio Recording</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={servicePracticeRecordingOptions.includes('audio_video')}
+                          onChange={(e) => {
+                            const newOptions = e.target.checked
+                              ? [...servicePracticeRecordingOptions, 'audio_video']
+                              : servicePracticeRecordingOptions.filter(opt => opt !== 'audio_video')
+                            if (newOptions.length > 0) {
+                              handleRecordingOptionsChange('service_practice', newOptions)
+                            }
+                          }}
+                          disabled={savingRecordingOptions}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">🎥 Video Recording</span>
+                      </label>
+                    </div>
+                    {savingRecordingOptions && (
+                      <div className="mt-2 flex items-center text-xs text-gray-500">
+                        <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
+                        Saving...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-xs text-blue-700">
+                    <strong>Note:</strong> At least one recording option must be selected for each scenario type. These settings control what recording options employees will see in the dropdown menu.
                   </p>
                 </div>
               </div>

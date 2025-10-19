@@ -332,9 +332,13 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                                 </span>
                               )}
 
-                              {/* Attempts */}
+                              {/* Attempts with limit */}
                               <span className="text-xs text-gray-600">
-                                Attempts: {stats.attemptCount}
+                                Attempts: {stats.attemptCount}/{
+                                  (assignment as any).scenario_attempts_limits?.[scenario.id]
+                                    ? (assignment as any).scenario_attempts_limits[scenario.id]
+                                    : '∞'
+                                }
                               </span>
 
                               {/* Last Attempt */}
@@ -349,17 +353,29 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                       </div>
                     </div>
 
-                    {!managerView && (
-                      <button
-                        onClick={() => handleStartScenario(scenario)}
-                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Start
-                      </button>
-                    )}
+                    {!managerView && (() => {
+                      const maxAttempts = (assignment as any).scenario_attempts_limits?.[scenario.id]
+                      const currentAttempts = stats?.attemptCount || 0
+                      const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+
+                      return (
+                        <button
+                          onClick={() => handleStartScenario(scenario)}
+                          disabled={isLimitReached}
+                          className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                            isLimitReached
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                          title={isLimitReached ? 'Attempt limit reached' : 'Start training session'}
+                        >
+                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {isLimitReached ? 'Limit Reached' : 'Start'}
+                        </button>
+                      )
+                    })()}
                   </div>
                 )
               })}

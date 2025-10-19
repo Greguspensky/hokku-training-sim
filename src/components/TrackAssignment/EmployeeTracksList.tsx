@@ -12,6 +12,7 @@ interface EmployeeTracksListProps {
 export default function EmployeeTracksList({ employee, companyId }: EmployeeTracksListProps) {
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [savingAttempts, setSavingAttempts] = useState<Set<string>>(new Set())
 
   const loadEmployeeAssignments = async () => {
     try {
@@ -85,6 +86,57 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
     }
   }
 
+  const handleUpdateScenarioAttemptsLimit = async (assignmentId: string, scenarioId: string, maxAttempts: number | null) => {
+    const key = `${assignmentId}-${scenarioId}`
+    setSavingAttempts(prev => new Set([...prev, key]))
+
+    try {
+      const response = await fetch(`/api/track-assignments-standalone/${assignmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario_id: scenarioId,
+          max_attempts: maxAttempts
+        })
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        console.error('Failed to update attempts limit:', data.error)
+        alert('Failed to update attempts limit. Please try again.')
+      } else {
+        console.log('✅ Successfully updated track scenario attempts limit')
+        // Update local state to reflect the change
+        setAssignments(prev => prev.map(assignment => {
+          if (assignment.id === assignmentId) {
+            const currentLimits = (assignment as any).scenario_attempts_limits || {}
+            const updatedLimits = { ...currentLimits }
+            if (maxAttempts === null) {
+              delete updatedLimits[scenarioId]
+            } else {
+              updatedLimits[scenarioId] = maxAttempts
+            }
+            return {
+              ...assignment,
+              scenario_attempts_limits: updatedLimits
+            }
+          }
+          return assignment
+        }))
+      }
+    } catch (error) {
+      console.error('Error updating attempts limit:', error)
+      alert('Failed to update attempts limit. Please try again.')
+    } finally {
+      setSavingAttempts(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(key)
+        return newSet
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -147,19 +199,87 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
                 )}
               </div>
 
-              {/* Progress Bar */}
-              <div className="mt-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-gray-700">Progress</span>
-                  <span className="text-xs text-gray-500">{assignment.progress_percentage}%</span>
+              {/* Scenarios in Track */}
+              {assignment.track?.scenarios && assignment.track.scenarios.length > 0 && (
+                <div className="mt-3">
+                  <h6 className="text-xs font-medium text-gray-700 mb-2">Scenarios in this track:</h6>
+                  <div className="space-y-2">
+                    {assignment.track.scenarios.map((scenario: any) => (
+                      <div key={scenario.id} className="flex items-start justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-900">{scenario.title}</p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              scenario.scenario_type === 'theory' ? 'bg-blue-100 text-blue-800' :
+                              scenario.scenario_type === 'service_practice' ? 'bg-green-100 text-green-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
+                              {scenario.scenario_type === 'theory' ? '📖 Theory' :
+                               scenario.scenario_type === 'service_practice' ? '🗣️ Service Practice' :
+                               '🎯 Recommendations'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4 flex items-center space-x-2">
+                          <label className="text-xs text-gray-600" title="Leave empty for unlimited attempts">
+                            Attempts limit:
+                          </label>
+                          <div className="relative flex items-center">
+                            <input
+                              type="number"
+                              min="1"
+                              max="999"
+                              value={(assignment as any).scenario_attempts_limits?.[scenario.id] || ''}
+                              onChange={(e) => {
+                                // Update local state immediately for responsive UI
+                                const value = e.target.value ? parseInt(e.target.value) : null
+                                setAssignments(prev => prev.map(a => {
+                                  if (a.id === assignment.id) {
+                                    const currentLimits = (a as any).scenario_attempts_limits || {}
+                                    const updatedLimits = { ...currentLimits }
+                                    if (value === null) {
+                                      delete updatedLimits[scenario.id]
+                                    } else {
+                                      updatedLimits[scenario.id] = value
+                                    }
+                                    return { ...a, scenario_attempts_limits: updatedLimits }
+                                  }
+                                  return a
+                                }))
+                              }}
+                              onBlur={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value) : null
+                                handleUpdateScenarioAttemptsLimit(assignment.id, scenario.id, value)
+                              }}
+                              disabled={savingAttempts.has(`${assignment.id}-${scenario.id}`)}
+                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              placeholder="∞"
+                              title="Leave empty for unlimited attempts"
+                            />
+                            {(assignment as any).scenario_attempts_limits?.[scenario.id] && !savingAttempts.has(`${assignment.id}-${scenario.id}`) && (
+                              <button
+                                onClick={() => handleUpdateScenarioAttemptsLimit(assignment.id, scenario.id, null)}
+                                className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                title="Clear limit (set to unlimited)"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                            {savingAttempts.has(`${assignment.id}-${scenario.id}`) && (
+                              <svg className="animate-spin h-4 w-4 text-gray-400 ml-1" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${assignment.progress_percentage}%` }}
-                  ></div>
-                </div>
-              </div>
+              )}
 
               {assignment.notes && (
                 <div className="mt-3 p-2 bg-gray-50 rounded text-sm text-gray-600">
