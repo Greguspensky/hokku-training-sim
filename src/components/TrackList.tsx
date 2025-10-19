@@ -64,6 +64,11 @@ export default function TrackList({
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {formatTargetAudience(track.target_audience)}
                 </span>
+                {track.scenario_count !== undefined && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    📝 {track.scenario_count} scenario{track.scenario_count !== 1 ? 's' : ''}
+                  </span>
+                )}
                 <span className="text-sm text-gray-500">
                   Created {new Date(track.created_at).toLocaleDateString()}
                 </span>

@@ -64,6 +64,7 @@ export interface Track {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  scenario_count?: number; // Number of scenarios in this track
 }
 
 export interface Scenario {
@@ -249,7 +250,7 @@ class ScenarioService {
   }
 
   /**
-   * Get tracks for a company
+   * Get tracks for a company with scenario counts
    */
   async getTracks(companyId: string): Promise<Track[]> {
     const { data: tracks, error } = await supabaseAdmin
@@ -257,13 +258,29 @@ class ScenarioService {
       .select('*')
       .eq('company_id', companyId)
       .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false});
 
     if (error) {
       throw error;
     }
 
-    return tracks || [];
+    // Get scenario counts for each track
+    const tracksWithCounts = await Promise.all(
+      (tracks || []).map(async (track) => {
+        const { count } = await supabaseAdmin
+          .from('scenarios')
+          .select('id', { count: 'exact', head: true })
+          .eq('track_id', track.id)
+          .eq('is_active', true);
+
+        return {
+          ...track,
+          scenario_count: count || 0
+        };
+      })
+    );
+
+    return tracksWithCounts;
   }
 
   /**
