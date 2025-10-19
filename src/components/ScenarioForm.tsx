@@ -115,26 +115,33 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     }))
   }
 
-  const moveMilestoneUp = (index: number) => {
-    if (index === 0) return
-    setFormData(prev => {
-      const newMilestones = [...prev.milestones]
-      const temp = newMilestones[index]
-      newMilestones[index] = newMilestones[index - 1]
-      newMilestones[index - 1] = temp
-      return { ...prev, milestones: newMilestones }
-    })
+  // Drag and drop handlers for milestone reordering
+  const [draggedMilestoneIndex, setDraggedMilestoneIndex] = useState<number | null>(null)
+
+  const handleDragStart = (index: number) => {
+    setDraggedMilestoneIndex(index)
   }
 
-  const moveMilestoneDown = (index: number) => {
-    if (index === formData.milestones.length - 1) return
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    if (draggedMilestoneIndex === null || draggedMilestoneIndex === dropIndex) return
+
     setFormData(prev => {
       const newMilestones = [...prev.milestones]
-      const temp = newMilestones[index]
-      newMilestones[index] = newMilestones[index + 1]
-      newMilestones[index + 1] = temp
+      const draggedItem = newMilestones[draggedMilestoneIndex]
+      newMilestones.splice(draggedMilestoneIndex, 1)
+      newMilestones.splice(dropIndex, 0, draggedItem)
       return { ...prev, milestones: newMilestones }
     })
+    setDraggedMilestoneIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedMilestoneIndex(null)
   }
 
   const handleInputChange = (field: keyof ScenarioFormData, value: any) => {
@@ -549,41 +556,32 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               {/* Milestones list */}
               {formData.milestones.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Current Milestones:</p>
+                  <p className="text-sm font-medium text-gray-700">Current Milestones (drag to reorder):</p>
                   {formData.milestones.map((milestone, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md">
-                      <span className="text-sm text-gray-700 flex-1">{milestone}</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => moveMilestoneUp(index)}
-                          disabled={index === 0}
-                          className={`p-1 ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-800'}`}
-                          title="Move up"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveMilestoneDown(index)}
-                          disabled={index === formData.milestones.length - 1}
-                          className={`p-1 ${index === formData.milestones.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:text-gray-800'}`}
-                          title="Move down"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeMilestone(index)}
-                          className="text-red-600 hover:text-red-700 text-sm ml-2"
-                        >
-                          Remove
-                        </button>
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md cursor-move transition-all ${
+                        draggedMilestoneIndex === index ? 'opacity-50 scale-95' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                        </svg>
+                        <span className="text-sm text-gray-700">{milestone}</span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMilestone(index)}
+                        className="text-red-600 hover:text-red-700 text-sm"
+                      >
+                        Remove
+                      </button>
                     </div>
                   ))}
                 </div>
