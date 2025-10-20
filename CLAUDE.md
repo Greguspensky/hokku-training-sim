@@ -41,6 +41,7 @@ npm run dev  # Start development server on port 3000
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
 - **KNOWLEDGE_BASE_FINAL_IMPLEMENTATION.md** - Knowledge base system (menu items in Service Practice) ✅ **PRODUCTION**
 - **RAG_KNOWLEDGE_BASE_IMPLEMENTATION.md** - RAG approach (disabled, preserved for future per-company agents)
+- **NORMAL_CUSTOMER_MIGRATION_2025-10-20.md** - Normal Customer emotion replaces Sunshine ✅ **COMPLETE**
 - **VIDEO_UPLOAD_FIX_2025-10-15.md** - Video size limit fix (200 MB) for long sessions ✅ **FIXED**
 - **EMOTION_SYSTEM_UPDATE_2025-10-15.md** - Customer emotion redesign (Sunshine, Cold, In a Hurry) ✅ **COMPLETE**
 - **MANAGER_QUESTION_STATUS_FIX_2025-10-15.md** - Manager status update & progress calculation fixes
@@ -154,10 +155,12 @@ ELEVENLABS_API_KEY=[CONFIGURED with convai_write permissions]
 
 ### Five Emotion Levels (Redesigned)
 
-#### ☀️ **Sunshine Customer** (Renamed from "Calm")
-- **Personality**: Warm, positive, brightens your day
-- **Speech**: "Please", "Thank you", "That sounds great", "Perfect"
-- **Use**: Standard service training, baseline confidence building, product knowledge
+#### 👤 **Normal Customer** (Replaced "Sunshine" - 2025-10-20)
+- **Personality**: Everyday customer with reasonable expectations - respectful but has boundaries
+- **Speech**: "Thank you", "Could you help me with...", "I need to speak with a manager" (if disrespected)
+- **Behavior**: Conditionally cooperative - responds to how they're treated, will escalate if rude/dismissive
+- **Use**: Realistic baseline training, teaches consequences of poor service, represents 80%+ of customers
+- **Training Value**: Shows employees that respect must be maintained through professional behavior
 
 #### 🧊 **Cold Customer** ⭐ NEW
 - **Personality**: Neutral, skeptical urban customer - ironical but cooperative if reasonable
@@ -195,21 +198,21 @@ elevenlabs-conversation.ts → ElevenLabs API → AI Agent Behavior
 - **UPDATED**: All scenario management components, APIs, and services
 
 **Database Migration**:
-⚠️ **MANUAL MIGRATION REQUIRED** - See `MANUAL_MIGRATION_INSTRUCTIONS.md`
+⚠️ **MANUAL MIGRATION REQUIRED** - See `NORMAL_CUSTOMER_MIGRATION_2025-10-20.md`
 ```sql
+-- Latest migration (2025-10-20): Sunshine → Normal
+UPDATE scenarios SET customer_emotion_level = 'normal' WHERE customer_emotion_level = 'sunshine';
+
 ALTER TABLE scenarios
 DROP CONSTRAINT IF EXISTS scenarios_customer_emotion_level_check;
 
-UPDATE scenarios SET customer_emotion_level = 'sunshine' WHERE customer_emotion_level = 'calm';
-UPDATE scenarios SET customer_emotion_level = 'in_a_hurry' WHERE customer_emotion_level = 'frustrated';
-
 ALTER TABLE scenarios
 ADD CONSTRAINT scenarios_customer_emotion_level_check
-CHECK (customer_emotion_level IN ('sunshine', 'cold', 'in_a_hurry', 'angry', 'extremely_angry'));
+CHECK (customer_emotion_level IN ('normal', 'cold', 'in_a_hurry', 'angry', 'extremely_angry'));
 ```
 
 ### De-Escalation Progression ✅
-- **Sunshine** ☀️ → Remains warm and positive throughout
+- **Normal** 👤 → Becomes slightly warmer OR escalates to manager (depends on how they're treated)
 - **Cold** 🧊 → Softens SLIGHTLY to "respectfully neutral" or "reluctantly amused" (if genuine/competent)
 - **In a Hurry** ⏱️ → Becomes calmer and more pleasant (if quick service + acknowledgment)
 - **Angry** → Cautiously Cooperative (if empathy + action + effort)

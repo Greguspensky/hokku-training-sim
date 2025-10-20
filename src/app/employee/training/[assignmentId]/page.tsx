@@ -1156,8 +1156,9 @@ export default function TrainingSessionPage() {
                           {/* Customer Emotion Level Display */}
                           {currentScenario.customer_emotion_level && (
                             <div className={`rounded-lg p-4 border-2 ${
-                              currentScenario.customer_emotion_level === 'calm' ? 'bg-green-50 border-green-200' :
-                              currentScenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-50 border-yellow-200' :
+                              currentScenario.customer_emotion_level === 'normal' ? 'bg-blue-50 border-blue-200' :
+                              currentScenario.customer_emotion_level === 'cold' ? 'bg-gray-50 border-gray-200' :
+                              currentScenario.customer_emotion_level === 'in_a_hurry' ? 'bg-yellow-50 border-yellow-200' :
                               currentScenario.customer_emotion_level === 'angry' ? 'bg-orange-50 border-orange-200' :
                               'bg-red-50 border-red-200'
                             }`}>
@@ -1166,8 +1167,9 @@ export default function TrainingSessionPage() {
                               </p>
                               <div className="flex items-center gap-2">
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                  currentScenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
-                                  currentScenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-100 text-yellow-800' :
+                                  currentScenario.customer_emotion_level === 'normal' ? 'bg-blue-100 text-blue-800' :
+                                  currentScenario.customer_emotion_level === 'cold' ? 'bg-gray-100 text-gray-800' :
+                                  currentScenario.customer_emotion_level === 'in_a_hurry' ? 'bg-yellow-100 text-yellow-800' :
                                   currentScenario.customer_emotion_level === 'angry' ? 'bg-orange-100 text-orange-800' :
                                   'bg-red-100 text-red-800'
                                 }`}>
@@ -1175,10 +1177,11 @@ export default function TrainingSessionPage() {
                                 </span>
                               </div>
                               <p className="text-gray-600 text-xs mt-2">
-                                {currentScenario.customer_emotion_level === 'calm' && 'The customer is polite and patient. Practice standard customer service skills.'}
-                                {currentScenario.customer_emotion_level === 'frustrated' && 'The customer is impatient and needs quick resolution. Show efficiency and acknowledge their time pressure.'}
-                                {currentScenario.customer_emotion_level === 'angry' && 'The customer is very upset and demanding. Use de-escalation techniques, show genuine empathy, and provide concrete solutions.'}
-                                {currentScenario.customer_emotion_level === 'extremely_angry' && 'The customer is furious and confrontational. This is advanced de-escalation training. Stay calm, show exceptional empathy, and demonstrate accountability.'}
+                                {currentScenario.customer_emotion_level === 'normal' && 'Everyday customer with reasonable expectations. Respectful but has boundaries - will escalate if treated poorly.'}
+                                {currentScenario.customer_emotion_level === 'cold' && 'Neutral, skeptical urban customer. Tests authenticity - responds to competence and genuine service.'}
+                                {currentScenario.customer_emotion_level === 'in_a_hurry' && 'Time-pressured customer needing quick resolution. Show efficiency and acknowledge their time constraints.'}
+                                {currentScenario.customer_emotion_level === 'angry' && 'Very upset and demanding customer. Use de-escalation techniques, show genuine empathy, and provide concrete solutions.'}
+                                {currentScenario.customer_emotion_level === 'extremely_angry' && 'Furious and confrontational. Advanced de-escalation training - stay calm, show exceptional empathy, and demonstrate accountability.'}
                               </p>
                             </div>
                           )}
@@ -1450,10 +1453,12 @@ export default function TrainingSessionPage() {
                   scenarioId={currentScenario.id}
                   scenarioContext={{
                     title: currentScenario.title,
+                    description: currentScenario.description,
                     type: currentScenario.scenario_type,
                     client_behavior: currentScenario.client_behavior,
                     expected_response: currentScenario.expected_response,
-                    customer_emotion_level: currentScenario.customer_emotion_level
+                    customer_emotion_level: currentScenario.customer_emotion_level,
+                    milestones: currentScenario.milestones
                   }}
                   scenarioQuestions={scenarioQuestions}
                   language={selectedLanguage}

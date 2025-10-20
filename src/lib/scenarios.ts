@@ -97,7 +97,7 @@ export interface Scenario {
   avatar_mode?: boolean;
   language?: string;
   // Customer emotion level for service practice scenarios
-  customer_emotion_level?: 'calm' | 'frustrated' | 'angry' | 'extremely_angry';
+  customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
   // Voice selection for ElevenLabs TTS
   voice_id?: string | 'random'; // Specific voice ID or 'random' for random selection
 }
@@ -128,7 +128,7 @@ export interface CreateScenarioData {
   recommendation_question_ids?: string[];
   recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
-  customer_emotion_level?: 'calm' | 'frustrated' | 'angry' | 'extremely_angry';
+  customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
   voice_id?: string | 'random';
 }
 
@@ -146,7 +146,7 @@ export interface UpdateScenarioData {
   recommendation_question_ids?: string[];
   recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
-  customer_emotion_level?: 'calm' | 'frustrated' | 'angry' | 'extremely_angry';
+  customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
   voice_id?: string | 'random';
 }
 
@@ -223,7 +223,7 @@ class ScenarioService {
       recommendation_question_ids: scenarioData.recommendation_question_ids || [],
       recommendation_question_durations: scenarioData.recommendation_question_durations || {},
       instructions: scenarioData.instructions,
-      customer_emotion_level: scenarioData.customer_emotion_level || 'calm',
+      customer_emotion_level: scenarioData.customer_emotion_level || 'normal',
       voice_id: scenarioData.voice_id || 'random',
       is_active: true,
       knowledge_category_ids: scenarioData.knowledge_category_ids || [],

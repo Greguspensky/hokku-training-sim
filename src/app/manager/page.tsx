@@ -126,6 +126,12 @@ export default function ManagerDashboard() {
   const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
 
+  // Helper function to get track name from track_id
+  const getTrackName = (trackId: string): string => {
+    const track = tracks.find(t => t.id === trackId)
+    return track ? track.name : 'Unknown Track'
+  }
+
   // Read tab from URL query parameter
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -800,11 +806,9 @@ export default function ManagerDashboard() {
                               {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
                                scenario.scenario_type === 'recommendations' ? 'Recommendations' : 'Service Practice'}
                             </span>
-                            {scenario.scenario_type === 'service_practice' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {scenario.template_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                              </span>
-                            )}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                              📚 {getTrackName(scenario.track_id)}
+                            </span>
                             {scenario.scenario_type === 'service_practice' && scenario.customer_emotion_level && (
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 scenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
@@ -942,11 +946,9 @@ export default function ManagerDashboard() {
                             {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
                              scenario.scenario_type === 'recommendations' ? 'Recommendations' : 'Service Practice'}
                           </span>
-                          {scenario.scenario_type === 'service_practice' && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              {scenario.template_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                            </span>
-                          )}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                            📚 {getTrackName(scenario.track_id)}
+                          </span>
                           {scenario.scenario_type === 'service_practice' && scenario.customer_emotion_level && (
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               scenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :

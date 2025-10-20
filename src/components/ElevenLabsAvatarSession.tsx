@@ -1169,6 +1169,50 @@ Ask specific, factual questions based on the company knowledge context provided.
             </div>
           </div>
 
+          {/* Scenario Context Section - Service Practice Only */}
+          {!isTheoryMode && scenarioContext && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
+              {/* Scenario Title/Description */}
+              <div>
+                {scenarioContext.title && (
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    🎭 {scenarioContext.title}
+                  </h3>
+                )}
+                {scenarioContext.description && (
+                  <p className="text-gray-700">{scenarioContext.description}</p>
+                )}
+              </div>
+
+              {/* Your Goals */}
+              {scenarioContext.expected_response && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    🎯 Your Goals
+                  </h4>
+                  <p className="text-gray-700 whitespace-pre-line">{scenarioContext.expected_response}</p>
+                </div>
+              )}
+
+              {/* Key Milestones */}
+              {scenarioContext.milestones && scenarioContext.milestones.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    ✅ Key Milestones
+                  </h4>
+                  <ol className="space-y-1">
+                    {scenarioContext.milestones.map((milestone: string, i: number) => (
+                      <li key={i} className="text-gray-700 flex items-start gap-2">
+                        <span className="text-blue-600 font-medium min-w-[20px]">{i + 1}</span>
+                        <span>{milestone}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Error Display */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1404,7 +1448,7 @@ Ask specific, factual questions based on the company knowledge context provided.
               <p className={`font-medium ${
                 isTheoryMode ? 'text-orange-800' : 'text-blue-800'
               }`}>
-                {isTheoryMode ? '❓ Question:' : '🗨️ Customer:'}
+                {isTheoryMode ? '❓ Question:' : '💬 Last phrase said'}
               </p>
               <p className={isTheoryMode ? 'text-orange-700' : 'text-blue-700'}>
                 {currentMessage}
@@ -1420,46 +1464,58 @@ Ask specific, factual questions based on the company knowledge context provided.
             {sessionId && <p><strong>Session ID:</strong> {sessionId}</p>}
           </div>
 
-          {/* Conversation History - removed max-h to allow full page scrolling, reversed order */}
+          {/* Conversation History - messages alternate left/right */}
           {conversationHistory.length > 0 && (
             <div className="space-y-2">
               <h3 className="font-medium text-gray-900">
                 {isTheoryMode ? '📝 Q&A History:' : '💬 Conversation History:'}
               </h3>
               {/* Reverse the order: newest messages first, oldest last */}
-              {[...conversationHistory].reverse().map((message, index) => (
-                <div
-                  key={conversationHistory.length - 1 - index}
-                  className={`p-3 rounded-lg ${
-                    message.role === 'assistant'
-                      ? (isTheoryMode ? 'bg-orange-50 border border-orange-200' : 'bg-blue-50 border border-blue-200')
-                      : 'bg-green-50 border border-green-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <p className={`font-medium ${
-                      message.role === 'assistant'
-                        ? (isTheoryMode ? 'text-orange-800' : 'text-blue-800')
-                        : 'text-green-800'
-                    }`}>
-                      {message.role === 'assistant'
-                        ? (isTheoryMode ? '❓ Examiner' : '🗨️ Customer')
-                        : '👤 You'
-                      }
-                    </p>
-                    <span className="text-xs text-gray-500">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </span>
+              {[...conversationHistory].reverse().map((message, index) => {
+                const isCustomerMessage = message.role === 'assistant' && !isTheoryMode
+                const isLatest = index === 0
+                // Alternate left (even index) and right (odd index)
+                const alignLeft = index % 2 === 0
+
+                return (
+                  <div
+                    key={conversationHistory.length - 1 - index}
+                    className={`flex ${alignLeft ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div
+                      className={`max-w-[75%] ${
+                        isCustomerMessage
+                          ? 'py-2' // Minimal padding for customer messages (no background)
+                          : 'p-3 rounded-lg ' + (
+                            message.role === 'assistant'
+                              ? 'bg-orange-50 border border-orange-200'
+                              : 'bg-green-50 border border-green-200'
+                          )
+                      }`}
+                    >
+                      {/* Only show label for non-customer messages */}
+                      {!isCustomerMessage && (
+                        <div className="flex justify-between items-start mb-1">
+                          <p className={`font-medium ${
+                            message.role === 'assistant'
+                              ? 'text-orange-800'
+                              : 'text-green-800'
+                          }`}>
+                            {message.role === 'assistant' ? '❓ Examiner' : '👤 You'}
+                          </p>
+                        </div>
+                      )}
+                      <p className={
+                        isCustomerMessage
+                          ? (isLatest ? 'text-gray-900 font-normal' : 'text-gray-500')
+                          : (message.role === 'assistant' ? 'text-orange-700' : 'text-green-700')
+                      }>
+                        {message.content}
+                      </p>
+                    </div>
                   </div>
-                  <p className={
-                    message.role === 'assistant'
-                      ? (isTheoryMode ? 'text-orange-700' : 'text-blue-700')
-                      : 'text-green-700'
-                  }>
-                    {message.content}
-                  </p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
