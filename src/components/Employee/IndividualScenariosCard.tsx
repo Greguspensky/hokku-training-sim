@@ -208,92 +208,88 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
       </div>
 
       <div className="divide-y divide-gray-200">
-        {scenarioAssignments.map((assignment) => (
-          <div key={assignment.id} className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h4 className="text-lg font-medium text-gray-900">{assignment.scenarios.title}</h4>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
-                    {getStatusText(assignment.status)}
-                  </span>
-                </div>
+        {scenarioAssignments.map((assignment) => {
+          const stats = scenarioStats[assignment.scenario_id]
+          const maxAttempts = assignment.max_attempts
+          const currentAttempts = stats?.attemptCount || 0
+          const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
 
-                <p className="text-gray-600 mb-3">{assignment.scenarios.description}</p>
-
-                <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {assignment.scenarios.tracks.name}
-                  </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    assignment.scenarios.scenario_type === 'theory'
-                      ? 'bg-purple-100 text-purple-800'
-                      : assignment.scenarios.scenario_type === 'recommendations'
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                     assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
-                     'Service Practice'}
-                  </span>
-
-                  {/* Session Time Limit */}
-                  {assignment.scenarios.session_time_limit_minutes && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                      ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+          return (
+            <div key={assignment.id} className="p-6">
+              {/* Desktop Layout */}
+              <div className="hidden md:flex md:items-start md:justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h4 className="text-lg font-medium text-gray-900">{assignment.scenarios.title}</h4>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
+                      {getStatusText(assignment.status)}
                     </span>
-                  )}
-
-                  {/* Progress/Completion Status */}
-                  {scenarioStats[assignment.scenario_id] && (
-                    <>
-                      {assignment.scenarios.scenario_type === 'theory' ? (
-                        <span className="text-xs text-blue-600 font-medium">
-                          Completed: {scenarioStats[assignment.scenario_id].completionPercentage}%
-                        </span>
-                      ) : (
-                        <span className={`text-xs font-medium ${scenarioStats[assignment.scenario_id].isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
-                          {scenarioStats[assignment.scenario_id].isCompleted ? '✓ Completed' : 'Not completed'}
-                        </span>
-                      )}
-
-                      {/* Attempts with limit */}
-                      <span className="text-xs text-gray-600">
-                        Attempts: {scenarioStats[assignment.scenario_id].attemptCount}/{assignment.max_attempts || '∞'}
-                      </span>
-
-                      {/* Last Attempt */}
-                      {scenarioStats[assignment.scenario_id].lastAttempt && (
-                        <span className="text-xs text-gray-500">
-                          Last: {new Date(scenarioStats[assignment.scenario_id].lastAttempt).toLocaleDateString()}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-
-
-                {assignment.notes && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
-                    <p className="text-sm text-blue-700">
-                      <strong>Manager's Note:</strong> {assignment.notes}
-                    </p>
                   </div>
-                )}
 
-                <div className="text-xs text-gray-400">
-                  Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+                  <p className="text-gray-600 mb-3">{assignment.scenarios.description}</p>
+
+                  <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {assignment.scenarios.tracks.name}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      assignment.scenarios.scenario_type === 'theory'
+                        ? 'bg-purple-100 text-purple-800'
+                        : assignment.scenarios.scenario_type === 'recommendations'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' :
+                       assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
+                       'Service Practice'}
+                    </span>
+
+                    {assignment.scenarios.session_time_limit_minutes && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+                      </span>
+                    )}
+
+                    {stats && (
+                      <>
+                        {assignment.scenarios.scenario_type === 'theory' ? (
+                          <span className="text-xs text-blue-600 font-medium">
+                            Completed: {stats.completionPercentage}%
+                          </span>
+                        ) : (
+                          <span className={`text-xs font-medium ${stats.isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                            {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                          </span>
+                        )}
+
+                        <span className="text-xs text-gray-600">
+                          Attempts: {stats.attemptCount}/{assignment.max_attempts || '∞'}
+                        </span>
+
+                        {stats.lastAttempt && (
+                          <span className="text-xs text-gray-500">
+                            Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {assignment.notes && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                      <p className="text-sm text-blue-700">
+                        <strong>Manager's Note:</strong> {assignment.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-400">
+                    Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+                  </div>
                 </div>
-              </div>
 
-              <div className="ml-4 flex-shrink-0">
-                {assignment.status !== 'completed' && (() => {
-                  const stats = scenarioStats[assignment.scenario_id]
-                  const maxAttempts = assignment.max_attempts
-                  const currentAttempts = stats?.attemptCount || 0
-                  const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
-
-                  return (
+                <div className="ml-4 flex-shrink-0">
+                  {assignment.status !== 'completed' && (
                     <button
                       disabled={isLimitReached}
                       className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
@@ -303,7 +299,6 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                       }`}
                       onClick={() => {
                         if (!isLimitReached) {
-                          // Navigate to training session using scenario ID, not assignment ID
                           const assignmentId = `individual-${assignment.scenario_id}`
                           window.location.href = `/employee/training/${assignmentId}`
                         }
@@ -319,12 +314,112 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         : assignment.status === 'in_progress' ? 'Continue Training' : 'View Session'
                       }
                     </button>
-                  )
-                })()}
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile Layout */}
+              <div className="md:hidden space-y-4">
+                <div>
+                  <div className="flex items-center flex-wrap gap-2 mb-2">
+                    <h4 className="text-lg font-medium text-gray-900">{assignment.scenarios.title}</h4>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
+                      {getStatusText(assignment.status)}
+                    </span>
+                  </div>
+
+                  <p className="text-gray-600 mb-3">{assignment.scenarios.description}</p>
+
+                  <div className="flex flex-wrap gap-2 text-sm mb-3">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {assignment.scenarios.tracks.name}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      assignment.scenarios.scenario_type === 'theory'
+                        ? 'bg-purple-100 text-purple-800'
+                        : assignment.scenarios.scenario_type === 'recommendations'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' :
+                       assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
+                       'Service Practice'}
+                    </span>
+
+                    {assignment.scenarios.session_time_limit_minutes && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        ⏱️ {assignment.scenarios.session_time_limit_minutes} min
+                      </span>
+                    )}
+
+                    {stats && (
+                      <>
+                        {assignment.scenarios.scenario_type === 'theory' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
+                            {stats.completionPercentage}% Done
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stats.isCompleted ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                            {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                          </span>
+                        )}
+
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          Attempts: {stats.attemptCount}/{assignment.max_attempts || '∞'}
+                        </span>
+
+                        {stats.lastAttempt && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {assignment.notes && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                      <p className="text-sm text-blue-700">
+                        <strong>Manager's Note:</strong> {assignment.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-400">
+                    Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+                  </div>
+                </div>
+
+                {assignment.status !== 'completed' && (
+                  <button
+                    disabled={isLimitReached}
+                    className={`w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                      isLimitReached
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                    onClick={() => {
+                      if (!isLimitReached) {
+                        const assignmentId = `individual-${assignment.scenario_id}`
+                        window.location.href = `/employee/training/${assignmentId}`
+                      }
+                    }}
+                    title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                  >
+                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    {isLimitReached
+                      ? 'Attempt Limit Reached'
+                      : assignment.status === 'in_progress' ? 'Continue Training' : 'View Session'
+                    }
+                  </button>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

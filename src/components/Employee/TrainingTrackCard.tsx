@@ -306,77 +306,155 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
               {scenarios.map((scenario) => {
                 const stats = scenarioStats[scenario.id]
                 return (
-                  <div key={scenario.id} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-lg">{getScenarioTypeIcon(scenario.scenario_type)}</span>
-                      <div>
-                        <h5 className="font-medium text-gray-900 text-sm">
-                          {scenario.title}
-                        </h5>
-                        <p className="text-xs text-gray-400 font-mono">ID: {scenario.id}</p>
-                        <div className="flex items-center space-x-3 mt-1">
-                          <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
-                            {getScenarioTypeLabel(scenario.scenario_type)}
-                          </span>
+                  <div key={scenario.id} className="p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
+                    {/* Desktop: Side-by-side layout */}
+                    <div className="hidden md:flex md:items-center md:justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-lg">{getScenarioTypeIcon(scenario.scenario_type)}</span>
+                        <div>
+                          <h5 className="font-medium text-gray-900 text-sm">
+                            {scenario.title}
+                          </h5>
+                          <p className="text-xs text-gray-400 font-mono">ID: {scenario.id}</p>
+                          <div className="flex items-center space-x-3 mt-1">
+                            <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
+                              {getScenarioTypeLabel(scenario.scenario_type)}
+                            </span>
 
-                          {/* Progress/Completion Status */}
-                          {stats && (
-                            <>
-                              {scenario.scenario_type === 'theory' ? (
-                                <span className="text-xs text-blue-600 font-medium">
-                                  Completed: {stats.completionPercentage}%
-                                </span>
-                              ) : (
-                                <span className={`text-xs font-medium ${stats.isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
-                                  {stats.isCompleted ? '✓ Completed' : 'Not completed'}
-                                </span>
-                              )}
+                            {/* Progress/Completion Status */}
+                            {stats && (
+                              <>
+                                {scenario.scenario_type === 'theory' ? (
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    Completed: {stats.completionPercentage}%
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs font-medium ${stats.isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                                    {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                                  </span>
+                                )}
 
-                              {/* Attempts with limit */}
-                              <span className="text-xs text-gray-600">
-                                Attempts: {stats.attemptCount}/{
-                                  (assignment as any).scenario_attempts_limits?.[scenario.id]
-                                    ? (assignment as any).scenario_attempts_limits[scenario.id]
-                                    : '∞'
-                                }
-                              </span>
-
-                              {/* Last Attempt */}
-                              {stats.lastAttempt && (
-                                <span className="text-xs text-gray-500">
-                                  Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                                {/* Attempts with limit */}
+                                <span className="text-xs text-gray-600">
+                                  Attempts: {stats.attemptCount}/{
+                                    (assignment as any).scenario_attempts_limits?.[scenario.id]
+                                      ? (assignment as any).scenario_attempts_limits[scenario.id]
+                                      : '∞'
+                                  }
                                 </span>
-                              )}
-                            </>
-                          )}
+
+                                {/* Last Attempt */}
+                                {stats.lastAttempt && (
+                                  <span className="text-xs text-gray-500">
+                                    Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
+
+                      {!managerView && (() => {
+                        const maxAttempts = (assignment as any).scenario_attempts_limits?.[scenario.id]
+                        const currentAttempts = stats?.attemptCount || 0
+                        const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+
+                        return (
+                          <button
+                            onClick={() => handleStartScenario(scenario)}
+                            disabled={isLimitReached}
+                            className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                              isLimitReached
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                          >
+                            <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            {isLimitReached ? 'Limit Reached' : 'View'}
+                          </button>
+                        )
+                      })()}
                     </div>
 
-                    {!managerView && (() => {
-                      const maxAttempts = (assignment as any).scenario_attempts_limits?.[scenario.id]
-                      const currentAttempts = stats?.attemptCount || 0
-                      const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+                    {/* Mobile: Stacked layout */}
+                    <div className="md:hidden space-y-3">
+                      <div className="flex items-start space-x-3">
+                        <span className="text-lg flex-shrink-0">{getScenarioTypeIcon(scenario.scenario_type)}</span>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-medium text-gray-900 text-sm">
+                            {scenario.title}
+                          </h5>
+                          <p className="text-xs text-gray-400 font-mono truncate">ID: {scenario.id}</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded border">
+                              {getScenarioTypeLabel(scenario.scenario_type)}
+                            </span>
 
-                      return (
-                        <button
-                          onClick={() => handleStartScenario(scenario)}
-                          disabled={isLimitReached}
-                          className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                            isLimitReached
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                          title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
-                        >
-                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          {isLimitReached ? 'Limit Reached' : 'View'}
-                        </button>
-                      )
-                    })()}
+                            {/* Progress/Completion Status */}
+                            {stats && (
+                              <>
+                                {scenario.scenario_type === 'theory' ? (
+                                  <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
+                                    {stats.completionPercentage}% Done
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs font-medium px-2 py-1 rounded ${stats.isCompleted ? 'text-green-600 bg-green-50' : 'text-gray-500 bg-gray-100'}`}>
+                                    {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                                  </span>
+                                )}
+
+                                {/* Attempts with limit */}
+                                <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                  Attempts: {stats.attemptCount}/{
+                                    (assignment as any).scenario_attempts_limits?.[scenario.id]
+                                      ? (assignment as any).scenario_attempts_limits[scenario.id]
+                                      : '∞'
+                                  }
+                                </span>
+
+                                {/* Last Attempt */}
+                                {stats.lastAttempt && (
+                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                    Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Button below content on mobile */}
+                      {!managerView && (() => {
+                        const maxAttempts = (assignment as any).scenario_attempts_limits?.[scenario.id]
+                        const currentAttempts = stats?.attemptCount || 0
+                        const isLimitReached = maxAttempts && currentAttempts >= maxAttempts
+
+                        return (
+                          <button
+                            onClick={() => handleStartScenario(scenario)}
+                            disabled={isLimitReached}
+                            className={`w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                              isLimitReached
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                          >
+                            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            {isLimitReached ? 'Attempt Limit Reached' : 'View Session'}
+                          </button>
+                        )
+                      })()}
+                    </div>
                   </div>
                 )
               })}
