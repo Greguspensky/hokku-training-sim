@@ -115,8 +115,7 @@ export async function POST(request: NextRequest) {
       // Update existing attempt
       const updateData: any = {
         is_correct,
-        user_answer: `[Manager Override: ${new_status}]`,
-        updated_at: new Date().toISOString()
+        user_answer: `[Manager Override: ${new_status}]`
       }
 
       const { error: updateError } = await supabase
@@ -264,8 +263,7 @@ async function recalculateTopicProgress(
         last_attempt_at: new Date().toISOString(),
         mastered_at: (masteryLevel >= 0.8 && totalAttempts >= 3)
           ? new Date().toISOString()
-          : null,
-        updated_at: new Date().toISOString()
+          : null
       }, {
         onConflict: 'user_id,topic_id'
       })

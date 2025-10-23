@@ -178,7 +178,8 @@ class TrainingSessionsService {
     console.log('📚 Loading session history for employee:', employeeId)
 
     try {
-      const { data, error } = await supabase
+      // Get sessions
+      const { data: sessions, error } = await supabase
         .from('training_sessions')
         .select('*')
         .eq('employee_id', employeeId)
@@ -189,8 +190,44 @@ class TrainingSessionsService {
         throw error
       }
 
-      console.log(`✅ Loaded ${data.length} training sessions`)
-      return data || []
+      if (!sessions || sessions.length === 0) {
+        return []
+      }
+
+      // Get unique scenario IDs
+      const scenarioIds = [...new Set(sessions.map(s => s.scenario_id).filter(Boolean))]
+
+      if (scenarioIds.length === 0) {
+        console.log(`✅ Loaded ${sessions.length} training sessions (no scenarios)`)
+        return sessions
+      }
+
+      // Fetch scenario information
+      const { data: scenarios, error: scenariosError } = await supabase
+        .from('scenarios')
+        .select('id, title, scenario_type')
+        .in('id', scenarioIds)
+
+      if (scenariosError) {
+        console.error('❌ Error fetching scenarios:', scenariosError)
+        // Continue without scenario names
+        return sessions
+      }
+
+      // Create scenario lookup map
+      const scenarioMap = new Map(
+        (scenarios || []).map(s => [s.id, s])
+      )
+
+      // Enrich sessions with scenario info
+      const enrichedSessions = sessions.map(session => ({
+        ...session,
+        scenario_name: session.scenario_id ? scenarioMap.get(session.scenario_id)?.title || null : null,
+        scenario_type: session.scenario_id ? scenarioMap.get(session.scenario_id)?.scenario_type || null : null
+      }))
+
+      console.log(`✅ Loaded ${enrichedSessions.length} training sessions`)
+      return enrichedSessions as TrainingSession[]
     } catch (error) {
       console.error('❌ Error loading session history:', error)
       throw new Error('Failed to load training session history')

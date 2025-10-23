@@ -5,7 +5,10 @@ import { Calendar, Clock, MessageCircle, Brain, Video, Target } from 'lucide-rea
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
 interface SessionCardProps {
-  session: TrainingSession
+  session: TrainingSession & {
+    scenario_name?: string | null
+    scenario_type?: string | null
+  }
   showClickable?: boolean
 }
 
@@ -42,7 +45,7 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
 
   const handleClick = () => {
     if (showClickable) {
-      router.push(`/employee/sessions/${session.id}`)
+      window.open(`/employee/sessions/${session.id}`, '_blank')
     }
   }
 
@@ -57,7 +60,7 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              {session.session_name}
+              {session.scenario_name || session.session_name}
             </h3>
             <div className="flex items-center text-sm text-gray-500">
               <Calendar className="w-4 h-4 mr-1" />
@@ -67,6 +70,12 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
               <div>Attempt ID: {session.id}</div>
               {session.scenario_id && (
                 <div>Scenario ID: {session.scenario_id}</div>
+              )}
+              {session.elevenlabs_conversation_id && (
+                <div>ElevenLabs Conv ID: {session.elevenlabs_conversation_id}</div>
+              )}
+              {session.video_recording_url && (
+                <div>Video ID: {session.video_recording_url.split('/').pop()}</div>
               )}
             </div>
           </div>
@@ -145,7 +154,7 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
                 src={session.video_recording_url}
                 controls
                 className="w-full h-full object-cover"
-                preload="metadata"
+                preload="none"
               >
                 Your browser does not support video playback.
               </video>

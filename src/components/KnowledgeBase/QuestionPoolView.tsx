@@ -36,6 +36,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
   const [clearing, setClearing] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<string | null>(null)
   const [editAnswer, setEditAnswer] = useState('')
+  const [editQuestionText, setEditQuestionText] = useState('')
   const [deletingQuestion, setDeletingQuestion] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped')
   const [editingTopic, setEditingTopic] = useState<string | null>(null)
@@ -136,19 +137,21 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     }
   }
 
-  const startEditAnswer = (questionId: string, currentAnswer: string) => {
+  const startEditQuestion = (questionId: string, currentQuestion: string, currentAnswer: string) => {
     setEditingQuestion(questionId)
+    setEditQuestionText(currentQuestion)
     setEditAnswer(currentAnswer)
   }
 
   const cancelEdit = () => {
     setEditingQuestion(null)
+    setEditQuestionText('')
     setEditAnswer('')
   }
 
-  const saveAnswer = async (questionId: string) => {
-    if (!editAnswer.trim()) {
-      alert('Answer cannot be empty')
+  const saveQuestion = async (questionId: string) => {
+    if (!editQuestionText.trim() || !editAnswer.trim()) {
+      alert('Question and answer cannot be empty')
       return
     }
 
@@ -158,22 +161,26 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ correct_answer: editAnswer.trim() })
+        body: JSON.stringify({
+          question_template: editQuestionText.trim(),
+          correct_answer: editAnswer.trim()
+        })
       })
 
       if (response.ok) {
         // Reload topics to refresh the UI
         await loadTopics()
         setEditingQuestion(null)
+        setEditQuestionText('')
         setEditAnswer('')
-        alert('Answer updated successfully!')
+        alert('Question updated successfully!')
       } else {
         const error = await response.json()
-        alert(`Failed to update answer: ${error.error}`)
+        alert(`Failed to update question: ${error.error}`)
       }
     } catch (error) {
-      console.error('Error updating answer:', error)
-      alert('Failed to update answer. Please try again.')
+      console.error('Error updating question:', error)
+      alert('Failed to update question. Please try again.')
     }
   }
 
@@ -548,11 +555,13 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
         <FlatQuestionListView
           topics={topics}
           onDeleteQuestion={deleteQuestion}
-          onEditAnswer={startEditAnswer}
+          onEditQuestion={startEditQuestion}
           editingQuestion={editingQuestion}
+          editQuestionText={editQuestionText}
+          setEditQuestionText={setEditQuestionText}
           editAnswer={editAnswer}
           setEditAnswer={setEditAnswer}
-          onSaveAnswer={saveAnswer}
+          onSaveQuestion={saveQuestion}
           onCancelEdit={cancelEdit}
           deletingQuestion={deletingQuestion}
         />
@@ -659,20 +668,29 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                             className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded cursor-pointer"
                           />
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-3">{question.question_template}</h4>
-
                             {editingQuestion === question.id ? (
-                              <div className="mb-3">
-                                <label className="block text-xs text-gray-500 mb-1">Answer:</label>
-                                <textarea
-                                  value={editAnswer}
-                                  onChange={(e) => setEditAnswer(e.target.value)}
-                                  rows={3}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                />
-                                <div className="flex items-center space-x-2 mt-2">
+                              <div className="space-y-3 mb-3">
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Question:</label>
+                                  <textarea
+                                    value={editQuestionText}
+                                    onChange={(e) => setEditQuestionText(e.target.value)}
+                                    rows={2}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Answer:</label>
+                                  <textarea
+                                    value={editAnswer}
+                                    onChange={(e) => setEditAnswer(e.target.value)}
+                                    rows={3}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                  />
+                                </div>
+                                <div className="flex items-center space-x-2">
                                   <button
-                                    onClick={() => saveAnswer(question.id)}
+                                    onClick={() => saveQuestion(question.id)}
                                     className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
                                   >
                                     Save
@@ -686,19 +704,22 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                                 </div>
                               </div>
                             ) : (
-                              <div className="mb-3">
-                                <p className="text-xs text-gray-500 mb-1">Answer:</p>
-                                <p className="text-sm font-medium text-green-700">{question.correct_answer}</p>
-                              </div>
+                              <>
+                                <h4 className="font-medium text-gray-900 mb-3">{question.question_template}</h4>
+                                <div className="mb-3">
+                                  <p className="text-xs text-gray-500 mb-1">Answer:</p>
+                                  <p className="text-sm font-medium text-green-700">{question.correct_answer}</p>
+                                </div>
+                              </>
                             )}
 
                             <div className="flex items-center space-x-2">
                               {editingQuestion !== question.id && (
                                 <>
                                   <button
-                                    onClick={() => startEditAnswer(question.id, question.correct_answer)}
+                                    onClick={() => startEditQuestion(question.id, question.question_template, question.correct_answer)}
                                     className="text-blue-600 hover:text-blue-800 text-sm"
-                                    title="Edit answer"
+                                    title="Edit question"
                                   >
                                     ✏️
                                   </button>

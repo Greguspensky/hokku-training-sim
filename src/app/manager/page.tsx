@@ -137,8 +137,8 @@ export default function ManagerDashboard() {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
       const tab = urlParams.get('tab')
-      if (tab && (tab === 'feed' || tab === 'training' || tab === 'knowledge' || tab === 'employees')) {
-        setActiveTab(tab as 'feed' | 'training' | 'knowledge' | 'employees')
+      if (tab && (tab === 'feed' || tab === 'progress' || tab === 'training' || tab === 'knowledge' || tab === 'employees')) {
+        setActiveTab(tab as 'feed' | 'progress' | 'training' | 'knowledge' | 'employees')
       }
     }
   }, [])

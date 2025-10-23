@@ -4,21 +4,29 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const companyId = searchParams.get('company_id')
+  const employeeId = searchParams.get('employee_id') // Optional: filter by specific employee
 
   if (!companyId) {
     return NextResponse.json({ error: 'company_id is required' }, { status: 400 })
   }
 
-  console.log(`📰 Loading training sessions for company: ${companyId}`)
+  console.log(`📰 Loading training sessions for company: ${companyId}${employeeId ? ` (employee: ${employeeId})` : ''}`)
 
   try {
-    // Get all training sessions for the company
-    const { data: sessions, error } = await supabaseAdmin
+    // Get training sessions for the company, optionally filtered by employee
+    let query = supabaseAdmin
       .from('training_sessions')
       .select('*')
       .eq('company_id', companyId)
+
+    // Apply employee filter if provided
+    if (employeeId) {
+      query = query.eq('employee_id', employeeId)
+    }
+
+    const { data: sessions, error } = await query
       .order('started_at', { ascending: false })
-      .limit(50) // Limit to last 50 sessions
+      .limit(employeeId ? 100 : 50) // Higher limit for individual employee queries
 
     if (error) {
       console.error('❌ Error fetching company sessions:', error)

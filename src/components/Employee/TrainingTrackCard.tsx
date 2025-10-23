@@ -115,34 +115,24 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
     loadScenarios()
   }, [assignment.track_id, userId])
 
-  // Load statistics for all scenarios
+  // Load statistics for all scenarios in a single batch request
   const loadScenarioStats = async (scenariosList: Scenario[]) => {
-    if (!userId) return
+    if (!userId || scenariosList.length === 0) return
 
-    const statsPromises = scenariosList.map(async (scenario) => {
-      try {
-        const response = await fetch(`/api/scenario-stats?scenario_id=${scenario.id}&user_id=${userId}`)
-        const data = await response.json()
+    try {
+      // Create comma-separated list of scenario IDs
+      const scenarioIds = scenariosList.map(s => s.id).join(',')
 
-        if (data.success) {
-          return { scenarioId: scenario.id, stats: data.stats }
-        }
-      } catch (error) {
-        console.error(`Failed to load stats for scenario ${scenario.id}:`, error)
+      // Make a single batch request for all scenarios
+      const response = await fetch(`/api/scenario-stats-batch?scenario_ids=${scenarioIds}&user_id=${userId}`)
+      const data = await response.json()
+
+      if (data.success && data.stats) {
+        setScenarioStats(data.stats)
       }
-      return null
-    })
-
-    const results = await Promise.all(statsPromises)
-    const statsMap: {[key: string]: ScenarioStats} = {}
-
-    results.forEach(result => {
-      if (result) {
-        statsMap[result.scenarioId] = result.stats
-      }
-    })
-
-    setScenarioStats(statsMap)
+    } catch (error) {
+      console.error('Failed to load batch scenario stats:', error)
+    }
   }
 
   const handleStartTraining = () => {

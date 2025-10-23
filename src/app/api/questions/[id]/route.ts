@@ -37,11 +37,11 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { correct_answer, topic_id } = body
+    const { question_template, correct_answer, topic_id } = body
 
     // Validate that at least one field is provided
-    if (!correct_answer && !topic_id) {
-      return NextResponse.json({ error: 'Either correct_answer or topic_id is required' }, { status: 400 })
+    if (!question_template && !correct_answer && !topic_id) {
+      return NextResponse.json({ error: 'At least one of question_template, correct_answer, or topic_id is required' }, { status: 400 })
     }
 
     // Build update object dynamically
@@ -49,7 +49,14 @@ export async function PATCH(
       updated_at: new Date().toISOString()
     }
 
-    if (correct_answer) {
+    if (question_template !== undefined) {
+      if (typeof question_template !== 'string') {
+        return NextResponse.json({ error: 'question_template must be a string' }, { status: 400 })
+      }
+      updateData.question_template = question_template.trim()
+    }
+
+    if (correct_answer !== undefined) {
       if (typeof correct_answer !== 'string') {
         return NextResponse.json({ error: 'correct_answer must be a string' }, { status: 400 })
       }

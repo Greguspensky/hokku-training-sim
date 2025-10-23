@@ -13,6 +13,20 @@ interface EmployeeDashboardViewProps {
   employee: Employee
 }
 
+// Cache for employee data to prevent re-fetching
+interface EmployeeDataCache {
+  assignments?: AssignmentWithDetails[]
+  sessions?: TrainingSession[]
+  historyStats?: {
+    totalSessions: number
+    totalDuration: number
+    completedThisWeek: number
+  }
+  authUserId?: string | null
+}
+
+const employeeCache = new Map<string, EmployeeDataCache>()
+
 export default function EmployeeDashboardView({ employee }: EmployeeDashboardViewProps) {
   const [activeTab, setActiveTab] = useState<'tracks' | 'history' | 'progress'>('tracks')
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
@@ -26,10 +40,17 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
     completedThisWeek: 0
   })
 
-  // Load auth user ID from employee email
+  // Load auth user ID from employee email (with caching)
   useEffect(() => {
     const loadAuthUserId = async () => {
       if (!employee.email) return
+
+      // Check cache first
+      const cached = employeeCache.get(employee.id)
+      if (cached?.authUserId !== undefined) {
+        setAuthUserId(cached.authUserId)
+        return
+      }
 
       try {
         const response = await fetch(`/api/auth-user-by-email?email=${encodeURIComponent(employee.email)}`)
@@ -37,6 +58,10 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
 
         if (data.success && data.authUserId) {
           setAuthUserId(data.authUserId)
+          // Cache the result
+          const cache = employeeCache.get(employee.id) || {}
+          cache.authUserId = data.authUserId
+          employeeCache.set(employee.id, cache)
         }
       } catch (error) {
         console.error('Failed to load auth user ID:', error)
@@ -44,7 +69,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
     }
 
     loadAuthUserId()
-  }, [employee.email])
+  }, [employee.email, employee.id])
 
   // Load assignments when component mounts or employee changes
   useEffect(() => {
@@ -61,13 +86,26 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   }, [employee.id, activeTab, authUserId])
 
   const loadAssignments = async () => {
+    // Check cache first
+    const cached = employeeCache.get(employee.id)
+    if (cached?.assignments) {
+      setAssignments(cached.assignments)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await fetch(`/api/track-assignments-standalone?employee_id=${employee.id}`)
       const data = await response.json()
 
       if (data.success) {
-        setAssignments(data.assignments || [])
+        const assignmentsData = data.assignments || []
+        setAssignments(assignmentsData)
+        // Cache the result
+        const cache = employeeCache.get(employee.id) || {}
+        cache.assignments = assignmentsData
+        employeeCache.set(employee.id, cache)
       }
     } catch (error) {
       console.error('Failed to load assignments:', error)
@@ -79,18 +117,27 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   const loadTrainingHistory = async () => {
     if (!authUserId) return
 
+    // Check cache first
+    const cached = employeeCache.get(employee.id)
+    if (cached?.sessions && cached?.historyStats) {
+      setSessions(cached.sessions)
+      setHistoryStats(cached.historyStats)
+      setHistoryLoading(false)
+      return
+    }
+
     try {
       setHistoryLoading(true)
 
-      // Fetch all company sessions and filter for this employee
-      // Using company-sessions API with supabaseAdmin to bypass RLS
-      const companyResponse = await fetch(`/api/company-sessions?company_id=${employee.company_id}`)
+      // Fetch sessions filtered by employee on the server side
+      // Try with authUserId first (the actual user auth ID), fallback to employee.id
+      const employeeIdParam = authUserId || employee.id
+      const companyResponse = await fetch(
+        `/api/company-sessions?company_id=${employee.company_id}&employee_id=${employeeIdParam}`
+      )
       const companyData = await companyResponse.json()
 
-      // Filter sessions for this specific employee
-      const employeeSessions = companyData.sessions?.filter((s: any) =>
-        s.employee_id === authUserId || s.employee_id === employee.id
-      ) || []
+      const employeeSessions = companyData.sessions || []
 
       setSessions(employeeSessions)
 
@@ -109,6 +156,12 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
       }
 
       setHistoryStats(stats)
+
+      // Cache the results
+      const cache = employeeCache.get(employee.id) || {}
+      cache.sessions = employeeSessions
+      cache.historyStats = stats
+      employeeCache.set(employee.id, cache)
     } catch (error) {
       console.error('Failed to load training history:', error)
       setSessions([])

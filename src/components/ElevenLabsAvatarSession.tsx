@@ -75,6 +75,7 @@ export function ElevenLabsAvatarSession({
   const tabAudioStreamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const isSavingSessionRef = useRef<boolean>(false) // Guard to prevent duplicate saves
+  const isStartingSessionRef = useRef<boolean>(false) // Guard to prevent multiple simultaneous starts
 
   /**
    * Countdown timer logic
@@ -390,6 +391,8 @@ INSTRUCTIONS:
         knowledge_scope: contextToUse?.knowledgeScope || 'restricted',
         documents_available: contextToUse?.documents?.length || 0,
         questions_available: questionsToUse.length,
+        // Question templates for Theory mode - AI must ask these EXACTLY as written
+        question_templates: trainingMode === 'theory' ? structuredQuestionsText : undefined,
         // Service practice specific fields
         scenario_title: scenarioContext?.title || 'General customer interaction',
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
@@ -574,6 +577,10 @@ Ask specific, factual questions based on the company knowledge context provided.
 
       console.log('✅ ElevenLabs Avatar Session initialized successfully')
 
+      // Release guard flag after successful initialization
+      isStartingSessionRef.current = false
+      console.log('🔓 Session start guard released (success)')
+
     } catch (error) {
       console.error('❌ Failed to initialize avatar session:', error)
       const errorMessage = error instanceof Error ? error.message :
@@ -581,6 +588,10 @@ Ask specific, factual questions based on the company knowledge context provided.
                           JSON.stringify(error) ||
                           'Failed to initialize session'
       setError(errorMessage)
+
+      // Release guard flag on error so user can retry
+      isStartingSessionRef.current = false
+      console.log('🔓 Session start guard released (error)')
     }
   }, [agentId, language, volume, conversationService, isInitialized])
 
@@ -777,6 +788,16 @@ Ask specific, factual questions based on the company knowledge context provided.
    * Start the avatar session
    */
   const startSession = useCallback(async () => {
+    // GUARD: Prevent multiple simultaneous session starts using synchronous ref
+    if (isStartingSessionRef.current || isInitialized || conversationService) {
+      console.warn('⚠️ Session already starting or active - ignoring duplicate click')
+      return
+    }
+
+    // Set guard flag IMMEDIATELY (synchronously) to block subsequent clicks
+    isStartingSessionRef.current = true
+    console.log('🔒 Session start guard activated')
+
     console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs')
 
     // STEP 0: Generate sessionId and record attempt immediately
@@ -834,7 +855,7 @@ Ask specific, factual questions based on the company knowledge context provided.
     // STEP 3: Initialize ElevenLabs conversation (agent can start speaking now)
     console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...')
     await initializeConversation(loadedContext, loadedQuestions)
-  }, [recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation, user, scenarioId, companyId, scenarioContext, language, agentId])
+  }, [isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation, user, scenarioId, companyId, scenarioContext, language, agentId])
 
   /**
    * Stop the avatar session
@@ -871,6 +892,10 @@ Ask specific, factual questions based on the company knowledge context provided.
       setConversationService(null)
       setIsInitialized(false)
       setIsSessionActive(false)
+
+      // Reset start session guard to allow new session
+      isStartingSessionRef.current = false
+      console.log('🔓 Session start guard reset (session stopped)')
 
       // IMPORTANT: Wait for recording to fully stop before saving
       if (recordingPreference !== 'none') {
@@ -1024,8 +1049,9 @@ Ask specific, factual questions based on the company knowledge context provided.
       const errorMessage = error?.message || 'Unknown error'
       console.error('Error details:', errorMessage)
 
-      // Reset the guard flag to allow retry
+      // Reset the guard flags to allow retry
       isSavingSessionRef.current = false
+      isStartingSessionRef.current = false
 
       // Still allow the user to continue, just show an error
       alert(`Failed to save training session: ${errorMessage}\n\nPlease try again or contact support.`)
@@ -1312,8 +1338,8 @@ Ask specific, factual questions based on the company knowledge context provided.
             {!isSessionActive ? (
               <button
                 onClick={startSession}
-                disabled={isInitialized}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isInitialized || conversationService !== null}
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 <Play className="w-4 h-4 mr-2" />
                 {isInitialized ? 'Connecting...' : 'Start Session'}
@@ -1466,50 +1492,24 @@ Ask specific, factual questions based on the company knowledge context provided.
 
           {/* Conversation History - messages alternate left/right */}
           {conversationHistory.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <h3 className="font-medium text-gray-900">
                 {isTheoryMode ? '📝 Q&A History:' : '💬 Conversation History:'}
               </h3>
               {/* Reverse the order: newest messages first, oldest last */}
               {[...conversationHistory].reverse().map((message, index) => {
-                const isCustomerMessage = message.role === 'assistant' && !isTheoryMode
-                const isLatest = index === 0
-                // Alternate left (even index) and right (odd index)
+                // Alternate left/right based on index (even = left, odd = right)
                 const alignLeft = index % 2 === 0
+                // Latest message (index 0) is black, others are gray
+                const isLatest = index === 0
 
                 return (
                   <div
                     key={conversationHistory.length - 1 - index}
                     className={`flex ${alignLeft ? 'justify-start' : 'justify-end'}`}
                   >
-                    <div
-                      className={`max-w-[75%] ${
-                        isCustomerMessage
-                          ? 'py-2' // Minimal padding for customer messages (no background)
-                          : 'p-3 rounded-lg ' + (
-                            message.role === 'assistant'
-                              ? 'bg-orange-50 border border-orange-200'
-                              : 'bg-green-50 border border-green-200'
-                          )
-                      }`}
-                    >
-                      {/* Only show label for non-customer messages */}
-                      {!isCustomerMessage && (
-                        <div className="flex justify-between items-start mb-1">
-                          <p className={`font-medium ${
-                            message.role === 'assistant'
-                              ? 'text-orange-800'
-                              : 'text-green-800'
-                          }`}>
-                            {message.role === 'assistant' ? '❓ Examiner' : '👤 You'}
-                          </p>
-                        </div>
-                      )}
-                      <p className={
-                        isCustomerMessage
-                          ? (isLatest ? 'text-gray-900 font-normal' : 'text-gray-500')
-                          : (message.role === 'assistant' ? 'text-orange-700' : 'text-green-700')
-                      }>
+                    <div className={`max-w-[75%] ${alignLeft ? 'text-left' : 'text-right'}`}>
+                      <p className={`text-sm leading-relaxed ${isLatest ? 'text-gray-900' : 'text-gray-500'}`}>
                         {message.content}
                       </p>
                     </div>

@@ -14,6 +14,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
   const [sessions, setSessions] = useState<SessionWithEmployee[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [displayLimit, setDisplayLimit] = useState(10) // Initially show only 10 sessions
 
   useEffect(() => {
     loadFeed()
@@ -117,11 +118,19 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
     )
   }
 
+  const displayedSessions = sessions.slice(0, displayLimit)
+  const hasMore = sessions.length > displayLimit
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Training Sessions</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">Training Sessions</h2>
+        <span className="text-sm text-gray-500">
+          Showing {displayedSessions.length} of {sessions.length}
+        </span>
+      </div>
 
-      {sessions.map((session) => (
+      {displayedSessions.map((session) => (
         <div
           key={session.id}
           className="bg-white rounded-lg shadow border border-gray-200"
@@ -166,6 +175,12 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                   <div>Attempt ID: {session.id}</div>
                   {session.scenario_id && (
                     <div>Scenario ID: {session.scenario_id}</div>
+                  )}
+                  {session.elevenlabs_conversation_id && (
+                    <div>ElevenLabs Conv ID: {session.elevenlabs_conversation_id}</div>
+                  )}
+                  {session.video_recording_url && (
+                    <div>Video ID: {session.video_recording_url.split('/').pop()}</div>
                   )}
                 </div>
               </div>
@@ -227,7 +242,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                     src={session.video_recording_url}
                     controls
                     className="max-w-full max-h-[600px] object-contain"
-                    preload="metadata"
+                    preload="none"
                   >
                     Your browser does not support video playback.
                   </video>
@@ -237,6 +252,17 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
           </div>
         </div>
       ))}
+
+      {hasMore && (
+        <div className="text-center pt-4">
+          <button
+            onClick={() => setDisplayLimit(prev => prev + 10)}
+            className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Load More ({sessions.length - displayLimit} remaining)
+          </button>
+        </div>
+      )}
     </div>
   )
 }

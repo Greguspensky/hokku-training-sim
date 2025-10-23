@@ -416,6 +416,18 @@ export default function SessionTranscriptPage() {
                   <div className="mt-1 font-mono text-gray-600 break-all">{session.scenario_id}</div>
                 </div>
               )}
+              {session.elevenlabs_conversation_id && (
+                <div>
+                  <span className="font-medium text-gray-700">ElevenLabs Conv ID:</span>
+                  <div className="mt-1 font-mono text-gray-600 break-all">{session.elevenlabs_conversation_id}</div>
+                </div>
+              )}
+              {session.video_recording_url && (
+                <div>
+                  <span className="font-medium text-gray-700">Video ID:</span>
+                  <div className="mt-1 font-mono text-gray-600 break-all">{session.video_recording_url.split('/').pop()}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -771,36 +783,26 @@ export default function SessionTranscriptPage() {
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {session.conversation_transcript.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
+              <div className="space-y-3">
+                {session.conversation_transcript.map((message, index) => {
+                  // Alternate left/right based on index (even = left, odd = right)
+                  const alignLeft = index % 2 === 0
+                  // Latest message (last in array) is black, others are gray
+                  const isLatest = index === session.conversation_transcript.length - 1
+
+                  return (
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.role === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}
+                      key={index}
+                      className={`flex ${alignLeft ? 'justify-start' : 'justify-end'}`}
                     >
-                      <div className="flex items-center mb-1">
-                        {message.role === 'user' ? (
-                          <User className="w-4 h-4 mr-2" />
-                        ) : (
-                          <Bot className="w-4 h-4 mr-2" />
-                        )}
-                        <span className="text-xs font-medium">
-                          {message.role === 'user' ? 'You' : 'AI Trainer'}
-                        </span>
-                        <span className="text-xs opacity-70 ml-2">
-                          {formatTimestamp(message.timestamp)}
-                        </span>
+                      <div className={`max-w-[75%] ${alignLeft ? 'text-left' : 'text-right'}`}>
+                        <p className={`text-sm leading-relaxed ${isLatest ? 'text-gray-900' : 'text-gray-500'}`}>
+                          {message.content}
+                        </p>
                       </div>
-                      <p className="text-sm">{message.content}</p>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

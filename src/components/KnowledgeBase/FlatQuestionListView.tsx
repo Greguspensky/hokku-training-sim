@@ -30,11 +30,13 @@ interface FlatQuestion extends Question {
 interface FlatQuestionListViewProps {
   topics: Topic[]
   onDeleteQuestion: (questionId: string) => Promise<void>
-  onEditAnswer: (questionId: string, currentAnswer: string) => void
+  onEditQuestion: (questionId: string, currentQuestion: string, currentAnswer: string) => void
   editingQuestion: string | null
+  editQuestionText: string
+  setEditQuestionText: (value: string) => void
   editAnswer: string
   setEditAnswer: (value: string) => void
-  onSaveAnswer: (questionId: string) => Promise<void>
+  onSaveQuestion: (questionId: string) => Promise<void>
   onCancelEdit: () => void
   deletingQuestion: string | null
 }
@@ -42,11 +44,13 @@ interface FlatQuestionListViewProps {
 export default function FlatQuestionListView({
   topics,
   onDeleteQuestion,
-  onEditAnswer,
+  onEditQuestion,
   editingQuestion,
+  editQuestionText,
+  setEditQuestionText,
   editAnswer,
   setEditAnswer,
-  onSaveAnswer,
+  onSaveQuestion,
   onCancelEdit,
   deletingQuestion
 }: FlatQuestionListViewProps) {
@@ -295,18 +299,30 @@ export default function FlatQuestionListView({
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-4" colSpan={editingQuestion === question.id ? 5 : 1}>
                   {editingQuestion === question.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editAnswer}
-                        onChange={(e) => setEditAnswer(e.target.value)}
-                        rows={2}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Question:</label>
+                        <textarea
+                          value={editQuestionText}
+                          onChange={(e) => setEditQuestionText(e.target.value)}
+                          rows={2}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Answer:</label>
+                        <textarea
+                          value={editAnswer}
+                          onChange={(e) => setEditAnswer(e.target.value)}
+                          rows={2}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => onSaveAnswer(question.id)}
+                          onClick={() => onSaveQuestion(question.id)}
                           className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
                         >
                           Save
@@ -325,40 +341,42 @@ export default function FlatQuestionListView({
                     </p>
                   )}
                 </td>
-                <td className="px-4 py-4">
-                  <p className="text-sm text-gray-900">{question.topic_name}</p>
-                </td>
-                <td className="px-4 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(question.topic_category)}`}>
-                    {question.topic_category}
-                  </span>
-                </td>
-                <td className="px-4 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty_level)}`}>
-                    {getDifficultyLabel(question.difficulty_level)}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-right">
-                  {editingQuestion !== question.id && (
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => onEditAnswer(question.id, question.correct_answer)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                        title="Edit answer"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => onDeleteQuestion(question.id)}
-                        disabled={deletingQuestion === question.id}
-                        className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
-                        title="Delete question"
-                      >
-                        {deletingQuestion === question.id ? '⏳' : '🗑️'}
-                      </button>
-                    </div>
-                  )}
-                </td>
+                {editingQuestion !== question.id && (
+                  <>
+                    <td className="px-4 py-4">
+                      <p className="text-sm text-gray-900">{question.topic_name}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(question.topic_category)}`}>
+                        {question.topic_category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty_level)}`}>
+                        {getDifficultyLabel(question.difficulty_level)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => onEditQuestion(question.id, question.question_template, question.correct_answer)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          title="Edit question"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => onDeleteQuestion(question.id)}
+                          disabled={deletingQuestion === question.id}
+                          className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50"
+                          title="Delete question"
+                        >
+                          {deletingQuestion === question.id ? '⏳' : '🗑️'}
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>

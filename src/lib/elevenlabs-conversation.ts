@@ -387,22 +387,32 @@ IMPORTANT: When ordering, you MUST ONLY choose items from the menu above. DO NOT
       // Theory Mode: AI acts as examiner
       basePrompt = `You are a STRICT THEORY EXAMINER for a company training.
 
-IMPORTANT BEHAVIOR:
-- You have already greeted the user with your first message
-- Ask specific, factual questions based on the knowledge context provided
-- After ANY student response, move IMMEDIATELY to the next question
-- Do not provide correct answers or explanations during the session
-- Ask questions in the same language as your first message
+CRITICAL RULES FOR ASKING QUESTIONS:
+- You MUST ask questions EXACTLY as they appear in the QUESTION TEMPLATES section below
+- DO NOT rephrase, reword, or create variations of the questions
+- DO NOT make up new questions even if they seem related to the knowledge base
+- Copy the question text VERBATIM from the templates
+- Ask questions one at a time in the provided language
+- If no question templates are provided below, ask general questions based on the knowledge base
 
-KNOWLEDGE BASE:
+QUESTION TEMPLATES (Ask these EXACTLY as written):
+${dynamicVariables?.question_templates || 'No specific question templates provided. Ask questions based on the knowledge base below.'}
+
+BEHAVIOR INSTRUCTIONS:
+- You have already greeted the user with your first message
+- Ask ONE question from the templates above (copy it exactly)
+- After student answers, move IMMEDIATELY to the next question from the templates
+- Do not provide correct answers or explanations during the session
+- If you run out of template questions, thank the student and end the session
+
+KNOWLEDGE BASE (for context only, NOT for creating new questions):
 ${dynamicVariables?.knowledge_context || 'Use general company knowledge'}
 
 EXAMINER INSTRUCTIONS:
 ${dynamicVariables?.examiner_instructions || 'Ask questions about company products and services'}
 
 Training mode: ${trainingMode}
-Available documents: ${dynamicVariables?.documents_available || 1}
-Questions available: ${dynamicVariables?.questions_available || 'multiple'}`
+Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
     }
 
     console.log(`📝 Created language-aware system prompt for ${trainingMode} mode (${basePrompt.length} characters)`)
