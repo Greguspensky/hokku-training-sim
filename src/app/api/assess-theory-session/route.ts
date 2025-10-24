@@ -390,11 +390,11 @@ async function recordQuestionAttempt(
     // Record the question attempt
     const attemptData = {
       training_session_id: sessionId,
-      employee_id: employeeId,
+      user_id: employeeId,
       topic_id: topic.id,
       question_id: question.id,
       question_asked: exchange.question,
-      employee_answer: exchange.answer,
+      user_answer: exchange.answer,
       correct_answer: question.correct_answer,
       is_correct: isCorrectByThreshold,
       points_earned: isCorrectByThreshold ? (question.points || 1) : 0,
@@ -422,9 +422,9 @@ async function recordQuestionAttempt(
 
     // Update employee topic progress
     const { data: currentProgress } = await supabaseAdmin
-      .from('employee_topic_progress')
+      .from('user_topic_progress')
       .select('*')
-      .eq('employee_id', employeeId)
+      .eq('user_id', employeeId)
       .eq('topic_id', topic.id)
       .single()
 
@@ -433,9 +433,9 @@ async function recordQuestionAttempt(
     const masteryLevel = totalAttempts > 0 ? correctAttempts / totalAttempts : 0
 
     const { error: progressError } = await supabaseAdmin
-      .from('employee_topic_progress')
+      .from('user_topic_progress')
       .upsert({
-        employee_id: employeeId,
+        user_id: employeeId,
         topic_id: topic.id,
         total_attempts: totalAttempts,
         correct_attempts: correctAttempts,
@@ -446,7 +446,7 @@ async function recordQuestionAttempt(
           : currentProgress?.mastered_at,
         updated_at: new Date().toISOString()
       }, {
-        onConflict: 'employee_id,topic_id'
+        onConflict: 'user_id,topic_id'
       })
 
     if (progressError) {

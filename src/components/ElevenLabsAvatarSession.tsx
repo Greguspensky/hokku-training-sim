@@ -297,7 +297,9 @@ export function ElevenLabsAvatarSession({
           return ''
         }
 
-        const questionList = questionsToFormat.slice(0, 15).map((q, index) => {
+        // Use all questions without arbitrary limit
+        // Note: If prompt becomes too large for ElevenLabs (>10KB), we may need to paginate
+        const questionList = questionsToFormat.map((q, index) => {
           // Handle both old format and new format
           const questionText = q.question_template || q.question
           const topicName = q.topic_name || q.topic?.name || 'Unknown Topic'
@@ -305,6 +307,9 @@ export function ElevenLabsAvatarSession({
 
           return `${index + 1}. "${questionText}" (Topic: ${topicName}${difficultyLevel})`
         }).join('\n')
+
+        console.log(`📋 Formatted ${questionsToFormat.length} questions for ElevenLabs agent`)
+        console.log(`📏 Question list size: ${questionList.length} characters`)
 
         return `
 STRUCTURED QUESTIONS TO ASK (in order of priority):
@@ -315,7 +320,7 @@ INSTRUCTIONS:
 - Ask these questions one by one in the exact order listed
 - After student gives ANY answer, move immediately to the next question
 - Do not provide correct answers or explanations during the session
-- Ask ALL questions in the list before ending the session
+- Ask ALL ${questionsToFormat.length} questions in the list before ending the session
 - Track which questions have been asked to avoid repetition
 `
       }
@@ -609,15 +614,6 @@ Ask specific, factual questions based on the company knowledge context provided.
         console.log('🎵 Audio-only session - ElevenLabs audio will be captured in conversation')
         setIsRecording(true)
         sessionStartTimeRef.current = Date.now()
-
-        // Start countdown timer if time limit is set
-        if (sessionTimeLimit) {
-          const timeInSeconds = sessionTimeLimit * 60
-          setTimeRemaining(timeInSeconds)
-          setIsTimerActive(true)
-          console.log(`⏱️ Started countdown timer: ${sessionTimeLimit} minutes (${timeInSeconds} seconds)`)
-        }
-
         return
       }
 
@@ -634,14 +630,6 @@ Ask specific, factual questions based on the company knowledge context provided.
 
       setIsRecording(true)
       sessionStartTimeRef.current = Date.now()
-
-      // Start countdown timer if time limit is set
-      if (sessionTimeLimit) {
-        const timeInSeconds = sessionTimeLimit * 60
-        setTimeRemaining(timeInSeconds)
-        setIsTimerActive(true)
-        console.log(`⏱️ Started countdown timer: ${sessionTimeLimit} minutes (${timeInSeconds} seconds)`)
-      }
 
       console.log('✅ Video recording started successfully')
 
@@ -838,6 +826,14 @@ Ask specific, factual questions based on the company knowledge context provided.
       }
     }
 
+    // Start countdown timer if time limit is set (independent of recording)
+    if (sessionTimeLimit) {
+      const timeInSeconds = sessionTimeLimit * 60
+      setTimeRemaining(timeInSeconds)
+      setIsTimerActive(true)
+      console.log(`⏱️ Started countdown timer: ${sessionTimeLimit} minutes (${timeInSeconds} seconds)`)
+    }
+
     // STEP 1: Start recording FIRST (get camera/mic permissions before agent speaks)
     if (recordingPreference !== 'none') {
       console.log('🎬 Pre-initializing recording to get permissions before agent starts speaking...')
@@ -855,7 +851,7 @@ Ask specific, factual questions based on the company knowledge context provided.
     // STEP 3: Initialize ElevenLabs conversation (agent can start speaking now)
     console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...')
     await initializeConversation(loadedContext, loadedQuestions)
-  }, [isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation, user, scenarioId, companyId, scenarioContext, language, agentId])
+  }, [isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation, user, scenarioId, companyId, scenarioContext, language, agentId, sessionTimeLimit])
 
   /**
    * Stop the avatar session
