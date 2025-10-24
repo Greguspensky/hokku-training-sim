@@ -469,7 +469,7 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                     )}
                   </div>
 
-                  {question.status !== 'unanswered' && (
+                  {managerView && question.status !== 'unanswered' && (
                     <div className="text-sm">
                       <p className="text-gray-600">
                         <strong>Correct Answer:</strong> {question.correct_answer}
