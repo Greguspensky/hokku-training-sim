@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Clock, MessageCircle, Brain, Video, Target, User } from 'lucide-react'
+import { Calendar, Clock, MessageCircle, Brain, Video, Target, User, Trash2, AlertTriangle, X } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
 interface SessionWithEmployee extends TrainingSession {
@@ -15,6 +15,10 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [displayLimit, setDisplayLimit] = useState(10) // Initially show only 10 sessions
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [sessionToDelete, setSessionToDelete] = useState<SessionWithEmployee | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     loadFeed()
@@ -73,6 +77,49 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
     })
   }
 
+  const handleDeleteClick = (session: SessionWithEmployee) => {
+    setSessionToDelete(session)
+    setShowDeleteDialog(true)
+    setDeleteError(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!sessionToDelete) return
+
+    try {
+      setDeletingSessionId(sessionToDelete.id)
+      setDeleteError(null)
+
+      console.log('🗑️ Deleting session:', sessionToDelete.id)
+      const result = await trainingSessionsService.deleteSession(sessionToDelete.id)
+
+      if (result.success) {
+        console.log('✅ Session deleted successfully')
+        // Remove from local state
+        setSessions(prev => prev.filter(s => s.id !== sessionToDelete.id))
+        setShowDeleteDialog(false)
+        setSessionToDelete(null)
+      } else {
+        throw new Error('Deletion failed')
+      }
+    } catch (error) {
+      console.error('❌ Failed to delete session:', error)
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete session. Please try again.'
+      )
+    } finally {
+      setDeletingSessionId(null)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteDialog(false)
+    setSessionToDelete(null)
+    setDeleteError(null)
+  }
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
@@ -123,6 +170,76 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && sessionToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start mb-4">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Delete Training Session?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This will permanently delete:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4 ml-4">
+                  <li>• Session transcript and data</li>
+                  <li>• Video/audio recordings from storage</li>
+                  <li>• ElevenLabs conversation history</li>
+                </ul>
+                <p className="text-sm font-medium text-gray-900 mb-2">
+                  Session: {sessionToDelete.scenario_name || sessionToDelete.session_name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Employee: {sessionToDelete.employee_name || 'Unknown'}
+                </p>
+                <p className="text-sm text-red-600 font-semibold mt-3">
+                  This action cannot be undone.
+                </p>
+                {deleteError && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-800">{deleteError}</p>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={cancelDelete}
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+                disabled={deletingSessionId !== null}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={cancelDelete}
+                disabled={deletingSessionId !== null}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deletingSessionId !== null}
+                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {deletingSessionId ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Session'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">Training Sessions</h2>
         <span className="text-sm text-gray-500">
@@ -184,6 +301,22 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                   )}
                 </div>
               </div>
+              <button
+                onClick={() => handleDeleteClick(session)}
+                disabled={deletingSessionId === session.id}
+                className={`ml-3 p-2 rounded-md transition-colors ${
+                  deletingSessionId === session.id
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
+                }`}
+                title="Delete session"
+              >
+                {deletingSessionId === session.id ? (
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </button>
             </div>
 
             <div className="grid grid-cols-3 gap-4 text-sm">

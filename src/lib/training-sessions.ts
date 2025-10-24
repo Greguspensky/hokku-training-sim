@@ -482,6 +482,50 @@ class TrainingSessionsService {
       throw new Error('Failed to load training session statistics')
     }
   }
+
+  /**
+   * Delete a training session and all associated resources
+   * Removes session from database, Supabase Storage, and ElevenLabs
+   */
+  async deleteSession(sessionId: string): Promise<{
+    success: boolean
+    deleted: {
+      session: boolean
+      elevenlabsConversation: boolean
+      videoRecording: boolean
+      audioRecording: boolean
+    }
+    errors?: string[]
+  }> {
+    console.log('🗑️ Deleting training session:', sessionId)
+
+    try {
+      const response = await fetch('/api/delete-training-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete session')
+      }
+
+      const result = await response.json()
+      console.log('✅ Session deleted successfully:', result)
+
+      return result
+    } catch (error) {
+      console.error('❌ Error deleting session:', error)
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete training session'
+      )
+    }
+  }
 }
 
 // Export singleton instance

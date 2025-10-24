@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Calendar, Clock, MessageCircle, Brain, Video, Target } from 'lucide-react'
+import { Calendar, Clock, MessageCircle, Brain, Video, Target, Trash2 } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
 interface SessionCardProps {
@@ -10,10 +10,26 @@ interface SessionCardProps {
     scenario_type?: string | null
   }
   showClickable?: boolean
+  showDeleteButton?: boolean
+  onDelete?: (sessionId: string) => Promise<void>
+  isDeleting?: boolean
 }
 
-export default function SessionCard({ session, showClickable = true }: SessionCardProps) {
+export default function SessionCard({
+  session,
+  showClickable = true,
+  showDeleteButton = false,
+  onDelete,
+  isDeleting = false
+}: SessionCardProps) {
   const router = useRouter()
+
+  const handleDeleteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    if (onDelete && !isDeleting) {
+      await onDelete(session.id)
+    }
+  }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -95,6 +111,24 @@ export default function SessionCard({ session, showClickable = true }: SessionCa
                 ? 'Product Recommendations'
                 : 'Service Practice'}
             </span>
+            {showDeleteButton && (
+              <button
+                onClick={handleDeleteClick}
+                disabled={isDeleting}
+                className={`p-2 rounded-md transition-colors ${
+                  isDeleting
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
+                }`}
+                title="Delete session"
+              >
+                {isDeleting ? (
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 

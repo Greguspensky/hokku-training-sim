@@ -7,7 +7,7 @@ import { trainingSessionsService, type TrainingSession } from '@/lib/training-se
 import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import SessionCard from '@/components/Employee/SessionCard'
 import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
-import { User, Calendar, Mail, TrendingUp, Clock, Award } from 'lucide-react'
+import { User, Calendar, Mail, TrendingUp, Clock, Award, AlertTriangle, X } from 'lucide-react'
 
 interface EmployeeDashboardViewProps {
   employee: Employee
@@ -39,6 +39,10 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
     totalDuration: 0,
     completedThisWeek: 0
   })
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [sessionToDelete, setSessionToDelete] = useState<TrainingSession | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Load auth user ID from employee email (with caching)
   useEffect(() => {
@@ -175,6 +179,71 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
     }
   }
 
+  const handleDeleteSession = async (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId)
+    if (!session) return
+
+    setSessionToDelete(session)
+    setShowDeleteDialog(true)
+    setDeleteError(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!sessionToDelete) return
+
+    try {
+      setDeletingSessionId(sessionToDelete.id)
+      setDeleteError(null)
+
+      console.log('🗑️ Deleting session:', sessionToDelete.id)
+      const result = await trainingSessionsService.deleteSession(sessionToDelete.id)
+
+      if (result.success) {
+        console.log('✅ Session deleted successfully')
+
+        // Remove from local state
+        setSessions(prev => prev.filter(s => s.id !== sessionToDelete.id))
+
+        // Update stats
+        setHistoryStats(prev => ({
+          totalSessions: prev.totalSessions - 1,
+          totalDuration: prev.totalDuration - (sessionToDelete.session_duration_seconds || 0),
+          completedThisWeek: prev.completedThisWeek - (
+            new Date(sessionToDelete.ended_at || sessionToDelete.created_at) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) ? 1 : 0
+          )
+        }))
+
+        // Clear cache for this employee
+        const cache = employeeCache.get(employee.id)
+        if (cache) {
+          cache.sessions = undefined
+          cache.historyStats = undefined
+          employeeCache.set(employee.id, cache)
+        }
+
+        setShowDeleteDialog(false)
+        setSessionToDelete(null)
+      } else {
+        throw new Error('Deletion failed')
+      }
+    } catch (error) {
+      console.error('❌ Failed to delete session:', error)
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete session. Please try again.'
+      )
+    } finally {
+      setDeletingSessionId(null)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteDialog(false)
+    setSessionToDelete(null)
+    setDeleteError(null)
+  }
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not available'
     const date = new Date(dateString)
@@ -186,7 +255,78 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && sessionToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start mb-4">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Delete Training Session?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This will permanently delete:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1 mb-4 ml-4">
+                  <li>• Session transcript and data</li>
+                  <li>• Video/audio recordings from storage</li>
+                  <li>• ElevenLabs conversation history</li>
+                </ul>
+                <p className="text-sm font-medium text-gray-900 mb-2">
+                  Session: {sessionToDelete.session_name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Employee: {employee.name}
+                </p>
+                <p className="text-sm text-red-600 font-semibold mt-3">
+                  This action cannot be undone.
+                </p>
+                {deleteError && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-800">{deleteError}</p>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={cancelDelete}
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+                disabled={deletingSessionId !== null}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={cancelDelete}
+                disabled={deletingSessionId !== null}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deletingSessionId !== null}
+                className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {deletingSessionId ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Session'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-6">
       {/* Employee Info Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-start justify-between">
@@ -351,7 +491,14 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                   ) : (
                     <div className="space-y-4">
                       {sessions.map((session) => (
-                        <SessionCard key={session.id} session={session} showClickable={true} />
+                        <SessionCard
+                          key={session.id}
+                          session={session}
+                          showClickable={true}
+                          showDeleteButton={true}
+                          onDelete={handleDeleteSession}
+                          isDeleting={deletingSessionId === session.id}
+                        />
                       ))}
                     </div>
                   )}
@@ -373,5 +520,6 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
         </div>
       </div>
     </div>
+    </>
   )
 }
