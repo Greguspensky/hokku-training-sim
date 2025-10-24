@@ -88,7 +88,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       recommendation_question_durations: body.recommendation_question_durations || {},
       instructions: body.instructions,
       customer_emotion_level: body.customer_emotion_level,
-      voice_id: body.voice_id
+      voice_id: body.voice_id,
+      first_message: body.first_message
     };
     
     // Validate required fields based on scenario type

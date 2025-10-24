@@ -403,6 +403,7 @@ INSTRUCTIONS:
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
         expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
         customer_emotion_level: scenarioContext?.customer_emotion_level || 'sunshine',
+        first_message: scenarioContext?.first_message || undefined,
         // examiner_instructions only used for Theory mode
         // For Service Practice, the system prompt in elevenlabs-conversation.ts handles everything
         examiner_instructions: trainingMode === 'theory' ?

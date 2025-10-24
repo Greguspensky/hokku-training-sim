@@ -76,12 +76,25 @@ export class ElevenLabsConversationService {
 
   /**
    * Get language-specific greeting for first message
-   * Returns simple "Hello" for service practice (emotion emerges naturally during conversation)
-   * Returns session intro for theory mode
+   * Returns custom first message if provided, otherwise defaults to generic greetings
+   * For custom messages, adds natural translation instruction for the AI
    */
-  private getScenarioSpecificGreeting(language: string, trainingMode: string): string {
+  private getScenarioSpecificGreeting(
+    language: string,
+    trainingMode: string,
+    customFirstMessage?: string
+  ): string {
     let greeting: string
 
+    // Use custom first message if provided (Service Practice only)
+    if (customFirstMessage && trainingMode === 'service_practice') {
+      greeting = customFirstMessage
+      console.log(`🎯 Using custom first message: "${greeting}"`)
+      console.log(`🌍 AI will naturally translate to ${language}`)
+      return greeting
+    }
+
+    // Default greetings
     if (trainingMode === 'service_practice') {
       // Simple neutral "Hello" greeting - emotion emerges naturally based on scenario
       greeting = SERVICE_PRACTICE_GREETINGS[language as keyof typeof SERVICE_PRACTICE_GREETINGS] || SERVICE_PRACTICE_GREETINGS['en']
@@ -487,7 +500,8 @@ Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
           agent: {
             firstMessage: this.getScenarioSpecificGreeting(
               this.config.language,
-              this.config.dynamicVariables.training_mode
+              this.config.dynamicVariables.training_mode,
+              this.config.dynamicVariables?.first_message
             ),
             prompt: {
               prompt: this.getLanguageAwareSystemPrompt(

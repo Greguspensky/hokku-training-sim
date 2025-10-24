@@ -53,6 +53,7 @@ interface ScenarioFormData {
   customer_emotion_level: CustomerEmotionLevel
   voice_id: string
   use_random_voice: boolean
+  first_message: string
 }
 
 interface ScenarioFormProps {
@@ -84,7 +85,8 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     instructions: '',
     customer_emotion_level: 'sunshine',
     voice_id: RANDOM_VOICE_OPTION,
-    use_random_voice: true
+    use_random_voice: true,
+    first_message: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -427,6 +429,24 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               />
               <p className="text-sm text-gray-500 mt-1">
                 Maximum duration for this role-play session (1-60 minutes)
+              </p>
+            </div>
+
+            {/* First Message - Optional custom opening */}
+            <div>
+              <label htmlFor="first_message" className="block text-sm font-medium text-gray-700 mb-2">
+                First Message (Optional)
+              </label>
+              <textarea
+                id="first_message"
+                rows={3}
+                value={formData.first_message}
+                onChange={(e) => handleInputChange('first_message', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., 'Excuse me, I ordered a latte 10 minutes ago and I'm still waiting. This is ridiculous!'"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                The AI customer's opening line. Leave empty for a generic greeting. The AI will naturally translate this to the session language.
               </p>
             </div>
 

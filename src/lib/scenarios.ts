@@ -100,6 +100,8 @@ export interface Scenario {
   customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
   // Voice selection for ElevenLabs TTS
   voice_id?: string | 'random'; // Specific voice ID or 'random' for random selection
+  // Custom first message for Service Practice scenarios
+  first_message?: string | null;
 }
 
 export interface CreateTrackData {
@@ -130,6 +132,7 @@ export interface CreateScenarioData {
   instructions?: string;
   customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
   voice_id?: string | 'random';
+  first_message?: string;
 }
 
 export interface UpdateScenarioData {
@@ -148,6 +151,7 @@ export interface UpdateScenarioData {
   instructions?: string;
   customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
   voice_id?: string | 'random';
+  first_message?: string;
 }
 
 class ScenarioService {
@@ -370,6 +374,7 @@ class ScenarioService {
       instructions: updates.instructions,
       customer_emotion_level: updates.customer_emotion_level,
       voice_id: updates.voice_id,
+      first_message: updates.first_message,
       updated_at: new Date().toISOString()
     };
 

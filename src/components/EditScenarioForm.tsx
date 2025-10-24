@@ -50,6 +50,7 @@ interface EditScenarioFormData {
   customer_emotion_level: CustomerEmotionLevel
   voice_id: string
   use_random_voice: boolean
+  first_message: string
 }
 
 interface EditScenarioFormProps {
@@ -80,7 +81,8 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
     instructions: scenario.instructions || '',
     customer_emotion_level: scenario.customer_emotion_level || 'sunshine',
     voice_id: scenario.voice_id || RANDOM_VOICE_OPTION,
-    use_random_voice: !scenario.voice_id || scenario.voice_id === RANDOM_VOICE_OPTION
+    use_random_voice: !scenario.voice_id || scenario.voice_id === RANDOM_VOICE_OPTION,
+    first_message: scenario.first_message || ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -395,6 +397,24 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
               />
               <p className="text-sm text-gray-500 mt-1">
                 Maximum duration for this role-play session (1-60 minutes)
+              </p>
+            </div>
+
+            {/* First Message - Optional custom opening */}
+            <div>
+              <label htmlFor="first_message" className="block text-sm font-medium text-gray-700 mb-2">
+                First Message (Optional)
+              </label>
+              <textarea
+                id="first_message"
+                rows={3}
+                value={formData.first_message}
+                onChange={(e) => handleInputChange('first_message', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., 'Excuse me, I ordered a latte 10 minutes ago and I'm still waiting. This is ridiculous!'"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                The AI customer's opening line. Leave empty for a generic greeting. The AI will naturally translate this to the session language.
               </p>
             </div>
 
