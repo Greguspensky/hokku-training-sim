@@ -487,7 +487,7 @@ class TrainingSessionsService {
    * Delete a training session and all associated resources
    * Removes session from database, Supabase Storage, and ElevenLabs
    */
-  async deleteSession(sessionId: string): Promise<{
+  async deleteSession(sessionId: string, managerId: string): Promise<{
     success: boolean
     deleted: {
       session: boolean
@@ -497,7 +497,7 @@ class TrainingSessionsService {
     }
     errors?: string[]
   }> {
-    console.log('🗑️ Deleting training session:', sessionId)
+    console.log('🗑️ Deleting training session:', sessionId, 'by manager:', managerId)
 
     try {
       const response = await fetch('/api/delete-training-session', {
@@ -505,7 +505,7 @@ class TrainingSessionsService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sessionId })
+        body: JSON.stringify({ sessionId, managerId })
       })
 
       if (!response.ok) {

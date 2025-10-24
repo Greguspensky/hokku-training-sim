@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId } = await request.json()
+    const { sessionId, managerId } = await request.json()
 
     if (!sessionId) {
       return NextResponse.json(
@@ -14,24 +12,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🗑️ Starting session deletion:', sessionId)
-
-    // 1. Verify user is authenticated and is a manager
-    const supabase = createRouteHandlerClient({ cookies })
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
+    if (!managerId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'Manager ID is required' },
+        { status: 400 }
       )
     }
 
-    // Check if user is a manager
+    console.log('🗑️ Starting session deletion:', sessionId, 'by manager:', managerId)
+
+    // 1. Verify user is a manager
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('role, company_id')
-      .eq('id', user.id)
+      .eq('id', managerId)
       .single()
 
     if (userError || !userData) {
@@ -43,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (userData.role !== 'manager') {
-      console.error('❌ User is not a manager:', user.id)
+      console.error('❌ User is not a manager:', managerId)
       return NextResponse.json(
         { error: 'Only managers can delete sessions' },
         { status: 403 }

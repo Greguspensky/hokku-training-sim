@@ -8,6 +8,7 @@ import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import SessionCard from '@/components/Employee/SessionCard'
 import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
 import { User, Calendar, Mail, TrendingUp, Clock, Award, AlertTriangle, X } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface EmployeeDashboardViewProps {
   employee: Employee
@@ -28,6 +29,7 @@ interface EmployeeDataCache {
 const employeeCache = new Map<string, EmployeeDataCache>()
 
 export default function EmployeeDashboardView({ employee }: EmployeeDashboardViewProps) {
+  const { user: currentUser } = useAuth()
   const [activeTab, setActiveTab] = useState<'tracks' | 'history' | 'progress'>('tracks')
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [sessions, setSessions] = useState<TrainingSession[]>([])
@@ -189,14 +191,14 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   }
 
   const confirmDelete = async () => {
-    if (!sessionToDelete) return
+    if (!sessionToDelete || !currentUser?.id) return
 
     try {
       setDeletingSessionId(sessionToDelete.id)
       setDeleteError(null)
 
       console.log('🗑️ Deleting session:', sessionToDelete.id)
-      const result = await trainingSessionsService.deleteSession(sessionToDelete.id)
+      const result = await trainingSessionsService.deleteSession(sessionToDelete.id, currentUser.id)
 
       if (result.success) {
         console.log('✅ Session deleted successfully')

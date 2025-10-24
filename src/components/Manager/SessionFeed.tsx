@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Calendar, Clock, MessageCircle, Brain, Video, Target, User, Trash2, AlertTriangle, X } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface SessionWithEmployee extends TrainingSession {
   employee_name?: string
@@ -11,6 +12,7 @@ interface SessionWithEmployee extends TrainingSession {
 }
 
 export default function SessionFeed({ companyId }: { companyId: string }) {
+  const { user } = useAuth()
   const [sessions, setSessions] = useState<SessionWithEmployee[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,14 +86,14 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
   }
 
   const confirmDelete = async () => {
-    if (!sessionToDelete) return
+    if (!sessionToDelete || !user?.id) return
 
     try {
       setDeletingSessionId(sessionToDelete.id)
       setDeleteError(null)
 
       console.log('🗑️ Deleting session:', sessionToDelete.id)
-      const result = await trainingSessionsService.deleteSession(sessionToDelete.id)
+      const result = await trainingSessionsService.deleteSession(sessionToDelete.id, user.id)
 
       if (result.success) {
         console.log('✅ Session deleted successfully')
