@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       const { data: correctAttempts, error: attemptsError } = await supabaseAdmin
         .from('question_attempts')
         .select('question_id')
-        .eq('employee_id', userId)
+        .eq('user_id', userId)  // Fixed: question_attempts uses user_id, not employee_id
         .in('question_id', Array.from(allQuestionIds))
         .eq('is_correct', true);
 
