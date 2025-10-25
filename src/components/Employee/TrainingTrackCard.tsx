@@ -187,25 +187,17 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
   const calculateRealProgress = (): number => {
     if (scenarios.length === 0) return 0
 
-    let completedCount = 0
+    let totalProgress = 0
     scenarios.forEach(scenario => {
       const stats = scenarioStats[scenario.id]
       if (stats) {
-        // For theory scenarios, consider completed if 100% completion
-        // For other scenarios, check isCompleted flag
-        if (scenario.scenario_type === 'theory') {
-          if (stats.completionPercentage === 100) {
-            completedCount++
-          }
-        } else {
-          if (stats.isCompleted) {
-            completedCount++
-          }
-        }
+        // Use actual completion percentage for all scenario types
+        // This shows gradual progress (e.g., 12/67 questions = 18% instead of 0%)
+        totalProgress += stats.completionPercentage
       }
     })
 
-    return Math.round((completedCount / scenarios.length) * 100)
+    return Math.round(totalProgress / scenarios.length)
   }
 
   // Use real progress if scenarios are loaded, otherwise fall back to assignment progress
