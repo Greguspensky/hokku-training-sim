@@ -261,6 +261,8 @@ You are ${customerName}, a customer at a ${establishmentType}.
 
 Situation: ${dynamicVariables?.scenario_title || 'You are visiting this establishment seeking service'}
 
+${dynamicVariables?.client_behavior ? '\n' + dynamicVariables.client_behavior + '\n' : ''}
+
 ${emotionDefinition.personality}
 
 # Environment

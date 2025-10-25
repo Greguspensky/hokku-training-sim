@@ -1458,6 +1458,7 @@ export default function TrainingSessionPage() {
                     client_behavior: currentScenario.client_behavior,
                     expected_response: currentScenario.expected_response,
                     customer_emotion_level: currentScenario.customer_emotion_level,
+                    first_message: currentScenario.first_message,
                     milestones: currentScenario.milestones
                   }}
                   scenarioQuestions={scenarioQuestions}

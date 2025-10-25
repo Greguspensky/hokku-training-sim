@@ -783,20 +783,23 @@ export default function SessionTranscriptPage() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {session.conversation_transcript.map((message, index) => {
-                  // Alternate left/right based on index (even = left, odd = right)
-                  const alignLeft = index % 2 === 0
-                  // Latest message (last in array) is black, others are gray
-                  const isLatest = index === session.conversation_transcript.length - 1
+                  const isAssistant = message.role === 'assistant'
 
                   return (
                     <div
                       key={index}
-                      className={`flex ${alignLeft ? 'justify-start' : 'justify-end'}`}
+                      className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}
                     >
-                      <div className={`max-w-[75%] ${alignLeft ? 'text-left' : 'text-right'}`}>
-                        <p className={`text-sm leading-relaxed ${isLatest ? 'text-gray-900' : 'text-gray-500'}`}>
+                      <div
+                        className={`max-w-[75%] rounded-lg px-4 py-3 ${
+                          isAssistant
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'bg-green-100 text-gray-900'
+                        }`}
+                      >
+                        <p className="text-sm leading-relaxed">
                           {message.content}
                         </p>
                       </div>
