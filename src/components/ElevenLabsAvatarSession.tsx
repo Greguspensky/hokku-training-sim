@@ -402,7 +402,7 @@ INSTRUCTIONS:
         scenario_title: scenarioContext?.title || 'General customer interaction',
         client_behavior: scenarioContext?.client_behavior || 'Act as a typical customer seeking help',
         expected_response: scenarioContext?.expected_response || 'Employee should be helpful and knowledgeable',
-        customer_emotion_level: scenarioContext?.customer_emotion_level || 'sunshine',
+        customer_emotion_level: scenarioContext?.customer_emotion_level || 'normal',
         first_message: scenarioContext?.first_message || undefined,
         // examiner_instructions only used for Theory mode
         // For Service Practice, the system prompt in elevenlabs-conversation.ts handles everything
@@ -436,7 +436,7 @@ Ask specific, factual questions based on the company knowledge context provided.
 
       console.log('🎯 Starting session with dynamic variables:', dynamicVariables)
       console.log('📋 Scenario context received:', scenarioContext)
-      console.log('😤 Customer emotion level:', scenarioContext?.customer_emotion_level || 'sunshine (default)')
+      console.log('😤 Customer emotion level:', scenarioContext?.customer_emotion_level || 'normal (default)')
       console.log('🧠 Knowledge context status:', {
         available: !!knowledgeContext,
         documentsCount: knowledgeContext?.documents?.length || 0,
