@@ -69,6 +69,7 @@ export default function TrainingSessionPage() {
     return '16:9' // SSR fallback
   })
   const [resolvedVoiceId, setResolvedVoiceId] = useState<string | undefined>(undefined)
+  const [resolvedVoiceName, setResolvedVoiceName] = useState<string>('Loading...')
   const [scenarioStats, setScenarioStats] = useState<{attemptCount: number; lastAttempt: string | null; completionPercentage: number; isCompleted: boolean} | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [allowedTheoryRecordingOptions, setAllowedTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
@@ -167,13 +168,16 @@ export default function TrainingSessionPage() {
           if (resolved) {
             setResolvedVoiceId(resolved)
             const voiceName = await getVoiceNameById(resolved)
+            setResolvedVoiceName(voiceName)
             console.log(`🎤 Voice resolved for ${selectedLanguage}:`, voiceName, `(${resolved})`)
           } else {
             // Fallback to old logic if voice resolver returns null
             const fallback = currentScenario.voice_id ? resolveVoiceId(currentScenario.voice_id) : null
             if (fallback) {
               setResolvedVoiceId(fallback)
-              console.log('🎤 Voice resolved (fallback):', getVoiceName(fallback), `(${fallback})`)
+              const fallbackName = getVoiceName(fallback)
+              setResolvedVoiceName(fallbackName)
+              console.log('🎤 Voice resolved (fallback):', fallbackName, `(${fallback})`)
             }
           }
         } catch (error) {
@@ -182,6 +186,8 @@ export default function TrainingSessionPage() {
           if (currentScenario.voice_id) {
             const fallback = resolveVoiceId(currentScenario.voice_id)
             setResolvedVoiceId(fallback)
+            const fallbackName = getVoiceName(fallback)
+            setResolvedVoiceName(fallbackName)
           }
         }
       }
@@ -1222,7 +1228,7 @@ export default function TrainingSessionPage() {
                             </p>
                             <div className="flex items-center gap-2">
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                                {getVoiceName(resolvedVoiceId)}
+                                {resolvedVoiceName}
                               </span>
                               {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) ||
                                 (currentScenario.voice_ids && currentScenario.voice_ids.length > 1) ||
@@ -1234,10 +1240,10 @@ export default function TrainingSessionPage() {
                             </div>
                             <p className="text-gray-600 text-xs mt-2">
                               {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) || currentScenario.voice_id === 'random')
-                                ? `The system randomly selected ${getVoiceName(resolvedVoiceId)} for this session. Reload to try a different voice.`
+                                ? `The system randomly selected ${resolvedVoiceName} for this session. Reload to try a different voice.`
                                 : (currentScenario.voice_ids && currentScenario.voice_ids.length > 1)
-                                ? `The system selected ${getVoiceName(resolvedVoiceId)} from ${currentScenario.voice_ids.length} available voices for this language.`
-                                : `The AI will use the ${getVoiceName(resolvedVoiceId)} voice for this session.`
+                                ? `The system selected ${resolvedVoiceName} from ${currentScenario.voice_ids.length} available voices for this language.`
+                                : `The AI will use the ${resolvedVoiceName} voice for this session.`
                               }
                             </p>
                           </div>

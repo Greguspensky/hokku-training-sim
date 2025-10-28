@@ -143,20 +143,26 @@ export async function resolveVoiceForSession(
   // Filter voices by session language
   const languageMatchingVoices = voices.filter(v => v.language_code === sessionLanguage)
 
-  if (languageMatchingVoices.length === 0) {
-    console.warn(`⚠️ No voices match session language: ${sessionLanguage}`)
-    console.log(`💡 Available voices in scenario:`, voices.map(v => `${v.voice_name} (${v.language_code})`))
-    console.log('💡 Falling back to default voice for language')
-    return await getDefaultVoiceForLanguage(sessionLanguage)
+  // If we have language-matching voices, use one of them
+  if (languageMatchingVoices.length > 0) {
+    const selectedVoice = languageMatchingVoices[Math.floor(Math.random() * languageMatchingVoices.length)]
+    console.log(`✅ Resolved voice: ${selectedVoice.voice_name} (${selectedVoice.language_code})`)
+    console.log(`   Voice ID: ${selectedVoice.voice_id}`)
+    console.log(`   Gender: ${selectedVoice.gender || 'unspecified'}`)
+    console.log(`   Selected from ${languageMatchingVoices.length} matching voice(s)`)
+    return selectedVoice.voice_id
   }
 
-  // Random selection from matching voices
-  const selectedVoice = languageMatchingVoices[Math.floor(Math.random() * languageMatchingVoices.length)]
+  // No language match - use manager's selected voice anyway (with warning)
+  console.warn(`⚠️ No voices match session language: ${sessionLanguage}`)
+  console.log(`💡 Available voices in scenario:`, voices.map(v => `${v.voice_name} (${v.language_code})`))
+  console.log(`🎯 Using manager's selected voice anyway (language mismatch is OK)`)
 
-  console.log(`✅ Resolved voice: ${selectedVoice.voice_name} (${selectedVoice.language_code})`)
+  // Use the first selected voice (manager's choice takes priority)
+  const selectedVoice = voices[0]
+  console.log(`✅ Using: ${selectedVoice.voice_name} (${selectedVoice.language_code})`)
   console.log(`   Voice ID: ${selectedVoice.voice_id}`)
-  console.log(`   Gender: ${selectedVoice.gender || 'unspecified'}`)
-  console.log(`   Selected from ${languageMatchingVoices.length} matching voice(s)`)
+  console.log(`   Note: Voice language doesn't match session language`)
 
   return selectedVoice.voice_id
 }
