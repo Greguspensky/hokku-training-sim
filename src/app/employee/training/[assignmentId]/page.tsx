@@ -15,6 +15,7 @@ import type { RecordingPreference } from '@/lib/training-sessions'
 import Link from 'next/link'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName, resolveVoiceId } from '@/lib/elevenlabs-voices'
+import { resolveVoiceForSession, getVoiceNameById } from '@/lib/voice-resolver'
 import { getDefaultVideoAspectRatio } from '@/lib/device-detection'
 
 interface TrainingQuestion {
@@ -152,14 +153,42 @@ export default function TrainingSessionPage() {
     }
   }, [currentScenario, allowedTheoryRecordingOptions, allowedServicePracticeRecordingOptions])
 
-  // Resolve random voice to actual voice when scenario loads
+  // Resolve voice based on scenario's voice_ids and selected language
   useEffect(() => {
-    if (currentScenario?.voice_id) {
-      const resolved = resolveVoiceId(currentScenario.voice_id)
-      setResolvedVoiceId(resolved)
-      console.log('🎤 Voice resolved:', currentScenario.voice_id === 'random' ? `Random → ${getVoiceName(resolved)} (${resolved})` : `${getVoiceName(resolved)} (${resolved})`)
+    const resolveVoice = async () => {
+      if (currentScenario && selectedLanguage) {
+        try {
+          // Use new voice resolver that considers scenario's voice_ids and session language
+          const resolved = await resolveVoiceForSession(
+            currentScenario.voice_ids || (currentScenario.voice_id ? [currentScenario.voice_id] : null),
+            selectedLanguage
+          )
+
+          if (resolved) {
+            setResolvedVoiceId(resolved)
+            const voiceName = await getVoiceNameById(resolved)
+            console.log(`🎤 Voice resolved for ${selectedLanguage}:`, voiceName, `(${resolved})`)
+          } else {
+            // Fallback to old logic if voice resolver returns null
+            const fallback = currentScenario.voice_id ? resolveVoiceId(currentScenario.voice_id) : null
+            if (fallback) {
+              setResolvedVoiceId(fallback)
+              console.log('🎤 Voice resolved (fallback):', getVoiceName(fallback), `(${fallback})`)
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error resolving voice:', error)
+          // Fallback to old logic on error
+          if (currentScenario.voice_id) {
+            const fallback = resolveVoiceId(currentScenario.voice_id)
+            setResolvedVoiceId(fallback)
+          }
+        }
+      }
     }
-  }, [currentScenario])
+
+    resolveVoice()
+  }, [currentScenario, selectedLanguage])
 
   // Load scenario stats when scenario changes
   useEffect(() => {
@@ -1195,16 +1224,20 @@ export default function TrainingSessionPage() {
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                                 {getVoiceName(resolvedVoiceId)}
                               </span>
-                              {currentScenario.voice_id === 'random' && (
+                              {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) ||
+                                (currentScenario.voice_ids && currentScenario.voice_ids.length > 1) ||
+                                currentScenario.voice_id === 'random') && (
                                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
                                   Randomly Selected
                                 </span>
                               )}
                             </div>
                             <p className="text-gray-600 text-xs mt-2">
-                              {currentScenario.voice_id === 'random'
-                                ? `The system has randomly selected ${getVoiceName(resolvedVoiceId)} for this session. Reload the page to try a different voice.`
-                                : `The AI will use the ${getVoiceName(resolvedVoiceId)} voice for this session`
+                              {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) || currentScenario.voice_id === 'random')
+                                ? `The system randomly selected ${getVoiceName(resolvedVoiceId)} for this session. Reload to try a different voice.`
+                                : (currentScenario.voice_ids && currentScenario.voice_ids.length > 1)
+                                ? `The system selected ${getVoiceName(resolvedVoiceId)} from ${currentScenario.voice_ids.length} available voices for this language.`
+                                : `The AI will use the ${getVoiceName(resolvedVoiceId)} voice for this session.`
                               }
                             </p>
                           </div>
