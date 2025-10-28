@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       recommendation_question_durations: body.recommendation_question_durations || {},
       instructions: body.instructions,
       customer_emotion_level: body.customer_emotion_level || 'calm',
-      voice_id: body.voice_id || 'random'
+      voice_ids: body.voice_ids || (body.voice_id ? [body.voice_id] : ['random']) // Support both voice_ids array and legacy voice_id
     };
 
     // Validate required fields for all scenarios

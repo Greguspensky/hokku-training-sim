@@ -98,8 +98,10 @@ export interface Scenario {
   language?: string;
   // Customer emotion level for service practice scenarios
   customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
-  // Voice selection for ElevenLabs TTS
-  voice_id?: string | 'random'; // Specific voice ID or 'random' for random selection
+  // Voice selection for ElevenLabs TTS (multi-select support)
+  voice_ids?: string[]; // Array of voice IDs selected for this scenario
+  // Legacy support for single voice (deprecated, use voice_ids instead)
+  voice_id?: string | 'random';
   // Custom first message for Service Practice scenarios
   first_message?: string | null;
 }
@@ -131,7 +133,8 @@ export interface CreateScenarioData {
   recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
   customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
-  voice_id?: string | 'random';
+  voice_ids?: string[]; // Multi-select voice support
+  voice_id?: string | 'random'; // Legacy support (deprecated)
   first_message?: string;
 }
 
@@ -150,7 +153,8 @@ export interface UpdateScenarioData {
   recommendation_question_durations?: { [questionId: string]: number };
   instructions?: string;
   customer_emotion_level?: 'normal' | 'cold' | 'in_a_hurry' | 'angry' | 'extremely_angry';
-  voice_id?: string | 'random';
+  voice_ids?: string[]; // Multi-select voice support
+  voice_id?: string | 'random'; // Legacy support (deprecated)
   first_message?: string;
 }
 
@@ -210,6 +214,15 @@ class ScenarioService {
     }
 
     // Prepare data for database insert (only using columns that exist)
+    // Handle voice selection: prefer voice_ids (multi-select), fallback to voice_id (legacy)
+    let voiceIds = scenarioData.voice_ids || [];
+    if (voiceIds.length === 0 && scenarioData.voice_id) {
+      voiceIds = [scenarioData.voice_id]; // Convert legacy single voice to array
+    }
+    if (voiceIds.length === 0) {
+      voiceIds = ['random']; // Default fallback
+    }
+
     const insertData = {
       track_id: scenarioData.track_id,
       company_id: scenarioData.company_id,
@@ -228,7 +241,7 @@ class ScenarioService {
       recommendation_question_durations: scenarioData.recommendation_question_durations || {},
       instructions: scenarioData.instructions,
       customer_emotion_level: scenarioData.customer_emotion_level || 'normal',
-      voice_id: scenarioData.voice_id || 'random',
+      voice_ids: voiceIds, // Use new multi-select array
       is_active: true,
       knowledge_category_ids: scenarioData.knowledge_category_ids || [],
       knowledge_document_ids: scenarioData.knowledge_document_ids || [],
@@ -358,6 +371,12 @@ class ScenarioService {
    */
   async updateScenario(scenarioId: string, updates: UpdateScenarioData): Promise<Scenario> {
     // Filter out fields that don't exist in database schema - only use existing columns
+    // Handle voice selection: prefer voice_ids (multi-select), fallback to voice_id (legacy)
+    let voiceIds = updates.voice_ids;
+    if (!voiceIds && updates.voice_id) {
+      voiceIds = [updates.voice_id]; // Convert legacy single voice to array
+    }
+
     const updateData = {
       track_id: updates.track_id,
       title: updates.title,
@@ -373,7 +392,7 @@ class ScenarioService {
       recommendation_question_durations: updates.recommendation_question_durations || {},
       instructions: updates.instructions,
       customer_emotion_level: updates.customer_emotion_level,
-      voice_id: updates.voice_id,
+      voice_ids: voiceIds, // Use new multi-select array
       first_message: updates.first_message,
       updated_at: new Date().toISOString()
     };

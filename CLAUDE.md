@@ -5,9 +5,11 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2025-10-17)
+## Current Project State (2025-10-28)
 
 ### Latest Features ✅
+- **⚙️ Settings Reorganization (2025-10-28)**: Clean manager dashboard with dedicated settings hub ✅ **COMPLETE**
+- **🎤 Language-Aware Voice System (2025-10-28)**: Multi-language voice configuration with intelligent selection ✅ **CODE COMPLETE** ⚠️ **MIGRATION PENDING**
 - **📚 Knowledge Base Integration (2025-10-17)**: AI customers only order real menu items ✅ **PRODUCTION READY**
 - **🧊 Customer Emotion System Redesign (2025-10-15)**: 5 emotion levels - renamed + NEW "Cold" customer type ✅ **CODE COMPLETE**
 - **🤬 Customer Emotional States (2025-10-12 PM)**: Authentic AI behavior with dynamic emotion responses ✅ **TESTED & WORKING**
@@ -39,6 +41,9 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **OCTOBER_28_2025_UPDATES.md** - Settings reorganization + Voice system implementation ✅ **NEW**
+- **SETTINGS_REORGANIZATION_2025-10-28.md** - Manager settings architecture redesign ✅ **COMPLETE**
+- **VOICE_SYSTEM_IMPLEMENTATION_COMPLETE.md** - Language-aware voice configuration system ✅ **CODE COMPLETE**
 - **KNOWLEDGE_BASE_FINAL_IMPLEMENTATION.md** - Knowledge base system (menu items in Service Practice) ✅ **PRODUCTION**
 - **RAG_KNOWLEDGE_BASE_IMPLEMENTATION.md** - RAG approach (disabled, preserved for future per-company agents)
 - **NORMAL_CUSTOMER_MIGRATION_2025-10-20.md** - Normal Customer emotion replaces Sunshine ✅ **COMPLETE**
@@ -88,13 +93,16 @@ ELEVENLABS_API_KEY=[CONFIGURED with convai_write permissions]
 
 ## Critical Files Reference
 
-### Latest Features (2025-10-12)
-- **`src/lib/customer-emotions.ts`** - Complete emotion definitions (NEW)
-- **`src/components/ScenarioForm.tsx`** - Scenario creation with time limit & emotions
-- **`src/components/EditScenarioForm.tsx`** - Scenario editing with time limit & emotions
-- **`src/app/manager/page.tsx`** - Manager dashboard with emotion badges
+### Latest Features (2025-10-28)
+- **`src/lib/voice-resolver.ts`** - Language-aware voice resolution service (NEW)
+- **`src/app/api/voice-settings/route.ts`** - Voice management API (NEW)
+- **`src/app/manager/settings/`** - Settings hub with General and Voice settings (NEW)
+- **`src/components/ScenarioForm.tsx`** - Multi-select voice UI by language
+- **`src/components/EditScenarioForm.tsx`** - Multi-select voice UI by language
+- **`src/app/manager/page.tsx`** - Cleaned manager dashboard (settings moved)
+- **`src/lib/customer-emotions.ts`** - Complete emotion definitions
 - **`src/contexts/AuthContext.tsx`** - Auth context with localStorage caching
-- **`src/lib/scenarios.ts`** - Scenario service with time limit & emotion support
+- **`src/lib/scenarios.ts`** - Scenario service with voice_ids array support
 
 ### Core Systems
 - **`src/components/ElevenLabsAvatarSession.tsx`** - Theory Q&A component

@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       recommendation_question_durations: body.recommendation_question_durations || {},
       instructions: body.instructions,
       customer_emotion_level: body.customer_emotion_level,
-      voice_id: body.voice_id,
+      voice_ids: body.voice_ids || (body.voice_id ? [body.voice_id] : ['random']), // Support both voice_ids array and legacy voice_id
       first_message: body.first_message
     };
     

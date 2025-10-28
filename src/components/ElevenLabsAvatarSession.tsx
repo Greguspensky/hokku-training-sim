@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { VideoRecordingService } from '@/services/VideoRecordingService'
+import { resolveVoiceForSession } from '@/lib/voice-resolver'
 
 interface ElevenLabsAvatarSessionProps {
   companyId: string
@@ -17,7 +18,8 @@ interface ElevenLabsAvatarSessionProps {
   scenarioQuestions?: any[]
   language?: string
   agentId: string // ElevenLabs Agent ID
-  voiceId?: string // ElevenLabs Voice ID or 'random'
+  voiceIds?: string[] // Array of voice IDs (multi-select) - NEW
+  voiceId?: string // DEPRECATED: Single voice ID for backward compatibility
   recordingPreference?: RecordingPreference
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
@@ -33,7 +35,8 @@ export function ElevenLabsAvatarSession({
   scenarioQuestions = [],
   language = 'en',
   agentId,
-  voiceId,
+  voiceIds, // NEW: Multi-select voice support
+  voiceId, // DEPRECATED: Backward compatibility
   recordingPreference = 'none',
   videoAspectRatio = '16:9',
   preAuthorizedTabAudio = null,
@@ -444,10 +447,35 @@ Ask specific, factual questions based on the company knowledge context provided.
         knowledgeScope: knowledgeContext?.knowledgeScope
       })
 
+      // 🎤 VOICE RESOLUTION: Resolve voice based on language and scenario configuration
+      let resolvedVoiceId: string | null | undefined = voiceId // Fallback to legacy single voice
+
+      if (voiceIds && voiceIds.length > 0) {
+        // NEW: Multi-select voice resolution
+        console.log('🎤 Resolving voice from scenario voice_ids:', voiceIds)
+        console.log('🌍 Session language:', language)
+
+        try {
+          resolvedVoiceId = await resolveVoiceForSession(voiceIds, language)
+
+          if (resolvedVoiceId) {
+            console.log(`✅ Resolved voice: ${resolvedVoiceId}`)
+          } else {
+            console.warn(`⚠️ No voice matched language "${language}" - using first available or agent default`)
+            resolvedVoiceId = voiceIds[0] // Fallback to first voice in array
+          }
+        } catch (error) {
+          console.error('❌ Voice resolution failed:', error)
+          resolvedVoiceId = voiceIds[0] || 'random' // Fallback
+        }
+      } else {
+        console.log('🎤 Using legacy single voiceId:', resolvedVoiceId || 'agent default')
+      }
+
       const service = new ElevenLabsConversationService({
         agentId,
         language,
-        voiceId,
+        voiceId: resolvedVoiceId,
         connectionType: 'webrtc', // Use WebRTC for better audio quality
         volume,
         dynamicVariables

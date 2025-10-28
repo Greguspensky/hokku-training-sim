@@ -18,6 +18,64 @@ import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName } from '@/lib/elevenlabs-voices'
 
+// Voice Badge Component - displays voice names from voice_ids array
+function VoiceBadge({ voiceIds }: { voiceIds?: string[] | null }) {
+  const [voiceNames, setVoiceNames] = useState<string>('Loading...')
+
+  useEffect(() => {
+    const fetchVoiceNames = async () => {
+      // Handle legacy voice_id or empty array
+      if (!voiceIds || voiceIds.length === 0) {
+        setVoiceNames('Random Voice')
+        return
+      }
+
+      // If includes 'random' keyword
+      if (voiceIds.includes('random')) {
+        setVoiceNames('Random Voice')
+        return
+      }
+
+      try {
+        // Fetch voice metadata from API
+        const response = await fetch('/api/voice-settings')
+        const data = await response.json()
+
+        if (data.success && data.voices) {
+          // Map voice IDs to names
+          const names = voiceIds
+            .map(id => {
+              const voice = data.voices.find((v: any) => v.voice_id === id)
+              return voice ? voice.voice_name : null
+            })
+            .filter(Boolean)
+
+          if (names.length === 0) {
+            setVoiceNames('Random Voice')
+          } else if (names.length === 1) {
+            setVoiceNames(names[0])
+          } else {
+            setVoiceNames(`${names.length} voices`)
+          }
+        } else {
+          setVoiceNames('Random Voice')
+        }
+      } catch (error) {
+        console.error('Failed to fetch voice names:', error)
+        setVoiceNames('Random Voice')
+      }
+    }
+
+    fetchVoiceNames()
+  }, [voiceIds])
+
+  return (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+      🎤 {voiceNames}
+    </span>
+  )
+}
+
 // TopicTag component to display topic information
 interface TopicTagProps {
   topicId: string
@@ -617,158 +675,11 @@ export default function ManagerDashboard() {
           !selectedTrack ? (
             /* Track Management View */
             <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Training Tracks</h2>
-                  <p className="text-gray-600">
-                    Create and manage training tracks for your team. Each track contains multiple scenarios.
-                  </p>
-                </div>
-
-                {/* Default Language Selector */}
-                <div className="ml-6 flex-shrink-0">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Training Language by Default
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={defaultLanguage}
-                      onChange={(e) => handleLanguageChange(e.target.value)}
-                      disabled={savingLanguage}
-                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
-                    >
-                      {SUPPORTED_LANGUAGES.map((lang) => (
-                        <option key={lang.code} value={lang.code}>
-                          {lang.flag} {lang.name}
-                        </option>
-                      ))}
-                    </select>
-                    {savingLanguage && (
-                      <div className="absolute right-8 top-2.5">
-                        <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    This will be the default language for all employee training sessions
-                  </p>
-                </div>
-              </div>
-
-              {/* Recording Options Configuration */}
-              <div className="mt-6 border-t pt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Recording Options by Scenario Type</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Configure which recording options will be available to employees for each scenario type.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Theory Q&A Recording Options */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      📖 Theory Q&A
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={theoryRecordingOptions.includes('audio')}
-                          onChange={(e) => {
-                            const newOptions = e.target.checked
-                              ? [...theoryRecordingOptions, 'audio']
-                              : theoryRecordingOptions.filter(opt => opt !== 'audio')
-                            if (newOptions.length > 0) {
-                              handleRecordingOptionsChange('theory', newOptions)
-                            }
-                          }}
-                          disabled={savingRecordingOptions}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">🎤 Audio Recording</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={theoryRecordingOptions.includes('audio_video')}
-                          onChange={(e) => {
-                            const newOptions = e.target.checked
-                              ? [...theoryRecordingOptions, 'audio_video']
-                              : theoryRecordingOptions.filter(opt => opt !== 'audio_video')
-                            if (newOptions.length > 0) {
-                              handleRecordingOptionsChange('theory', newOptions)
-                            }
-                          }}
-                          disabled={savingRecordingOptions}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">🎥 Video Recording</span>
-                      </label>
-                    </div>
-                    {savingRecordingOptions && (
-                      <div className="mt-2 flex items-center text-xs text-gray-500">
-                        <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
-                        Saving...
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Service Practice Recording Options */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      🗣️ Service Practice
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={servicePracticeRecordingOptions.includes('audio')}
-                          onChange={(e) => {
-                            const newOptions = e.target.checked
-                              ? [...servicePracticeRecordingOptions, 'audio']
-                              : servicePracticeRecordingOptions.filter(opt => opt !== 'audio')
-                            if (newOptions.length > 0) {
-                              handleRecordingOptionsChange('service_practice', newOptions)
-                            }
-                          }}
-                          disabled={savingRecordingOptions}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">🎤 Audio Recording</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={servicePracticeRecordingOptions.includes('audio_video')}
-                          onChange={(e) => {
-                            const newOptions = e.target.checked
-                              ? [...servicePracticeRecordingOptions, 'audio_video']
-                              : servicePracticeRecordingOptions.filter(opt => opt !== 'audio_video')
-                            if (newOptions.length > 0) {
-                              handleRecordingOptionsChange('service_practice', newOptions)
-                            }
-                          }}
-                          disabled={savingRecordingOptions}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">🎥 Video Recording</span>
-                      </label>
-                    </div>
-                    {savingRecordingOptions && (
-                      <div className="mt-2 flex items-center text-xs text-gray-500">
-                        <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
-                        Saving...
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
-                  <p className="text-xs text-blue-700">
-                    <strong>Note:</strong> At least one recording option must be selected for each scenario type. These settings control what recording options employees will see in the dropdown menu.
-                  </p>
-                </div>
-              </div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Training Tracks</h2>
+              <p className="text-gray-600">
+                Create and manage training tracks for your team. Each track contains multiple scenarios.
+              </p>
             </div>
             <TrackList
               tracks={tracks}
@@ -822,9 +733,7 @@ export default function ManagerDashboard() {
                             {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
                               <span>{scenario.session_time_limit_minutes} min</span>
                             )}
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              🎤 {getVoiceName(scenario.voice_id)}
-                            </span>
+                            <VoiceBadge voiceIds={scenario.voice_ids} />
                           </div>
 
                           {scenario.scenario_type === 'theory' && (
@@ -962,9 +871,7 @@ export default function ManagerDashboard() {
                           {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
                             <span>{scenario.session_time_limit_minutes} min</span>
                           )}
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            🎤 {getVoiceName(scenario.voice_id)}
-                          </span>
+                          <VoiceBadge voiceIds={scenario.voice_ids} />
                         </div>
 
                         {scenario.scenario_type === 'service_practice' && (

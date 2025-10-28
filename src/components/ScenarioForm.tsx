@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { scenarioService, SCENARIO_TEMPLATES, type ScenarioType, type ScenarioTemplate, type Track } from '@/lib/scenarios'
 import { type KnowledgeBaseCategory, type KnowledgeBaseDocument } from '@/lib/knowledge-base'
 import { getEmotionOptions, type CustomerEmotionLevel } from '@/lib/customer-emotions'
-import { ELEVENLABS_VOICES, RANDOM_VOICE_OPTION } from '@/lib/elevenlabs-voices'
+import { getVoicesGroupedByLanguage, type ElevenLabsVoiceConfig } from '@/lib/voice-resolver'
 
 interface KnowledgeTopic {
   id: string
@@ -51,8 +51,7 @@ interface ScenarioFormData {
   recommendation_question_durations: { [questionId: string]: number }
   instructions: string
   customer_emotion_level: CustomerEmotionLevel
-  voice_id: string
-  use_random_voice: boolean
+  voice_ids: string[] // Multi-select voice support
   first_message: string
 }
 
@@ -84,8 +83,7 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
     recommendation_question_durations: {},
     instructions: '',
     customer_emotion_level: 'normal',
-    voice_id: RANDOM_VOICE_OPTION,
-    use_random_voice: true,
+    voice_ids: ['random'], // Default to random voice
     first_message: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -99,6 +97,38 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
   const [loadingTopics, setLoadingTopics] = useState(false)
   const [recommendationQuestions, setRecommendationQuestions] = useState<RecommendationQuestion[]>([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
+  const [voicesByLanguage, setVoicesByLanguage] = useState<Record<string, ElevenLabsVoiceConfig[]>>({})
+  const [loadingVoices, setLoadingVoices] = useState(false)
+
+  // Load voices from API
+  useEffect(() => {
+    const loadVoices = async () => {
+      try {
+        setLoadingVoices(true)
+        const response = await fetch('/api/voice-settings')
+        const data = await response.json()
+
+        if (data.success && data.voices) {
+          // Group voices by language
+          const grouped: Record<string, ElevenLabsVoiceConfig[]> = {}
+          data.voices.forEach((voice: ElevenLabsVoiceConfig) => {
+            if (!grouped[voice.language_code]) {
+              grouped[voice.language_code] = []
+            }
+            grouped[voice.language_code].push(voice)
+          })
+          setVoicesByLanguage(grouped)
+          console.log(`✅ Loaded ${data.voices.length} voices from API`)
+        }
+      } catch (error) {
+        console.error('❌ Failed to load voices:', error)
+      } finally {
+        setLoadingVoices(false)
+      }
+    }
+
+    loadVoices()
+  }, [])
 
   const addMilestone = () => {
     if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
@@ -115,6 +145,24 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
       ...prev,
       milestones: prev.milestones.filter((_, i) => i !== index)
     }))
+  }
+
+  // Voice selection helper
+  const toggleVoiceSelection = (voiceId: string) => {
+    setFormData(prev => {
+      const currentVoices = prev.voice_ids || []
+
+      if (currentVoices.includes(voiceId)) {
+        // Remove voice if already selected
+        const updated = currentVoices.filter(id => id !== voiceId)
+        // If no voices selected, default to 'random'
+        return { ...prev, voice_ids: updated.length > 0 ? updated : ['random'] }
+      } else {
+        // Add voice (remove 'random' if it's the only selection)
+        const filtered = currentVoices.filter(id => id !== 'random')
+        return { ...prev, voice_ids: [...filtered, voiceId] }
+      }
+    })
   }
 
   // Drag and drop handlers for milestone reordering
@@ -283,7 +331,7 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
         body: JSON.stringify({
           company_id: companyId,
           ...formData,
-          voice_id: formData.use_random_voice ? RANDOM_VOICE_OPTION : formData.voice_id,
+          voice_ids: formData.voice_ids.length > 0 ? formData.voice_ids : ['random'],
           knowledge_category_ids: formData.knowledge_category_ids.length > 0 ? formData.knowledge_category_ids : undefined,
           knowledge_document_ids: formData.knowledge_document_ids.length > 0 ? formData.knowledge_document_ids : undefined,
           topic_ids: formData.topic_ids.length > 0 ? formData.topic_ids : undefined,
@@ -502,48 +550,69 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               </p>
             </div>
 
-            {/* Voice Selection */}
+            {/* Voice Selection - Multi-select by Language */}
             <div className="space-y-3">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={formData.use_random_voice}
-                  onChange={(e) => {
-                    const useRandom = e.target.checked;
-                    setFormData(prev => ({
-                      ...prev,
-                      use_random_voice: useRandom,
-                      voice_id: useRandom ? RANDOM_VOICE_OPTION : (ELEVENLABS_VOICES[0]?.id || RANDOM_VOICE_OPTION)
-                    }))
-                  }}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Use a Random Voice</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  Voice Selection *
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.voice_ids.includes('random')}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData(prev => ({ ...prev, voice_ids: ['random'] }))
+                      } else {
+                        setFormData(prev => ({ ...prev, voice_ids: [] }))
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-600">Random</span>
+                </label>
+              </div>
               <p className="text-sm text-gray-500">
-                {formData.use_random_voice
-                  ? 'A random voice will be selected each time this scenario is played'
-                  : 'Select a specific voice for this scenario'}
+                Select voices for this scenario. System will randomly pick one matching the session language.
               </p>
 
-              {!formData.use_random_voice && (
-                <div>
-                  <label htmlFor="voice_id" className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Voice
-                  </label>
-                  <select
-                    id="voice_id"
-                    value={formData.voice_id}
-                    onChange={(e) => handleInputChange('voice_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {ELEVENLABS_VOICES.map(voice => (
-                      <option key={voice.id} value={voice.id}>
-                        {voice.name}
-                      </option>
-                    ))}
-                  </select>
+              {loadingVoices ? (
+                <div className="text-sm text-gray-500">Loading voices...</div>
+              ) : Object.keys(voicesByLanguage).length === 0 ? (
+                <div className="text-sm text-yellow-600">
+                  No voices configured. Go to Settings → Voices to add voices.
                 </div>
+              ) : (
+                <div className="border border-gray-300 rounded-lg p-4 space-y-4 max-h-64 overflow-y-auto">
+                  {Object.entries(voicesByLanguage).map(([langCode, voices]) => (
+                    <div key={langCode}>
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">
+                        {voices[0]?.language_code.toUpperCase()} - {voices.length} voice(s)
+                      </h5>
+                      <div className="grid grid-cols-2 gap-2">
+                        {voices.map(voice => (
+                          <label key={voice.voice_id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.voice_ids.includes(voice.voice_id)}
+                              onChange={() => toggleVoiceSelection(voice.voice_id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {voice.voice_name}
+                              {voice.gender && <span className="text-gray-500"> ({voice.gender})</span>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {formData.voice_ids.length > 0 && !formData.voice_ids.includes('random') && (
+                <p className="text-xs text-gray-500">
+                  {formData.voice_ids.length} voice(s) selected
+                </p>
               )}
             </div>
 
@@ -626,48 +695,69 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               </p>
             </div>
 
-            {/* Voice Selection */}
+            {/* Voice Selection - Multi-select by Language */}
             <div className="space-y-3">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={formData.use_random_voice}
-                  onChange={(e) => {
-                    const useRandom = e.target.checked;
-                    setFormData(prev => ({
-                      ...prev,
-                      use_random_voice: useRandom,
-                      voice_id: useRandom ? RANDOM_VOICE_OPTION : (ELEVENLABS_VOICES[0]?.id || RANDOM_VOICE_OPTION)
-                    }))
-                  }}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Use a Random Voice</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  Voice Selection *
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.voice_ids.includes('random')}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData(prev => ({ ...prev, voice_ids: ['random'] }))
+                      } else {
+                        setFormData(prev => ({ ...prev, voice_ids: [] }))
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-600">Random</span>
+                </label>
+              </div>
               <p className="text-sm text-gray-500">
-                {formData.use_random_voice
-                  ? 'A random voice will be selected each time this scenario is played'
-                  : 'Select a specific voice for this scenario'}
+                Select voices for this scenario. System will randomly pick one matching the session language.
               </p>
 
-              {!formData.use_random_voice && (
-                <div>
-                  <label htmlFor="voice_id_recommendations" className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Voice
-                  </label>
-                  <select
-                    id="voice_id_recommendations"
-                    value={formData.voice_id}
-                    onChange={(e) => handleInputChange('voice_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {ELEVENLABS_VOICES.map(voice => (
-                      <option key={voice.id} value={voice.id}>
-                        {voice.name}
-                      </option>
-                    ))}
-                  </select>
+              {loadingVoices ? (
+                <div className="text-sm text-gray-500">Loading voices...</div>
+              ) : Object.keys(voicesByLanguage).length === 0 ? (
+                <div className="text-sm text-yellow-600">
+                  No voices configured. Go to Settings → Voices to add voices.
                 </div>
+              ) : (
+                <div className="border border-gray-300 rounded-lg p-4 space-y-4 max-h-64 overflow-y-auto">
+                  {Object.entries(voicesByLanguage).map(([langCode, voices]) => (
+                    <div key={langCode}>
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">
+                        {voices[0]?.language_code.toUpperCase()} - {voices.length} voice(s)
+                      </h5>
+                      <div className="grid grid-cols-2 gap-2">
+                        {voices.map(voice => (
+                          <label key={voice.voice_id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.voice_ids.includes(voice.voice_id)}
+                              onChange={() => toggleVoiceSelection(voice.voice_id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {voice.voice_name}
+                              {voice.gender && <span className="text-gray-500"> ({voice.gender})</span>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {formData.voice_ids.length > 0 && !formData.voice_ids.includes('random') && (
+                <p className="text-xs text-gray-500">
+                  {formData.voice_ids.length} voice(s) selected
+                </p>
               )}
             </div>
 
@@ -805,48 +895,69 @@ export default function ScenarioForm({ companyId, tracks, onSuccess, onCancel }:
               </p>
             </div>
 
-            {/* Voice Selection */}
+            {/* Voice Selection - Multi-select by Language */}
             <div className="space-y-3">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={formData.use_random_voice}
-                  onChange={(e) => {
-                    const useRandom = e.target.checked;
-                    setFormData(prev => ({
-                      ...prev,
-                      use_random_voice: useRandom,
-                      voice_id: useRandom ? RANDOM_VOICE_OPTION : (ELEVENLABS_VOICES[0]?.id || RANDOM_VOICE_OPTION)
-                    }))
-                  }}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Use a Random Voice</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700">
+                  Voice Selection *
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.voice_ids.includes('random')}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData(prev => ({ ...prev, voice_ids: ['random'] }))
+                      } else {
+                        setFormData(prev => ({ ...prev, voice_ids: [] }))
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-600">Random</span>
+                </label>
+              </div>
               <p className="text-sm text-gray-500">
-                {formData.use_random_voice
-                  ? 'A random voice will be selected each time this scenario is played'
-                  : 'Select a specific voice for this scenario'}
+                Select voices for this scenario. System will randomly pick one matching the session language.
               </p>
 
-              {!formData.use_random_voice && (
-                <div>
-                  <label htmlFor="voice_id_theory" className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Voice
-                  </label>
-                  <select
-                    id="voice_id_theory"
-                    value={formData.voice_id}
-                    onChange={(e) => handleInputChange('voice_id', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {ELEVENLABS_VOICES.map(voice => (
-                      <option key={voice.id} value={voice.id}>
-                        {voice.name}
-                      </option>
-                    ))}
-                  </select>
+              {loadingVoices ? (
+                <div className="text-sm text-gray-500">Loading voices...</div>
+              ) : Object.keys(voicesByLanguage).length === 0 ? (
+                <div className="text-sm text-yellow-600">
+                  No voices configured. Go to Settings → Voices to add voices.
                 </div>
+              ) : (
+                <div className="border border-gray-300 rounded-lg p-4 space-y-4 max-h-64 overflow-y-auto">
+                  {Object.entries(voicesByLanguage).map(([langCode, voices]) => (
+                    <div key={langCode}>
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">
+                        {voices[0]?.language_code.toUpperCase()} - {voices.length} voice(s)
+                      </h5>
+                      <div className="grid grid-cols-2 gap-2">
+                        {voices.map(voice => (
+                          <label key={voice.voice_id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.voice_ids.includes(voice.voice_id)}
+                              onChange={() => toggleVoiceSelection(voice.voice_id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {voice.voice_name}
+                              {voice.gender && <span className="text-gray-500"> ({voice.gender})</span>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {formData.voice_ids.length > 0 && !formData.voice_ids.includes('random') && (
+                <p className="text-xs text-gray-500">
+                  {formData.voice_ids.length} voice(s) selected
+                </p>
               )}
             </div>
 
