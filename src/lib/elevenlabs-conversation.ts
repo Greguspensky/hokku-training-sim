@@ -86,6 +86,15 @@ export class ElevenLabsConversationService {
   ): string {
     let greeting: string
 
+    // DEBUG: Log what we received
+    console.log(`🔍 getScenarioSpecificGreeting called with:`)
+    console.log(`   - language: "${language}"`)
+    console.log(`   - trainingMode: "${trainingMode}"`)
+    console.log(`   - customFirstMessage: ${customFirstMessage === undefined ? 'undefined' : customFirstMessage === null ? 'null' : `"${customFirstMessage}"`}`)
+    console.log(`   - customFirstMessage type: ${typeof customFirstMessage}`)
+    console.log(`   - customFirstMessage length: ${customFirstMessage?.length || 0}`)
+    console.log(`   - customFirstMessage trimmed: "${customFirstMessage?.trim()}"`)
+
     // Use custom first message if provided (Service Practice only)
     if (customFirstMessage && trainingMode === 'service_practice') {
       greeting = customFirstMessage

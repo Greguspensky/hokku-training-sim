@@ -588,6 +588,26 @@ export default function SessionTranscriptPage() {
                   {scenarioDetails.expected_response || 'No expected response defined'}
                 </p>
               </div>
+
+              {/* Key Milestones */}
+              {scenarioDetails.milestones && scenarioDetails.milestones.length > 0 && (
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-start mb-3">
+                    <span className="text-lg mr-2">🎯</span>
+                    <h3 className="font-semibold text-gray-900">Key Milestones</h3>
+                  </div>
+                  <ul className="space-y-2">
+                    {scenarioDetails.milestones.map((milestone: string, index: number) => (
+                      <li key={index} className="flex items-start text-sm text-gray-700">
+                        <span className="inline-block w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2 mt-0.5 flex-shrink-0">
+                          {index + 1}
+                        </span>
+                        <span className="leading-relaxed">{milestone}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         )}

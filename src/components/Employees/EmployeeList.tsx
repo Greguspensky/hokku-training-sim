@@ -22,6 +22,7 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [selectedEmployeeForScenario, setSelectedEmployeeForScenario] = useState<Employee | null>(null)
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const handleDeleteEmployee = async (employee: Employee) => {
     if (!confirm(`Are you sure you want to remove ${employee.name}? This will disable their invite link and revoke access.`)) {
@@ -95,13 +96,13 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
   }
 
   const handleAssignmentCreated = () => {
-    // Could refresh assignments here, or rely on the child component to refresh
-    // For now, we'll just close the modal
+    // Trigger refresh of assignment lists by incrementing refresh key
+    setRefreshKey(prev => prev + 1)
   }
 
   const handleScenarioAssignmentCreated = () => {
-    // Could refresh assignments here, or rely on the child component to refresh
-    // For now, we'll just close the modal
+    // Trigger refresh of assignment lists by incrementing refresh key
+    setRefreshKey(prev => prev + 1)
   }
 
   const toggleEmployeeExpansion = (employeeId: string) => {
@@ -251,13 +252,13 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
             {/* Always Visible Track Assignments */}
             <div className="mt-4 border-t border-gray-200 pt-4">
               <h5 className="text-sm font-medium text-gray-900 mb-3">Assigned Training Tracks</h5>
-              <EmployeeTracksList employee={employee} companyId={companyId} />
+              <EmployeeTracksList key={`tracks-${employee.id}-${refreshKey}`} employee={employee} companyId={companyId} />
             </div>
 
             {/* Individual Scenario Assignments */}
             <div className="mt-4 border-t border-gray-200 pt-4">
               <h5 className="text-sm font-medium text-gray-900 mb-3">Individual Scenarios</h5>
-              <EmployeeScenariosList employee={employee} />
+              <EmployeeScenariosList key={`scenarios-${employee.id}-${refreshKey}`} employee={employee} />
             </div>
           </div>
         ))}
