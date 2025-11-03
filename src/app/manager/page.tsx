@@ -715,7 +715,7 @@ export default function ManagerDashboard() {
                           <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                               {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                               scenario.scenario_type === 'recommendations' ? 'Recommendations' : 'Service Practice'}
+                               scenario.scenario_type === 'recommendations' ? 'Situationships' : 'Service Practice'}
                             </span>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                               📚 {getTrackName(scenario.track_id)}
@@ -853,7 +853,7 @@ export default function ManagerDashboard() {
                         <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                             {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                             scenario.scenario_type === 'recommendations' ? 'Recommendations' : 'Service Practice'}
+                             scenario.scenario_type === 'recommendations' ? 'Situationships' : 'Service Practice'}
                           </span>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                             📚 {getTrackName(scenario.track_id)}

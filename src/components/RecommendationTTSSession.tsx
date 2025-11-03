@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Play, Square, Volume2, VolumeX, SkipForward, StopCircle } from 'lucide-react'
 import { trainingSessionsService } from '@/lib/training-sessions'
 import { supabase } from '@/lib/supabase'
@@ -82,6 +82,10 @@ export function RecommendationTTSSession({
   const [isSavingVideo, setIsSavingVideo] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
+  // Function refs for timer effect (to avoid dependency issues)
+  const handleNextQuestionRef = useRef<(() => void) | null>(null)
+  const handleEndSessionRef = useRef<(() => Promise<void>) | null>(null)
+
   // Current question
   const currentQuestion = questions[currentQuestionIndex]
   const isLastQuestion = currentQuestionIndex === questions.length - 1
@@ -133,6 +137,17 @@ export function RecommendationTTSSession({
       }, 1000)
     } else if (timeRemaining === 0 && timerActive) {
       setTimerActive(false)
+      // Auto-advance: move to next question or end session
+      console.log('⏰ Timer expired - auto-advancing...')
+      if (isLastQuestion) {
+        console.log('📍 Last question - ending session')
+        // Directly call the function defined below
+        handleEndSessionRef.current?.()
+      } else {
+        console.log('📍 Moving to next question')
+        // Directly call the function defined below
+        handleNextQuestionRef.current?.()
+      }
     }
 
     return () => {
@@ -140,7 +155,7 @@ export function RecommendationTTSSession({
         clearTimeout(timerRef.current)
       }
     }
-  }, [timeRemaining, timerActive])
+  }, [timeRemaining, timerActive, isLastQuestion])
 
   const initializeSession = async () => {
     try {
@@ -369,6 +384,8 @@ export function RecommendationTTSSession({
       setTimerActive(false)
     }
   }
+  // Assign function to ref for timer effect
+  handleNextQuestionRef.current = handleNextQuestion
 
   const handleEndSession = async () => {
     console.log('🛑 handleEndSession called, stopping recording...')
@@ -565,6 +582,8 @@ export function RecommendationTTSSession({
       }
     }
   }
+  // Assign function to ref for timer effect
+  handleEndSessionRef.current = handleEndSession
 
   const startSession = async () => {
     console.log('🚀 Starting session from user button click (user gesture)')
@@ -670,19 +689,23 @@ export function RecommendationTTSSession({
 
         {/* Question Text */}
         <div className="bg-gray-50 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-center gap-4">
-            <h3 className="text-2xl font-semibold text-gray-900 text-center leading-relaxed flex-1">
-              {currentQuestion?.question_text ? stripAudioTags(currentQuestion.question_text) : 'Loading question...'}
-            </h3>
-            <button
-              onClick={playTTS}
-              disabled={!audioUrl || isLoadingTTS}
-              className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white transition-colors"
-              title="Play question audio"
-            >
-              <Play className="w-5 h-5 ml-0.5" />
-            </button>
-          </div>
+          {!isLoadingTTS ? (
+            <div className="flex items-center justify-center gap-4">
+              <h3 className="text-2xl font-semibold text-gray-900 text-center leading-relaxed flex-1">
+                {currentQuestion?.question_text ? stripAudioTags(currentQuestion.question_text) : 'Loading question...'}
+              </h3>
+              <button
+                onClick={playTTS}
+                disabled={!audioUrl || isLoadingTTS}
+                className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white transition-colors"
+                title="Play question audio"
+              >
+                <Play className="w-5 h-5 ml-0.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="h-16"></div>
+          )}
         </div>
 
         {/* TTS Status */}

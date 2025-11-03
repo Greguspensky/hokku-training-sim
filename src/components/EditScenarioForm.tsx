@@ -363,7 +363,7 @@ export default function EditScenarioForm({ scenario, companyId, tracks, onSucces
             >
               <option value="theory">Theory (Q&A)</option>
               <option value="service_practice">Service Practice (Role-play)</option>
-              <option value="recommendations">Recommendations</option>
+              <option value="recommendations">Situationships</option>
             </select>
           </div>
 

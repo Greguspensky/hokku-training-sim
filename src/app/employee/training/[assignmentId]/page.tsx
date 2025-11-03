@@ -17,6 +17,7 @@ import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName, resolveVoiceId } from '@/lib/elevenlabs-voices'
 import { resolveVoiceForSession, getVoiceNameById } from '@/lib/voice-resolver'
 import { getDefaultVideoAspectRatio } from '@/lib/device-detection'
+import HiddenContent, { HiddenSection } from '@/components/SurpriseMode/HiddenContent'
 
 interface TrainingQuestion {
   id: string
@@ -830,15 +831,15 @@ export default function TrainingSessionPage() {
                     {currentScenario.scenario_type === 'theory'
                       ? '📖 Theory Q&A Session'
                       : currentScenario.scenario_type === 'recommendations'
-                      ? '🎯 Product Recommendations Session'
-                      : `🗣️ ${currentScenario.title}`
+                      ? '🎯 Situationships Session'
+                      : '🗣️ Service Practice Session'
                     }
                   </h1>
                   {currentScenario.scenario_type !== 'service_practice' && (
                     <p className="text-gray-600">
                       {currentScenario.scenario_type === 'theory'
                         ? 'Structured knowledge assessment - Answer questions accurately and concisely'
-                        : 'Product recommendation training - Learn to suggest appropriate products and services'
+                        : 'Situationships training - Learn to suggest appropriate products and services'
                       }
                     </p>
                   )}
@@ -846,36 +847,14 @@ export default function TrainingSessionPage() {
 
                 {/* Session Configuration */}
                 <div className="space-y-8">
-                  {/* Scenario Goals - First for Service Practice */}
+                  {/* Scenario Goals - Hidden for Surprise Mode */}
                   {currentScenario.scenario_type === 'service_practice' && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
-                      {/* Goals (Expected Response) */}
-                      {currentScenario.expected_response && (
-                        <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-gray-700 mb-3">🎯 Your Goals</h4>
-                          <p className="text-base text-gray-800 leading-relaxed">
-                            {currentScenario.expected_response}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Milestones */}
-                      {currentScenario.milestones && currentScenario.milestones.length > 0 && (
-                        <div>
-                          <h4 className="text-lg font-semibold text-gray-700 mb-3">✅ Key Milestones</h4>
-                          <ul className="space-y-2">
-                            {currentScenario.milestones.map((milestone, index) => (
-                              <li key={index} className="flex items-start text-base text-gray-800">
-                                <span className="inline-block w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2 mt-0.5 flex-shrink-0">
-                                  {index + 1}
-                                </span>
-                                <span className="leading-relaxed">{milestone}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
+                    <HiddenSection
+                      title="Scenario Goals & Milestones"
+                      icon="🎯"
+                      message="Your goals and key milestones will be revealed when you start the training session"
+                      className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200"
+                    />
                   )}
 
                   {/* Language Selection - Second for Service Practice */}
@@ -1033,11 +1012,11 @@ export default function TrainingSessionPage() {
                         {currentScenario.scenario_type === 'theory'
                           ? '📖 Theory Assessment'
                           : currentScenario.scenario_type === 'recommendations'
-                          ? '🎯 Product Recommendations'
+                          ? '🎯 Situationships'
                           : '🗣️ Service Practice'
                         }
                       </p>
-                      <p><strong>Scenario:</strong> {currentScenario.title}</p>
+                      <p><strong>Scenario:</strong> <HiddenContent type="title" customPlaceholder="Mystery Scenario" showIcon={false} className="inline" /></p>
                       {currentScenario.session_time_limit_minutes && (
                         <p><strong>Time Limit:</strong> ⏱️ {currentScenario.session_time_limit_minutes} minutes</p>
                       )}
@@ -1045,7 +1024,8 @@ export default function TrainingSessionPage() {
                     </div>
                   </div>
 
-                  {/* ElevenLabs Settings Preview */}
+                  {/* ElevenLabs Settings Preview - Hidden for Situationships (Surprise Mode) */}
+                  {currentScenario?.scenario_type !== 'recommendations' && (
                   <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
                     <h3 className="font-semibold text-gray-900 mb-4">🤖 ElevenLabs AI Agent Settings</h3>
                     <div className="text-sm space-y-3">
@@ -1056,7 +1036,7 @@ export default function TrainingSessionPage() {
                             {currentScenario.scenario_type === 'theory' ? (
                               scenarioQuestions.length > 0 ? (
                                 <>
-                                  <strong>Strict Theory Examiner</strong> - Will ask {scenarioQuestions.length} specific questions about {currentScenario.title}.
+                                  <strong>Strict Theory Examiner</strong> - Will ask {scenarioQuestions.length} specific questions about this topic.
                                   Questions prioritized as: unanswered → incorrect → correct answers.
                                 </>
                               ) : (
@@ -1117,13 +1097,9 @@ export default function TrainingSessionPage() {
                           ) : currentScenario.scenario_type === 'recommendations' ? (
                             <div className="space-y-2">
                               <p className="text-gray-600 text-xs">
-                                <strong>Training Focus:</strong> {currentScenario.title}
+                                <strong>Training Focus:</strong> <HiddenContent type="title" customPlaceholder="Situationships Training" showIcon={false} className="inline" />
                               </p>
-                              {currentScenario.instructions && (
-                                <p className="text-gray-600 text-xs">
-                                  <strong>Instructions:</strong> {currentScenario.instructions}
-                                </p>
-                              )}
+                              {/* Hidden: Instructions for surprise mode */}
                               {recommendationQuestionsLoading ? (
                                 <div className="flex items-center space-x-2">
                                   <div className="animate-spin rounded-full h-3 w-3 border-b border-purple-500"></div>
@@ -1180,7 +1156,7 @@ export default function TrainingSessionPage() {
                             </div>
                           ) : (
                             <p className="text-gray-600 text-xs">
-                              {currentScenario.title}
+                              <HiddenContent type="title" customPlaceholder="Mystery Training Scenario" showIcon={false} className="inline" />
                             </p>
                           )}
                         </div>
@@ -1248,39 +1224,12 @@ export default function TrainingSessionPage() {
                             </p>
                           </div>
 
-                          <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="font-medium text-gray-900 mb-2">😤 Customer Behavior</p>
-                            <p className="text-gray-600 text-xs max-h-20 overflow-y-auto">
-                              {currentScenario.client_behavior || 'Act as typical customer seeking help'}
-                            </p>
-                          </div>
-                          <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <p className="font-medium text-gray-900 mb-2">✅ Expected Employee Response</p>
-                            <p className="text-gray-600 text-xs max-h-20 overflow-y-auto">
-                              {currentScenario.expected_response || 'Employee should be helpful and knowledgeable'}
-                            </p>
-                          </div>
-
-                          {/* Milestones - Show only for service_practice */}
-                          {currentScenario.milestones && currentScenario.milestones.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 border border-gray-200 md:col-span-2">
-                              <p className="font-medium text-gray-900 mb-3">🎯 Key Milestones</p>
-                              <ul className="space-y-2">
-                                {currentScenario.milestones.map((milestone, index) => (
-                                  <li key={index} className="flex items-start text-xs text-gray-600">
-                                    <span className="inline-block w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2 mt-0.5 flex-shrink-0">
-                                      {index + 1}
-                                    </span>
-                                    <span className="leading-relaxed">{milestone}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          {/* Hidden: Customer Behavior, Expected Response, and Milestones for Surprise Mode */}
                         </>
                       )}
                     </div>
                   </div>
+                  )}
 
                   {/* Language Selection - Hide for recommendations and service_practice (shown at top for service_practice) */}
                   {currentScenario?.scenario_type === 'theory' && (

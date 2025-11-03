@@ -1220,49 +1220,7 @@ Ask specific, factual questions based on the company knowledge context provided.
             </div>
           </div>
 
-          {/* Scenario Context Section - Service Practice Only */}
-          {!isTheoryMode && scenarioContext && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
-              {/* Scenario Title/Description */}
-              <div>
-                {scenarioContext.title && (
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    🎭 {scenarioContext.title}
-                  </h3>
-                )}
-                {scenarioContext.description && (
-                  <p className="text-gray-700">{scenarioContext.description}</p>
-                )}
-              </div>
-
-              {/* Your Goals */}
-              {scenarioContext.expected_response && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    🎯 Your Goals
-                  </h4>
-                  <p className="text-gray-700 whitespace-pre-line">{scenarioContext.expected_response}</p>
-                </div>
-              )}
-
-              {/* Key Milestones */}
-              {scenarioContext.milestones && scenarioContext.milestones.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    ✅ Key Milestones
-                  </h4>
-                  <ol className="space-y-1">
-                    {scenarioContext.milestones.map((milestone: string, i: number) => (
-                      <li key={i} className="text-gray-700 flex items-start gap-2">
-                        <span className="text-blue-600 font-medium min-w-[20px]">{i + 1}</span>
-                        <span>{milestone}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Hidden for Surprise Mode: Scenario Context (Title, Description, Goals, Milestones) */}
 
           {/* Error Display */}
           {error && (

@@ -348,7 +348,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                💡 Recommendations
+                💡 Situationships
               </button>
             </nav>
           </div>

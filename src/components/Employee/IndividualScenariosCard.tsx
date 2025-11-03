@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import HiddenContent from '@/components/SurpriseMode/HiddenContent'
 
 interface KnowledgeTopic {
   id: string
@@ -220,13 +221,17 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
               <div className="hidden md:flex md:items-start md:justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
-                    <h4 className="text-lg font-medium text-gray-900">{assignment.scenarios.title}</h4>
+                    <h4 className="text-lg font-medium text-gray-900">
+                      <HiddenContent type="title" customPlaceholder="Mystery Scenario" />
+                    </h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
                       {getStatusText(assignment.status)}
                     </span>
                   </div>
 
-                  <p className="text-gray-600 mb-3">{assignment.scenarios.description}</p>
+                  <p className="text-gray-600 mb-3 text-sm">
+                    <HiddenContent type="description" showIcon={false} />
+                  </p>
 
                   <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -322,13 +327,17 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
               <div className="md:hidden space-y-4">
                 <div>
                   <div className="flex items-center flex-wrap gap-2 mb-2">
-                    <h4 className="text-lg font-medium text-gray-900">{assignment.scenarios.title}</h4>
+                    <h4 className="text-lg font-medium text-gray-900">
+                      <HiddenContent type="title" customPlaceholder="Mystery Scenario" />
+                    </h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
                       {getStatusText(assignment.status)}
                     </span>
                   </div>
 
-                  <p className="text-gray-600 mb-3">{assignment.scenarios.description}</p>
+                  <p className="text-gray-600 mb-3 text-sm">
+                    <HiddenContent type="description" showIcon={false} />
+                  </p>
 
                   <div className="flex flex-wrap gap-2 text-sm mb-3">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
