@@ -11,6 +11,8 @@ import UserHeader from '@/components/UserHeader'
 import SessionFeed from '@/components/Manager/SessionFeed'
 import EmployeeProgressList from '@/components/Manager/EmployeeProgressList'
 import EmployeeDashboardView from '@/components/Manager/EmployeeDashboardView'
+import ServicePracticeAnalyticsDashboard from '@/components/Manager/ServicePracticeAnalyticsDashboard'
+import EmployeeSkillComparison from '@/components/EmployeeSkillComparison'
 import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario, scenarioService } from '@/lib/scenarios'
 import { employeeService, Employee } from '@/lib/employees'
@@ -960,22 +962,15 @@ export default function ManagerDashboard() {
               />
             </div>
 
-            {/* Employee Dashboard - Right Side */}
+            {/* Employee Dashboard OR Analytics - Right Side */}
             <div className="lg:col-span-2">
               {selectedEmployee ? (
                 <EmployeeDashboardView employee={selectedEmployee} />
               ) : (
-                <div className="bg-white rounded-lg shadow p-12 text-center">
-                  <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Select an Employee
-                  </h3>
-                  <p className="text-gray-500">
-                    Choose an employee from the list to view their training progress and performance
-                  </p>
-                </div>
+                <>
+                  <EmployeeSkillComparison companyId={companyId} />
+                  <ServicePracticeAnalyticsDashboard companyId={companyId} />
+                </>
               )}
             </div>
           </div>
