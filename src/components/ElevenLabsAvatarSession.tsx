@@ -11,6 +11,17 @@ import { useAuth } from '@/contexts/AuthContext'
 import { VideoRecordingService } from '@/services/VideoRecordingService'
 import { resolveVoiceForSession } from '@/lib/voice-resolver'
 
+// Helper function to get training mode display name
+function getTrainingModeDisplay(trainingMode: string): string {
+  const modeMap: Record<string, string> = {
+    'theory': 'Theory Q&A',
+    'service_practice': 'Service Practice',
+    'recommendation_tts': 'Recommendation',
+    'recommendation': 'Recommendation'
+  }
+  return modeMap[trainingMode] || trainingMode
+}
+
 interface ElevenLabsAvatarSessionProps {
   companyId: string
   scenarioId?: string
@@ -981,7 +992,7 @@ Ask specific, factual questions based on the company knowledge context provided.
         assignment_id: scenarioId || 'unknown',
         company_id: companyId,
         scenario_id: scenarioId || null, // Track scenario for attempt counting
-        session_name: `${trainingMode === 'theory' ? 'Theory Q&A' : 'Service Practice'} Session - ${endTime.toLocaleDateString('en-US', {
+        session_name: `${getTrainingModeDisplay(trainingMode)} Session - ${endTime.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric'

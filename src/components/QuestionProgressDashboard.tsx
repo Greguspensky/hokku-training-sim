@@ -16,6 +16,8 @@ interface QuestionProgress {
   attempts?: number
   last_answer?: string
   last_attempt_at?: string
+  manager_override?: boolean
+  manager_override_status?: string
 }
 
 interface TopicSummary {
@@ -474,6 +476,11 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                       <p className="text-gray-600">
                         <strong>Correct Answer:</strong> {question.correct_answer}
                       </p>
+                      {question.manager_override && (
+                        <p className="text-orange-600 mt-2 text-xs italic">
+                          ⚠️ Manager Override: Status manually set to "{question.manager_override_status}"
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

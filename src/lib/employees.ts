@@ -11,6 +11,7 @@ export interface Employee {
   has_joined: boolean
   created_at: string
   joined_at?: string
+  user_id?: string // Auth user ID (for linking to training sessions)
 }
 
 export interface CreateEmployeeData {
@@ -182,7 +183,8 @@ class EmployeeService {
             is_active: emp.is_active,
             has_joined: emp.has_joined,
             created_at: emp.created_at,
-            joined_at: emp.joined_at || undefined
+            joined_at: emp.joined_at || undefined,
+            user_id: emp.user_id || userRecord?.id // Include user_id from employee record or matched user
           })
         }
       }
@@ -215,7 +217,8 @@ class EmployeeService {
               is_active: true,
               has_joined: true,
               created_at: user.created_at,
-              joined_at: user.created_at
+              joined_at: user.created_at,
+              user_id: user.id // Include user_id
             })
           }
         }

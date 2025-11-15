@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar, Clock, MessageCircle, Brain, Video, Target, User, Trash2, AlertTriangle, X } from 'lucide-react'
+import { Calendar, Clock, MessageCircle, Brain, Video, Target, User, Trash2, AlertTriangle, X, Trophy, BarChart3 } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -9,6 +9,23 @@ interface SessionWithEmployee extends TrainingSession {
   employee_name?: string
   scenario_name?: string | null
   scenario_type?: string | null
+  service_practice_assessment_results?: {
+    overallScore: number
+    metrics: Record<string, number>
+    strengths: Array<{ area: string; evidence: string }>
+    improvements: Array<{ area: string; issue: string; suggestion: string }>
+  } | null
+  service_assessment_status?: string | null
+  service_assessment_completed_at?: string | null
+  theory_assessment_results?: {
+    summary: {
+      score: number
+      accuracy: number
+      totalQuestions: number
+      correctAnswers: number
+      incorrectAnswers: number
+    }
+  } | null
 }
 
 export default function SessionFeed({ companyId }: { companyId: string }) {
@@ -21,6 +38,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [sessionToDelete, setSessionToDelete] = useState<SessionWithEmployee | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [analyzingSessionId, setAnalyzingSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     loadFeed()
@@ -79,6 +97,12 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
     })
   }
 
+  const getScoreBadgeColor = (score: number) => {
+    if (score >= 80) return 'bg-green-50 border-green-200 text-green-700'
+    if (score >= 60) return 'bg-yellow-50 border-yellow-200 text-yellow-700'
+    return 'bg-red-50 border-red-200 text-red-700'
+  }
+
   const handleDeleteClick = (session: SessionWithEmployee) => {
     setSessionToDelete(session)
     setShowDeleteDialog(true)
@@ -120,6 +144,55 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
     setShowDeleteDialog(false)
     setSessionToDelete(null)
     setDeleteError(null)
+  }
+
+  const handleAnalyzeClick = async (session: SessionWithEmployee, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent any parent click handlers
+
+    if (analyzingSessionId) return // Already analyzing another session
+
+    try {
+      setAnalyzingSessionId(session.id)
+      console.log('📊 Starting analysis for session:', session.id, 'mode:', session.training_mode)
+
+      // Determine which API endpoint to use based on training mode
+      const apiEndpoint = session.training_mode === 'theory'
+        ? '/api/assess-theory-session'
+        : '/api/assess-service-practice-session'
+
+      const requestBody = session.training_mode === 'theory'
+        ? {
+            sessionId: session.id,
+            userId: user?.id,
+            transcript: session.conversation_transcript
+          }
+        : {
+            sessionId: session.id,
+            forceReAnalysis: false
+          }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('✅ Analysis completed:', result)
+        // Reload the feed to show the new score badge
+        await loadFeed()
+      } else {
+        console.error('❌ Analysis failed:', result.error)
+        alert('Failed to analyze session: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('❌ Error analyzing session:', error)
+      alert('Failed to analyze session. Please try again.')
+    } finally {
+      setAnalyzingSessionId(null)
+    }
   }
 
   if (loading) {
@@ -303,22 +376,121 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => handleDeleteClick(session)}
-                disabled={deletingSessionId === session.id}
-                className={`ml-3 p-2 rounded-md transition-colors ${
-                  deletingSessionId === session.id
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
-                }`}
-                title="Delete session"
-              >
-                {deletingSessionId === session.id ? (
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Performance Score Badge OR Analyze Button - For Theory Q&A */}
+                {session.training_mode === 'theory' && (() => {
+                  // Show score badge if analyzed
+                  if (session.theory_assessment_results?.summary) {
+                    const score = session.theory_assessment_results.summary.score;
+
+                    if (typeof score === 'number' && !isNaN(score)) {
+                      return (
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${getScoreBadgeColor(score)}`}>
+                          <Trophy className="w-3.5 h-3.5" />
+                          <span className="text-sm font-semibold">
+                            {Math.round(score)}/100
+                          </span>
+                        </div>
+                      );
+                    }
+                  }
+
+                  // Show Analyze button if not analyzed yet
+                  if (!session.theory_assessment_results?.summary) {
+                    return (
+                      <button
+                        onClick={(e) => handleAnalyzeClick(session, e)}
+                        disabled={analyzingSessionId === session.id}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          analyzingSessionId === session.id
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                        }`}
+                        title="Analyze this session with GPT-4"
+                      >
+                        {analyzingSessionId === session.id ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            <span>Analyze</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  }
+
+                  return null;
+                })()}
+                {/* Performance Score Badge OR Analyze Button - For Service Practice */}
+                {session.training_mode === 'service_practice' && (() => {
+                  // Show score badge if analyzed
+                  if (session.service_assessment_status === 'completed' && session.service_practice_assessment_results) {
+                    const score = (session.service_practice_assessment_results as any).overallScore ||
+                                  (session.service_practice_assessment_results as any).overall_score;
+
+                    if (typeof score === 'number' && !isNaN(score)) {
+                      return (
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${getScoreBadgeColor(score)}`}>
+                          <Trophy className="w-3.5 h-3.5" />
+                          <span className="text-sm font-semibold">
+                            {Math.round(score)}/100
+                          </span>
+                        </div>
+                      );
+                    }
+                  }
+
+                  // Show Analyze button if not analyzed yet
+                  if (session.service_assessment_status !== 'completed') {
+                    return (
+                      <button
+                        onClick={(e) => handleAnalyzeClick(session, e)}
+                        disabled={analyzingSessionId === session.id}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          analyzingSessionId === session.id
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                        }`}
+                        title="Analyze this session with GPT-4"
+                      >
+                        {analyzingSessionId === session.id ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 className="w-3.5 h-3.5" />
+                            <span>Analyze</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  }
+
+                  return null;
+                })()}
+                <button
+                  onClick={() => handleDeleteClick(session)}
+                  disabled={deletingSessionId === session.id}
+                  className={`p-2 rounded-md transition-colors ${
+                    deletingSessionId === session.id
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'hover:bg-red-100 text-gray-500 hover:text-red-600'
+                  }`}
+                  title="Delete session"
+                >
+                  {deletingSessionId === session.id ? (
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4 text-sm">
@@ -344,27 +516,6 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 <span>{session.language.toUpperCase()}</span>
               </div>
             </div>
-
-            {session.knowledge_context && session.knowledge_context.documents && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="text-xs text-gray-500 mb-1">Knowledge Documents:</div>
-                <div className="flex flex-wrap gap-1">
-                  {session.knowledge_context.documents.slice(0, 3).map((doc, index) => (
-                    <span
-                      key={index}
-                      className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
-                    >
-                      {doc.title}
-                    </span>
-                  ))}
-                  {session.knowledge_context.documents.length > 3 && (
-                    <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                      +{session.knowledge_context.documents.length - 3} more
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
 
             {session.video_recording_url && (
               <div className="mt-3 pt-3 border-t border-gray-100">

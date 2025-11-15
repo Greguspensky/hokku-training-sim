@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
 
     if (!practiceQuestions || practiceQuestions.length === 0) {
       return NextResponse.json({
+        success: true,
         assessmentResults: [],
         summary: { totalQuestions: 0, correctAnswers: 0, score: 0 },
         message: 'No questions available for assessment'
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
 
     if (qaExchanges.length === 0) {
       return NextResponse.json({
+        success: true,
         assessmentResults: [],
         summary: { totalQuestions: 0, correctAnswers: 0, score: 0 },
         message: 'No Q&A exchanges found in transcript'
@@ -188,13 +190,39 @@ export async function POST(request: NextRequest) {
 
     console.log(`📊 Assessment complete: ${correctAnswers}/${totalQuestions} correct (${summary.accuracy}%)`)
 
+    // Save assessment results to database for caching
+    const assessmentData = {
+      summary,
+      assessmentResults,
+      processedExchanges: qaExchanges.length,
+      matchedQuestions: assessmentResults.length,
+      analyzedAt: new Date().toISOString()
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('training_sessions')
+      .update({
+        theory_assessment_results: assessmentData,
+        assessment_completed_at: new Date().toISOString(),
+        assessment_status: 'completed'
+      })
+      .eq('id', sessionId)
+
+    if (updateError) {
+      console.error('❌ Error saving assessment results:', updateError)
+      // Don't fail the request - we have the results even if caching failed
+    } else {
+      console.log('✅ Assessment results cached in database')
+    }
+
     return NextResponse.json({
       success: true,
       sessionId,
       assessmentResults,
       summary,
       processedExchanges: qaExchanges.length,
-      matchedQuestions: assessmentResults.length
+      matchedQuestions: assessmentResults.length,
+      assessment: assessmentData
     })
 
   } catch (error) {

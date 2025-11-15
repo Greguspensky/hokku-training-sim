@@ -7,6 +7,7 @@ import { trainingSessionsService, type TrainingSession } from '@/lib/training-se
 import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import SessionCard from '@/components/Employee/SessionCard'
 import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
+import EmployeeSessionAnalysis from '@/components/Manager/EmployeeSessionAnalysis'
 import { User, Calendar, Mail, TrendingUp, Clock, Award, AlertTriangle, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -30,7 +31,7 @@ const employeeCache = new Map<string, EmployeeDataCache>()
 
 export default function EmployeeDashboardView({ employee }: EmployeeDashboardViewProps) {
   const { user: currentUser } = useAuth()
-  const [activeTab, setActiveTab] = useState<'tracks' | 'history' | 'progress'>('tracks')
+  const [activeTab, setActiveTab] = useState<'tracks' | 'history' | 'progress' | 'analysis'>('tracks')
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [sessions, setSessions] = useState<TrainingSession[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,6 +46,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [sessionToDelete, setSessionToDelete] = useState<TrainingSession | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [analyzingSessionId, setAnalyzingSessionId] = useState<string | null>(null)
 
   // Load auth user ID from employee email (with caching)
   useEffect(() => {
@@ -188,6 +190,60 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
     setSessionToDelete(session)
     setShowDeleteDialog(true)
     setDeleteError(null)
+  }
+
+  const handleAnalyzeSession = async (sessionId: string) => {
+    if (analyzingSessionId) return // Already analyzing another session
+
+    try {
+      setAnalyzingSessionId(sessionId)
+      console.log('📊 Starting analysis for session:', sessionId)
+
+      // Find the session to determine training mode
+      const session = sessions.find(s => s.id === sessionId)
+      if (!session) {
+        alert('Session not found')
+        return
+      }
+
+      // Determine which API endpoint to use based on training mode
+      const apiEndpoint = session.training_mode === 'theory'
+        ? '/api/assess-theory-session'
+        : '/api/assess-service-practice-session'
+
+      const requestBody = session.training_mode === 'theory'
+        ? {
+            sessionId,
+            userId: authUserId,
+            transcript: session.conversation_transcript
+          }
+        : {
+            sessionId,
+            forceReAnalysis: false
+          }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('✅ Analysis completed:', result)
+        // Reload the training history to show the new score badge
+        await loadTrainingHistory()
+      } else {
+        console.error('❌ Analysis failed:', result.error)
+        alert('Failed to analyze session: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('❌ Error analyzing session:', error)
+      alert('Failed to analyze session. Please try again.')
+    } finally {
+      setAnalyzingSessionId(null)
+    }
   }
 
   const confirmDelete = async () => {
@@ -402,6 +458,16 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
             >
               Progress by Topic
             </button>
+            <button
+              onClick={() => setActiveTab('analysis')}
+              className={`${
+                activeTab === 'analysis'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Session Analysis
+            </button>
           </nav>
         </div>
 
@@ -498,8 +564,11 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                           session={session}
                           showClickable={true}
                           showDeleteButton={true}
+                          showAnalyzeButton={true}
                           onDelete={handleDeleteSession}
+                          onAnalyze={handleAnalyzeSession}
                           isDeleting={deletingSessionId === session.id}
+                          isAnalyzing={analyzingSessionId === session.id}
                         />
                       ))}
                     </div>
@@ -516,6 +585,17 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                 userId={authUserId || undefined}
                 companyId={employee.company_id}
                 managerView={true}
+              />
+            </div>
+          )}
+
+          {/* Session Analysis Tab */}
+          {activeTab === 'analysis' && (
+            <div>
+              <EmployeeSessionAnalysis
+                employeeId={authUserId || employee.id}
+                employeeName={employee.name}
+                companyId={employee.company_id}
               />
             </div>
           )}

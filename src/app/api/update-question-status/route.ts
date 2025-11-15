@@ -112,10 +112,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingAttempt) {
-      // Update existing attempt
+      // Update existing attempt - preserve original user_answer, just update is_correct and add override flag
       const updateData: any = {
         is_correct,
-        user_answer: `[Manager Override: ${new_status}]`
+        manager_override: true,
+        manager_override_status: new_status,
+        manager_id: manager_id || null,
+        overridden_at: new Date().toISOString()
       }
 
       const { error: updateError } = await supabase
@@ -128,24 +131,28 @@ export async function POST(request: NextRequest) {
         throw updateError
       }
 
-      console.log('✅ Updated existing question attempt:', existingAttempt.id)
+      console.log('✅ Updated existing question attempt with manager override:', existingAttempt.id)
     } else {
-      // Create new attempt record
+      // Create new attempt record with manager override
       // Production schema uses: user_id (not employee_id), user_answer (not employee_answer)
       const insertData: any = {
         user_id: employee_id, // Production schema uses user_id
         question_id,
         topic_id: topic.id,
         question_asked: question.question_template,
-        user_answer: `[Manager Override: ${new_status}]`,
+        user_answer: '', // No user answer exists yet
         correct_answer: question.correct_answer || '',
         is_correct,
         points_earned: is_correct ? 10 : 0,
         time_spent_seconds: 0,
-        attempt_number: 1
+        attempt_number: 1,
+        manager_override: true,
+        manager_override_status: new_status,
+        manager_id: manager_id || null,
+        overridden_at: new Date().toISOString()
       }
 
-      console.log('🔧 Creating question attempt with production schema (user_id, user_answer)')
+      console.log('🔧 Creating question attempt with manager override (user_id, user_answer)')
 
       const { error: insertError } = await supabase
         .from('question_attempts')
@@ -162,7 +169,7 @@ export async function POST(request: NextRequest) {
         throw insertError
       }
 
-      console.log('✅ Created new question attempt record')
+      console.log('✅ Created new question attempt record with manager override')
     }
 
     // Recalculate topic progress

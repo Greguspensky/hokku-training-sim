@@ -7,7 +7,7 @@ import { Employee } from '@/lib/employees'
 interface EmployeeProgressListProps {
   companyId: string
   selectedEmployeeId: string | null
-  onSelectEmployee: (employee: Employee) => void
+  onSelectEmployee: (employee: Employee | null) => void
 }
 
 export default function EmployeeProgressList({
@@ -113,6 +113,35 @@ export default function EmployeeProgressList({
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
+            {/* All Employees Option */}
+            <button
+              onClick={() => onSelectEmployee(null)}
+              className={`w-full text-left p-4 transition-colors ${
+                selectedEmployeeId === null
+                  ? 'bg-blue-50 border-l-4 border-blue-500'
+                  : 'hover:bg-gray-50 border-l-4 border-transparent'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    <h4 className="text-sm font-semibold text-gray-900">
+                      All Employees
+                    </h4>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    View Service Practice analytics across all team members
+                  </p>
+                </div>
+                {selectedEmployeeId === null && (
+                  <div className="ml-2 flex-shrink-0">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  </div>
+                )}
+              </div>
+            </button>
+
             {filteredEmployees.map((employee) => (
               <button
                 key={employee.id}

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+// Helper function to get training mode display name
+function getTrainingModeDisplay(trainingMode: string): string {
+  const modeMap: Record<string, string> = {
+    'theory': 'Theory Q&A',
+    'service_practice': 'Service Practice',
+    'recommendation_tts': 'Recommendation',
+    'recommendation': 'Recommendation'
+  }
+  return modeMap[trainingMode] || trainingMode
+}
+
 /**
  * API endpoint to record when a training session starts
  * Creates a minimal training_session record for attempt counting
@@ -55,7 +66,7 @@ export async function POST(request: NextRequest) {
       assignment_id: assignmentId,
       company_id: companyId,
       scenario_id: scenarioId || null,
-      session_name: `${trainingMode === 'theory' ? 'Theory Q&A' : trainingMode === 'recommendation_tts' ? 'Recommendation' : 'Service Practice'} Session - In Progress`,
+      session_name: `${getTrainingModeDisplay(trainingMode)} Session - In Progress`,
       training_mode: trainingMode,
       language: language || 'en',
       agent_id: agentId || 'unknown',

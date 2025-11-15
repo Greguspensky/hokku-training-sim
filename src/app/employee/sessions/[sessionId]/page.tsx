@@ -8,6 +8,20 @@ import { useAuth } from '@/contexts/AuthContext'
 import UserHeader from '@/components/UserHeader'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName } from '@/lib/elevenlabs-voices'
+import PerformanceScoreCard from '@/components/PerformanceScoreCard'
+import MilestoneChecklist from '@/components/MilestoneChecklist'
+import FeedbackSection from '@/components/FeedbackSection'
+
+// Helper function to get training mode display name
+function getTrainingModeDisplay(trainingMode: string): string {
+  const modeMap: Record<string, string> = {
+    'theory': 'Theory Q&A',
+    'service_practice': 'Service Practice',
+    'recommendation_tts': 'Recommendation Training',
+    'recommendation': 'Recommendation Training'
+  }
+  return modeMap[trainingMode] || trainingMode
+}
 
 export default function SessionTranscriptPage() {
   const params = useParams()
@@ -21,8 +35,10 @@ export default function SessionTranscriptPage() {
   const [isAnalyzingTranscript, setIsAnalyzingTranscript] = useState(false)
   const [isFetchingTranscript, setIsFetchingTranscript] = useState(false)
   const [transcriptAnalysis, setTranscriptAnalysis] = useState<any>(null)
+  const [servicePracticeAssessment, setServicePracticeAssessment] = useState<any>(null)
   const [scenarioDetails, setScenarioDetails] = useState<any>(null)
   const [loadingScenario, setLoadingScenario] = useState(false)
+  const [activeTab, setActiveTab] = useState<'transcript' | 'analysis'>('transcript')
 
   const sessionId = params.sessionId as string
 
@@ -100,11 +116,37 @@ export default function SessionTranscriptPage() {
         }
 
         setTranscriptAnalysis(cachedResults)
+        setActiveTab('analysis') // Auto-switch to analysis tab to show cached results
         console.log('✅ Cached assessment results loaded successfully:', cachedResults)
       } else {
         console.log('🔍 No cached results found:')
         console.log('  - assessment_status:', sessionData.assessment_status)
         console.log('  - theory_assessment_results:', !!sessionData.theory_assessment_results)
+      }
+
+      // Check for cached Service Practice assessment results and load them immediately
+      if (sessionData.training_mode === 'service_practice' &&
+          sessionData.service_assessment_status === 'completed' &&
+          sessionData.service_practice_assessment_results) {
+        console.log('📊 Loading cached Service Practice assessment results from database')
+        console.log('🔍 Service assessment status:', sessionData.service_assessment_status)
+        console.log('🔍 Service Practice assessment results:', sessionData.service_practice_assessment_results)
+
+        const cachedResults = {
+          success: true,
+          sessionId: sessionData.id,
+          assessment: sessionData.service_practice_assessment_results,
+          fromCache: true,
+          cachedAt: sessionData.service_assessment_completed_at
+        }
+
+        setServicePracticeAssessment(cachedResults.assessment)
+        setActiveTab('analysis') // Auto-switch to analysis tab to show cached results
+        console.log('✅ Cached Service Practice assessment results loaded successfully')
+      } else if (sessionData.training_mode === 'service_practice') {
+        console.log('🔍 No cached Service Practice results found:')
+        console.log('  - service_assessment_status:', sessionData.service_assessment_status)
+        console.log('  - service_practice_assessment_results:', !!sessionData.service_practice_assessment_results)
       }
 
       // Check if we need to lazy load audio
@@ -236,26 +278,57 @@ export default function SessionTranscriptPage() {
     setIsAnalyzingTranscript(true)
 
     try {
-      const response = await fetch('/api/session-transcript-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: String(sessionId),
-          forceReAnalysis: Boolean(forceReAnalysis)
+      // Determine which endpoint to call based on training mode
+      if (session.training_mode === 'service_practice') {
+        // Call Service Practice assessment endpoint
+        const response = await fetch('/api/assess-service-practice-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: String(sessionId),
+            forceReAnalysis: Boolean(forceReAnalysis)
+          })
         })
-      })
 
-      const result = await response.json()
+        const result = await response.json()
 
-      if (result.success) {
-        setTranscriptAnalysis(result)
-        console.log('✅ Analysis completed successfully')
+        if (result.success) {
+          setServicePracticeAssessment(result.assessment)
+          console.log('✅ Service Practice assessment completed successfully')
+          console.log('📋 From cache:', result.fromCache)
 
-        // Refresh the session to get the updated transcript
-        await loadSession()
+          // Switch to analysis tab automatically
+          setActiveTab('analysis')
+
+          // Refresh the session to get the updated cached results
+          await loadSession()
+        } else {
+          console.error('❌ Service Practice assessment failed:', result.error)
+          alert(`Failed to assess Service Practice session: ${result.error}`)
+        }
       } else {
-        console.error('❌ Analysis failed:', result.error)
-        alert(`Failed to run analysis: ${result.error}`)
+        // Call Theory Q&A assessment endpoint (existing)
+        const response = await fetch('/api/session-transcript-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: String(sessionId),
+            forceReAnalysis: Boolean(forceReAnalysis)
+          })
+        })
+
+        const result = await response.json()
+
+        if (result.success) {
+          setTranscriptAnalysis(result)
+          console.log('✅ Analysis completed successfully')
+
+          // Refresh the session to get the updated transcript
+          await loadSession()
+        } else {
+          console.error('❌ Analysis failed:', result.error)
+          alert(`Failed to run analysis: ${result.error}`)
+        }
       }
     } catch (error) {
       console.error('❌ Error running analysis:', error)
@@ -452,7 +525,7 @@ export default function SessionTranscriptPage() {
               <Brain className="w-5 h-5 text-gray-400 mr-3" />
               <div>
                 <div className="text-sm font-medium text-gray-900">
-                  {session.training_mode === 'theory' ? 'Theory Q&A' : 'Service Practice'}
+                  {getTrainingModeDisplay(session.training_mode)}
                 </div>
                 <div className="text-xs text-gray-500">Training Mode</div>
               </div>
@@ -738,14 +811,45 @@ export default function SessionTranscriptPage() {
         )}
 
 
-        {/* Conversation Transcript */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Conversation Transcript</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {session.conversation_transcript.length} messages exchanged during this session
-            </p>
-          </div>
+        {/* Tabbed Interface for Sessions with Analysis (Service Practice or Theory) */}
+        {((servicePracticeAssessment && session.training_mode === 'service_practice') ||
+          (transcriptAnalysis && session.training_mode === 'theory')) ? (
+          <div className="bg-white rounded-lg shadow">
+            {/* Tab Headers */}
+            <div className="border-b border-gray-200">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab('transcript')}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                    activeTab === 'transcript'
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  📝 Transcript ({session.conversation_transcript.length} messages)
+                </button>
+                <button
+                  onClick={() => setActiveTab('analysis')}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                    activeTab === 'analysis'
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  📊 {session.training_mode === 'theory' ? 'Theory Assessment Results' : 'Performance Analysis'}
+                </button>
+              </div>
+            </div>
+
+            {/* Tab Content: Transcript */}
+            {activeTab === 'transcript' && (
+              <div>
+                <div className="p-6 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Conversation Transcript</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {session.conversation_transcript.length} messages exchanged during this session
+                  </p>
+                </div>
 
           <div className="p-6">
             {session.conversation_transcript.length === 0 ? (
@@ -804,23 +908,28 @@ export default function SessionTranscriptPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {session.conversation_transcript.map((message, index) => {
+                {session.conversation_transcript.map((message: any, index) => {
                   const isAssistant = message.role === 'assistant'
+                  const isSystem = message.role === 'system'
+                  // Support both 'content' and 'message' field names
+                  const messageText = message.content || message.message || ''
 
                   return (
                     <div
                       key={index}
-                      className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}
+                      className={`flex ${isAssistant ? 'justify-start' : isSystem ? 'justify-center' : 'justify-end'}`}
                     >
                       <div
                         className={`max-w-[75%] rounded-lg px-4 py-3 ${
                           isAssistant
                             ? 'bg-gray-100 text-gray-900'
+                            : isSystem
+                            ? 'bg-blue-50 text-blue-900 border border-blue-200'
                             : 'bg-green-100 text-gray-900'
                         }`}
                       >
                         <p className="text-sm leading-relaxed">
-                          {message.content}
+                          {messageText}
                         </p>
                       </div>
                     </div>
@@ -832,12 +941,12 @@ export default function SessionTranscriptPage() {
 
           {/* Analysis Actions for existing transcripts */}
           {session.conversation_transcript.length > 1 &&
-           session.training_mode === 'theory' &&
-           !transcriptAnalysis && (
+           (session.training_mode === 'theory' || session.training_mode === 'service_practice') &&
+           !transcriptAnalysis && !servicePracticeAssessment && (
             <div className="mt-6 p-4 bg-gray-50 border-t">
               <div className="text-center">
                 <p className="text-gray-600 mb-4">
-                  Run analysis on this theory session to get detailed assessment results.
+                  Run analysis on this {getTrainingModeDisplay(session.training_mode).toLowerCase()} session to get detailed assessment results.
                 </p>
                 <button
                   onClick={() => handleRunAnalysis(false)}
@@ -858,246 +967,430 @@ export default function SessionTranscriptPage() {
               </div>
             </div>
           )}
-        </div>
+              </div>
+            )}
 
-        {/* Theory Assessment Results */}
-        {transcriptAnalysis && session.training_mode === 'theory' && (
-          <div className="space-y-6 mt-6">
-            {/* Assessment Summary */}
-            {transcriptAnalysis.assessment?.summary && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <Brain className="w-6 h-6 text-blue-600 mr-3" />
-                    <h3 className="text-lg font-semibold text-gray-900">Theory Assessment Results</h3>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {transcriptAnalysis.fromCache && (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                        📋 Cached
-                      </span>
+            {/* Tab Content: Analysis */}
+            {activeTab === 'analysis' && (
+              <div className="p-6 space-y-6">
+                {/* Service Practice Assessment */}
+                {session.training_mode === 'service_practice' && servicePracticeAssessment && (
+                  <>
+                    {/* Header with Redo Analysis button */}
+                    <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900">Service Practice Assessment</h3>
+                      <div className="flex items-center gap-3">
+                        {session?.service_assessment_status === 'completed' && (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            📋 Cached
+                          </span>
+                        )}
+                        <button
+                          onClick={() => handleRunAnalysis(true)}
+                          disabled={isAnalyzingTranscript}
+                          className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                          {isAnalyzingTranscript ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 mr-2"></div>
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              🔄 Redo Analysis
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <PerformanceScoreCard
+                      overallScore={servicePracticeAssessment.overall_score}
+                      metrics={servicePracticeAssessment.metrics}
+                      behavioralMetrics={servicePracticeAssessment.behavioral_metrics}
+                    />
+
+                    <MilestoneChecklist
+                      milestones={servicePracticeAssessment.milestones_achieved}
+                      completionRate={servicePracticeAssessment.metrics.milestone_completion_rate}
+                    />
+
+                    <FeedbackSection
+                      strengths={servicePracticeAssessment.strengths}
+                      improvements={servicePracticeAssessment.improvements}
+                    />
+                  </>
+                )}
+
+                {/* Theory Assessment Results */}
+                {session.training_mode === 'theory' && transcriptAnalysis && (
+                  <>
+                    {/* Assessment Summary */}
+                    {transcriptAnalysis.assessment?.summary && (
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center">
+                            <Brain className="w-6 h-6 text-blue-600 mr-3" />
+                            <h3 className="text-lg font-semibold text-gray-900">Theory Assessment Results</h3>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {transcriptAnalysis.fromCache && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                📋 Cached
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleRunAnalysis(true)}
+                              disabled={isAnalyzingTranscript}
+                              className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            >
+                              {isAnalyzingTranscript ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 mr-2"></div>
+                                  Analyzing...
+                                </>
+                              ) : (
+                                <>
+                                  🔄 Redo Analysis
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-900">{transcriptAnalysis.assessment.summary.totalQuestions}</div>
+                            <div className="text-sm text-gray-600">Questions Assessed</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">{transcriptAnalysis.assessment.summary.correctAnswers}</div>
+                            <div className="text-sm text-gray-600">Correct</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600">{transcriptAnalysis.assessment.summary.incorrectAnswers}</div>
+                            <div className="text-sm text-gray-600">Incorrect</div>
+                          </div>
+                          <div className="text-center">
+                            <div className={`text-2xl font-bold ${
+                              transcriptAnalysis.assessment.summary.score >= 80 ? 'text-green-600' :
+                              transcriptAnalysis.assessment.summary.score >= 60 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {transcriptAnalysis.assessment.summary.score}%
+                            </div>
+                            <div className="text-sm text-gray-600">Overall Score</div>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="font-medium">Accuracy</span>
+                            <span>{transcriptAnalysis.assessment.summary.accuracy}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                transcriptAnalysis.assessment.summary.accuracy >= 80 ? 'bg-green-500' :
+                                transcriptAnalysis.assessment.summary.accuracy >= 60 ? 'bg-yellow-500' :
+                                'bg-red-500'
+                              }`}
+                              style={{ width: `${transcriptAnalysis.assessment.summary.accuracy}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Performance Indicator */}
+                        <div className={`p-3 rounded-lg border-2 ${
+                          transcriptAnalysis.assessment.summary.score >= 80 ? 'bg-green-50 border-green-200' :
+                          transcriptAnalysis.assessment.summary.score >= 60 ? 'bg-yellow-50 border-yellow-200' :
+                          'bg-red-50 border-red-200'
+                        }`}>
+                          <div className="flex items-center">
+                            {transcriptAnalysis.assessment.summary.score >= 80 ? (
+                              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                            ) : transcriptAnalysis.assessment.summary.score >= 60 ? (
+                              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                            )}
+                            <div>
+                              <div className={`font-medium ${
+                                transcriptAnalysis.assessment.summary.score >= 80 ? 'text-green-600' :
+                                transcriptAnalysis.assessment.summary.score >= 60 ? 'text-yellow-600' :
+                                'text-red-600'
+                              }`}>
+                                {transcriptAnalysis.assessment.summary.score >= 80 ? 'Excellent Performance' :
+                                 transcriptAnalysis.assessment.summary.score >= 60 ? 'Good Performance' :
+                                 'Needs Improvement'}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {transcriptAnalysis.assessment.summary.score >= 80
+                                  ? 'Great job! You demonstrated strong knowledge.'
+                                  : transcriptAnalysis.assessment.summary.score >= 60
+                                  ? 'Good work! Review the incorrect answers for improvement.'
+                                  : 'Consider reviewing the material and practicing more questions.'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
+
+                    {/* Detailed Question Results */}
+                    {transcriptAnalysis.assessment?.assessmentResults && transcriptAnalysis.assessment.assessmentResults.length > 0 && (
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Question-by-Question Results</h4>
+
+                        <div className="space-y-4">
+                          {transcriptAnalysis.assessment.assessmentResults.map((result: any, index: number) => (
+                            <div
+                              key={`${result.questionId || 'q'}-${index}`}
+                              className={`border-2 rounded-lg p-4 ${
+                                result.score >= 80 ? 'bg-green-50 border-green-200' :
+                                result.score >= 60 ? 'bg-yellow-50 border-yellow-200' :
+                                'bg-red-50 border-red-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center mb-2">
+                                    {result.isCorrect ? (
+                                      <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                                    ) : (
+                                      <XCircle className="w-5 h-5 text-red-600 mr-2" />
+                                    )}
+                                    <span className="font-medium text-gray-900">
+                                      Question {index + 1}
+                                    </span>
+                                    {result.topicName && (
+                                      <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                                        result.topicCategory === 'prices' ? 'bg-green-100 text-green-800' :
+                                        result.topicCategory === 'drinks_info' ? 'bg-blue-100 text-blue-800' :
+                                        result.topicCategory === 'manual' ? 'bg-yellow-100 text-yellow-800' :
+                                        result.topicCategory === 'menu' ? 'bg-purple-100 text-purple-800' :
+                                        result.topicCategory === 'procedures' ? 'bg-indigo-100 text-indigo-800' :
+                                        result.topicCategory === 'policies' ? 'bg-red-100 text-red-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {result.topicName}
+                                      </span>
+                                    )}
+                                    {result.difficultyLevel && (
+                                      <span className="ml-2 flex items-center text-sm text-gray-600">
+                                        <Target className="w-4 h-4 mr-1" />
+                                        Level {result.difficultyLevel}/3
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="mb-2">
+                                    <div className="text-sm text-gray-600 mb-1">Question:</div>
+                                    <div className="text-gray-900">{result.questionAsked}</div>
+                                  </div>
+
+                                  <div className="mb-2">
+                                    <div className="text-sm text-gray-600 mb-1">Your Answer:</div>
+                                    <div className={`${result.isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                                      {result.userAnswer}
+                                    </div>
+                                  </div>
+
+                                  <div className="mb-2">
+                                    <div className="text-sm text-gray-600 mb-1">Correct Answer:</div>
+                                    <div className="text-gray-900">{result.correctAnswer}</div>
+                                  </div>
+
+                                  {result.feedback && (
+                                    <div className="mb-2">
+                                      <div className="text-sm text-gray-600 mb-1">Feedback:</div>
+                                      <div className="text-gray-700">{result.feedback}</div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="ml-4 text-right">
+                                  <div className={`text-lg font-bold ${
+                                    result.score >= 80 ? 'text-green-600' :
+                                    result.score >= 60 ? 'text-yellow-600' :
+                                    'text-red-600'
+                                  }`}>
+                                    {result.score}%
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Transcript Stats */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Conversation Analysis</h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {transcriptAnalysis.transcriptAnalysis?.totalMessages || 0}
+                          </div>
+                          <div className="text-sm text-gray-600">Total Messages</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {transcriptAnalysis.transcriptAnalysis?.qaPairsFound || 0}
+                          </div>
+                          <div className="text-sm text-gray-600">Q&A Pairs Found</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {Math.round(((transcriptAnalysis.transcriptAnalysis?.userMessages || 0) + (transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0)) / 2 * 10) / 10}
+                          </div>
+                          <div className="text-sm text-gray-600">Avg Messages/Turn</div>
+                        </div>
+                      </div>
+
+                      {/* User/Assistant Message Breakdown */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-3">💬 Message Breakdown</h4>
+                        <div className="flex justify-between text-sm">
+                          <span>👤 Your messages: <strong>{transcriptAnalysis.transcriptAnalysis?.userMessages || 0}</strong></span>
+                          <span>🤖 AI Trainer messages: <strong>{transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Regular Transcript View (no analysis or not Service Practice) */
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Conversation Transcript</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {session.conversation_transcript.length} messages exchanged during this session
+              </p>
+            </div>
+
+            <div className="p-6">
+              {session.conversation_transcript.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-4">💬</div>
+                  <p className="text-gray-500">No conversation was recorded in this session.</p>
+                </div>
+              ) : session.conversation_transcript.length === 1 &&
+                  session.conversation_transcript[0].content.includes('Get Transcript and Analysis') &&
+                  !transcriptAnalysis && !servicePracticeAssessment ? (
+                /* Show buttons when transcript contains placeholder message and no cached results */
+                <div className="text-center py-8">
+                  <div className="text-blue-600 text-4xl mb-4">📊</div>
+                  <p className="text-gray-600 mb-4">
+                    This session transcript needs to be fetched from ElevenLabs.
+                  </p>
+                  <div className="flex flex-col sm:flex-row justify-center gap-4">
                     <button
-                      onClick={() => handleRunAnalysis(true)}
-                      disabled={isAnalyzingTranscript}
-                      className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      onClick={handleGetTranscript}
+                      disabled={isFetchingTranscript || !session.elevenlabs_conversation_id}
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      {isAnalyzingTranscript ? (
+                      {isFetchingTranscript ? (
                         <>
-                          <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 mr-2"></div>
-                          Analyzing...
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Fetching Transcript...
                         </>
                       ) : (
                         <>
-                          🔄 Redo Analysis
+                          📝 Get Transcript
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleRunAnalysis}
+                      disabled={isAnalyzingTranscript || !session.elevenlabs_conversation_id}
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isAnalyzingTranscript ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Running Analysis...
+                        </>
+                      ) : (
+                        <>
+                          🧪 Get Analysis
                         </>
                       )}
                     </button>
                   </div>
+                  {!session.elevenlabs_conversation_id && (
+                    <p className="text-red-500 text-sm mt-2">
+                      No ElevenLabs conversation ID found for this session.
+                    </p>
+                  )}
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{transcriptAnalysis.assessment.summary.totalQuestions}</div>
-                    <div className="text-sm text-gray-600">Questions Assessed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{transcriptAnalysis.assessment.summary.correctAnswers}</div>
-                    <div className="text-sm text-gray-600">Correct</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{transcriptAnalysis.assessment.summary.incorrectAnswers}</div>
-                    <div className="text-sm text-gray-600">Incorrect</div>
-                  </div>
-                  <div className="text-center">
-                    <div className={`text-2xl font-bold ${
-                      transcriptAnalysis.assessment.summary.score >= 80 ? 'text-green-600' :
-                      transcriptAnalysis.assessment.summary.score >= 60 ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {transcriptAnalysis.assessment.summary.score}%
-                    </div>
-                    <div className="text-sm text-gray-600">Overall Score</div>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="font-medium">Accuracy</span>
-                    <span>{transcriptAnalysis.assessment.summary.accuracy}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${
-                        transcriptAnalysis.assessment.summary.accuracy >= 80 ? 'bg-green-500' :
-                        transcriptAnalysis.assessment.summary.accuracy >= 60 ? 'bg-yellow-500' :
-                        'bg-red-500'
-                      }`}
-                      style={{ width: `${transcriptAnalysis.assessment.summary.accuracy}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Performance Indicator */}
-                <div className={`p-3 rounded-lg border-2 ${
-                  transcriptAnalysis.assessment.summary.score >= 80 ? 'bg-green-50 border-green-200' :
-                  transcriptAnalysis.assessment.summary.score >= 60 ? 'bg-yellow-50 border-yellow-200' :
-                  'bg-red-50 border-red-200'
-                }`}>
-                  <div className="flex items-center">
-                    {transcriptAnalysis.assessment.summary.score >= 80 ? (
-                      <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                    ) : transcriptAnalysis.assessment.summary.score >= 60 ? (
-                      <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-600 mr-2" />
-                    )}
-                    <div>
-                      <div className={`font-medium ${
-                        transcriptAnalysis.assessment.summary.score >= 80 ? 'text-green-600' :
-                        transcriptAnalysis.assessment.summary.score >= 60 ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
-                        {transcriptAnalysis.assessment.summary.score >= 80 ? 'Excellent Performance' :
-                         transcriptAnalysis.assessment.summary.score >= 60 ? 'Good Performance' :
-                         'Needs Improvement'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {transcriptAnalysis.assessment.summary.score >= 80
-                          ? 'Great job! You demonstrated strong knowledge.'
-                          : transcriptAnalysis.assessment.summary.score >= 60
-                          ? 'Good work! Review the incorrect answers for improvement.'
-                          : 'Consider reviewing the material and practicing more questions.'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Detailed Question Results */}
-            {transcriptAnalysis.assessment?.assessmentResults && transcriptAnalysis.assessment.assessmentResults.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">Question-by-Question Results</h4>
-
+              ) : (
                 <div className="space-y-4">
-                  {transcriptAnalysis.assessment.assessmentResults.map((result, index) => (
-                    <div
-                      key={`${result.questionId || 'q'}-${index}`}
-                      className={`border-2 rounded-lg p-4 ${
-                        result.score >= 80 ? 'bg-green-50 border-green-200' :
-                        result.score >= 60 ? 'bg-yellow-50 border-yellow-200' :
-                        'bg-red-50 border-red-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center mb-2">
-                            {result.isCorrect ? (
-                              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-red-600 mr-2" />
-                            )}
-                            <span className="font-medium text-gray-900">
-                              Question {index + 1}
-                            </span>
-                            {result.topicName && (
-                              <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                                result.topicCategory === 'prices' ? 'bg-green-100 text-green-800' :
-                                result.topicCategory === 'drinks_info' ? 'bg-blue-100 text-blue-800' :
-                                result.topicCategory === 'manual' ? 'bg-yellow-100 text-yellow-800' :
-                                result.topicCategory === 'menu' ? 'bg-purple-100 text-purple-800' :
-                                result.topicCategory === 'procedures' ? 'bg-indigo-100 text-indigo-800' :
-                                result.topicCategory === 'policies' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {result.topicName}
-                              </span>
-                            )}
-                            {result.difficultyLevel && (
-                              <span className="ml-2 flex items-center text-sm text-gray-600">
-                                <Target className="w-4 h-4 mr-1" />
-                                Level {result.difficultyLevel}/3
-                              </span>
-                            )}
-                          </div>
+                  {session.conversation_transcript.map((message: any, index) => {
+                    const isAssistant = message.role === 'assistant'
+                    const isSystem = message.role === 'system'
+                    // Support both 'content' and 'message' field names
+                    const messageText = message.content || message.message || ''
 
-                          <div className="mb-2">
-                            <div className="text-sm text-gray-600 mb-1">Question:</div>
-                            <div className="text-gray-900">{result.questionAsked}</div>
-                          </div>
-
-                          <div className="mb-2">
-                            <div className="text-sm text-gray-600 mb-1">Your Answer:</div>
-                            <div className={`${result.isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                              {result.userAnswer}
-                            </div>
-                          </div>
-
-                          <div className="mb-2">
-                            <div className="text-sm text-gray-600 mb-1">Correct Answer:</div>
-                            <div className="text-gray-900">{result.correctAnswer}</div>
-                          </div>
-
-                          {result.feedback && (
-                            <div className="mb-2">
-                              <div className="text-sm text-gray-600 mb-1">Feedback:</div>
-                              <div className="text-gray-700">{result.feedback}</div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="ml-4 text-right">
-                          <div className={`text-lg font-bold ${
-                            result.score >= 80 ? 'text-green-600' :
-                            result.score >= 60 ? 'text-yellow-600' :
-                            'text-red-600'
-                          }`}>
-                            {result.score}%
-                          </div>
+                    return (
+                      <div
+                        key={index}
+                        className={`flex ${isAssistant ? 'justify-start' : isSystem ? 'justify-center' : 'justify-end'}`}
+                      >
+                        <div
+                          className={`max-w-[75%] rounded-lg px-4 py-3 ${
+                            isAssistant
+                              ? 'bg-gray-100 text-gray-900'
+                              : isSystem
+                              ? 'bg-blue-50 text-blue-900 border border-blue-200'
+                              : 'bg-green-100 text-gray-900'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">
+                            {messageText}
+                          </p>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Analysis Actions for existing transcripts */}
+            {session.conversation_transcript.length > 1 &&
+             (session.training_mode === 'theory' || session.training_mode === 'service_practice') &&
+             !transcriptAnalysis && !servicePracticeAssessment && (
+              <div className="mt-6 p-4 bg-gray-50 border-t">
+                <div className="text-center">
+                  <p className="text-gray-600 mb-4">
+                    Run analysis on this {getTrainingModeDisplay(session.training_mode).toLowerCase()} session to get detailed assessment results.
+                  </p>
+                  <button
+                    onClick={() => handleRunAnalysis(false)}
+                    disabled={isAnalyzingTranscript}
+                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {isAnalyzingTranscript ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Running Analysis...
+                      </>
+                    ) : (
+                      <>
+                        🧪 Run Analysis
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* Transcript Stats */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Conversation Analysis</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {transcriptAnalysis.transcriptAnalysis?.totalMessages || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Total Messages</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {transcriptAnalysis.transcriptAnalysis?.qaPairsFound || 0}
-                  </div>
-                  <div className="text-sm text-gray-600">Q&A Pairs Found</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {Math.round(((transcriptAnalysis.transcriptAnalysis?.userMessages || 0) + (transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0)) / 2 * 10) / 10}
-                  </div>
-                  <div className="text-sm text-gray-600">Avg Messages/Turn</div>
-                </div>
-              </div>
-
-              {/* User/Assistant Message Breakdown */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">💬 Message Breakdown</h4>
-                <div className="flex justify-between text-sm">
-                  <span>👤 Your messages: <strong>{transcriptAnalysis.transcriptAnalysis?.userMessages || 0}</strong></span>
-                  <span>🤖 AI Trainer messages: <strong>{transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0}</strong></span>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 

@@ -118,12 +118,16 @@ export async function GET(request: NextRequest) {
       let attemptCount = 0
       let lastAnswer = undefined
       let lastAttemptAt = undefined
+      let managerOverride = false
+      let managerOverrideStatus = undefined
 
       if (attempt) {
         status = attempt.is_correct ? 'correct' : 'incorrect'
         attemptCount = 1 // We're only tracking the latest attempt for now
         lastAnswer = attempt.employee_answer || attempt.user_answer
         lastAttemptAt = attempt.created_at
+        managerOverride = attempt.manager_override || false
+        managerOverrideStatus = attempt.manager_override_status
       }
 
       return {
@@ -136,7 +140,9 @@ export async function GET(request: NextRequest) {
         status,
         attempts: attemptCount,
         last_answer: lastAnswer,
-        last_attempt_at: lastAttemptAt
+        last_attempt_at: lastAttemptAt,
+        manager_override: managerOverride,
+        manager_override_status: managerOverrideStatus
       }
     })
 

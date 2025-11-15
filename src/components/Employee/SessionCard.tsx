@@ -1,26 +1,49 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Calendar, Clock, MessageCircle, Brain, Video, Target, Trash2 } from 'lucide-react'
+import { Calendar, Clock, MessageCircle, Brain, Video, Target, Trash2, Trophy, BarChart3 } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
 interface SessionCardProps {
   session: TrainingSession & {
     scenario_name?: string | null
     scenario_type?: string | null
+    service_practice_assessment_results?: {
+      overallScore: number
+      metrics: Record<string, number>
+      strengths: Array<{ area: string; evidence: string }>
+      improvements: Array<{ area: string; issue: string; suggestion: string }>
+    } | null
+    service_assessment_status?: string | null
+    service_assessment_completed_at?: string | null
+    theory_assessment_results?: {
+      summary: {
+        score: number
+        accuracy: number
+        totalQuestions: number
+        correctAnswers: number
+        incorrectAnswers: number
+      }
+    } | null
   }
   showClickable?: boolean
   showDeleteButton?: boolean
+  showAnalyzeButton?: boolean
   onDelete?: (sessionId: string) => Promise<void>
+  onAnalyze?: (sessionId: string) => Promise<void>
   isDeleting?: boolean
+  isAnalyzing?: boolean
 }
 
 export default function SessionCard({
   session,
   showClickable = true,
   showDeleteButton = false,
+  showAnalyzeButton = false,
   onDelete,
-  isDeleting = false
+  onAnalyze,
+  isDeleting = false,
+  isAnalyzing = false
 }: SessionCardProps) {
   const router = useRouter()
 
@@ -28,6 +51,13 @@ export default function SessionCard({
     e.stopPropagation() // Prevent card click
     if (onDelete && !isDeleting) {
       await onDelete(session.id)
+    }
+  }
+
+  const handleAnalyzeClick = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    if (onAnalyze && !isAnalyzing) {
+      await onAnalyze(session.id)
     }
   }
 
@@ -57,6 +87,12 @@ export default function SessionCard({
       minute: '2-digit',
       hour12: true
     })
+  }
+
+  const getScoreBadgeColor = (score: number) => {
+    if (score >= 80) return 'bg-green-50 border-green-200 text-green-700'
+    if (score >= 60) return 'bg-yellow-50 border-yellow-200 text-yellow-700'
+    return 'bg-red-50 border-red-200 text-red-700'
   }
 
   const handleClick = () => {
@@ -111,6 +147,103 @@ export default function SessionCard({
                 ? 'Product Recommendations'
                 : 'Service Practice'}
             </span>
+            {/* Performance Score Badge OR Analyze Button - For Theory Q&A */}
+            {session.training_mode === 'theory' && (() => {
+              // Show score badge if analyzed
+              if (session.theory_assessment_results?.summary) {
+                const score = session.theory_assessment_results.summary.score;
+
+                if (typeof score === 'number' && !isNaN(score)) {
+                  return (
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${getScoreBadgeColor(score)}`}>
+                      <Trophy className="w-3.5 h-3.5" />
+                      <span className="text-sm font-semibold">
+                        {Math.round(score)}/100
+                      </span>
+                    </div>
+                  );
+                }
+              }
+
+              // Show Analyze button if requested and not analyzed yet
+              if (showAnalyzeButton && !session.theory_assessment_results?.summary && onAnalyze) {
+                return (
+                  <button
+                    onClick={handleAnalyzeClick}
+                    disabled={isAnalyzing}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      isAnalyzing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                    }`}
+                    title="Analyze this session with GPT-4"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span>Analyze</span>
+                      </>
+                    )}
+                  </button>
+                );
+              }
+
+              return null;
+            })()}
+            {/* Performance Score Badge OR Analyze Button - For Service Practice */}
+            {session.training_mode === 'service_practice' && (() => {
+              // Show score badge if analyzed
+              if (session.service_assessment_status === 'completed' && session.service_practice_assessment_results) {
+                const score = (session.service_practice_assessment_results as any).overallScore ||
+                              (session.service_practice_assessment_results as any).overall_score;
+
+                if (typeof score === 'number' && !isNaN(score)) {
+                  return (
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${getScoreBadgeColor(score)}`}>
+                      <Trophy className="w-3.5 h-3.5" />
+                      <span className="text-sm font-semibold">
+                        {Math.round(score)}/100
+                      </span>
+                    </div>
+                  );
+                }
+              }
+
+              // Show Analyze button if requested and not analyzed yet
+              if (showAnalyzeButton && session.service_assessment_status !== 'completed' && onAnalyze) {
+                return (
+                  <button
+                    onClick={handleAnalyzeClick}
+                    disabled={isAnalyzing}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      isAnalyzing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                    }`}
+                    title="Analyze this session with GPT-4"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span>Analyze</span>
+                      </>
+                    )}
+                  </button>
+                );
+              }
+
+              return null;
+            })()}
             {showDeleteButton && (
               <button
                 onClick={handleDeleteClick}
@@ -155,27 +288,6 @@ export default function SessionCard({
             <span>{session.language.toUpperCase()}</span>
           </div>
         </div>
-
-        {session.knowledge_context && session.knowledge_context.documents && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="text-xs text-gray-500 mb-1">Knowledge Documents:</div>
-            <div className="flex flex-wrap gap-1">
-              {session.knowledge_context.documents.slice(0, 3).map((doc, index) => (
-                <span
-                  key={index}
-                  className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs"
-                >
-                  {doc.title}
-                </span>
-              ))}
-              {session.knowledge_context.documents.length > 3 && (
-                <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                  +{session.knowledge_context.documents.length - 3} more
-                </span>
-              )}
-            </div>
-          </div>
-        )}
 
         {session.video_recording_url && (
           <div className="mt-3 pt-3 border-t border-gray-100">
