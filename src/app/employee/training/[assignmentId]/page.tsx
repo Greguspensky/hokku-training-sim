@@ -1439,7 +1439,7 @@ export default function TrainingSessionPage() {
                   language={selectedLanguage}
                   assignmentId={assignmentId}
                   videoAspectRatio={videoAspectRatio}
-                  voiceId={resolvedVoiceId || currentScenario.voice_id}
+                  voiceIds={currentScenario.voice_ids || (currentScenario.voice_id ? [currentScenario.voice_id] : undefined)}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ TTS recommendation session completed:', completedSessionData)
                     setSessionData(completedSessionData)

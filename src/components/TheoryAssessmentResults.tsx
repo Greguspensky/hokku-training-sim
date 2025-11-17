@@ -196,10 +196,10 @@ export default function TheoryAssessmentResults({
             <div className="text-sm text-gray-600">Incorrect</div>
           </div>
           <div className="text-center">
-            <div className={`text-2xl font-bold ${getScoreColor(summary.score)}`}>
-              {summary.score}%
+            <div className={`text-2xl font-bold ${getScoreColor(summary.accuracy)}`}>
+              {summary.accuracy}%
             </div>
-            <div className="text-sm text-gray-600">Overall Score</div>
+            <div className="text-sm text-gray-600">Overall Accuracy</div>
           </div>
         </div>
 
@@ -222,25 +222,25 @@ export default function TheoryAssessmentResults({
         </div>
 
         {/* Performance Indicator */}
-        <div className={`p-3 rounded-lg border-2 ${getScoreBackground(summary.score)}`}>
+        <div className={`p-3 rounded-lg border-2 ${getScoreBackground(summary.accuracy)}`}>
           <div className="flex items-center">
-            {summary.score >= 80 ? (
+            {summary.accuracy >= 80 ? (
               <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-            ) : summary.score >= 60 ? (
+            ) : summary.accuracy >= 60 ? (
               <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
             ) : (
               <XCircle className="w-5 h-5 text-red-600 mr-2" />
             )}
             <div>
-              <div className={`font-medium ${getScoreColor(summary.score)}`}>
-                {summary.score >= 80 ? 'Excellent Performance' :
-                 summary.score >= 60 ? 'Good Performance' :
+              <div className={`font-medium ${getScoreColor(summary.accuracy)}`}>
+                {summary.accuracy >= 80 ? 'Excellent Performance' :
+                 summary.accuracy >= 60 ? 'Good Performance' :
                  'Needs Improvement'}
               </div>
               <div className="text-sm text-gray-600">
-                {summary.score >= 80
+                {summary.accuracy >= 80
                   ? 'Great job! You demonstrated strong knowledge.'
-                  : summary.score >= 60
+                  : summary.accuracy >= 60
                   ? 'Good work! Review the incorrect answers for improvement.'
                   : 'Consider reviewing the material and practicing more questions.'}
               </div>

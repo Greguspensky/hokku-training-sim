@@ -74,18 +74,32 @@ export function getVoiceGender(voiceId: string | undefined): 'female' | 'male' |
     return 'neutral';
   }
 
-  const voice = ELEVENLABS_VOICES.find(v => v.id === voiceId);
+  // Voice gender mapping by ID (from database)
+  // Female voices
+  const femaleVoiceIds = [
+    'kdmDKE6EkgrWrrykO9Qt', // Klava
+    'Jbte7ht1CqapnZvc4KpK', // Karina
+    '8HSRAwEWAAa6wv9cdi5S', // Dasha (young voice)
+  ];
 
-  // Female voices: Klava, Karina
-  if (voice?.name === 'Klava' || voice?.name === 'Karina') {
+  // Male voices
+  const maleVoiceIds = [
+    'mOTbMAOniC3yoEvgo4bi', // Sanyok (pretentious)
+    'RUB3PhT3UqHowKru61Ns', // Vlad
+    'pvY1pikBdoI4SB62vEVo', // Andrew (in his 30s)
+    'qJBO8ZmKp4te7NTtYgzz', // Egor (young voice)
+  ];
+
+  if (femaleVoiceIds.includes(voiceId)) {
     return 'female';
   }
 
-  // Male voices: Sanyok, Vlad
-  if (voice?.name === 'Sanyok' || voice?.name === 'Vlad') {
+  if (maleVoiceIds.includes(voiceId)) {
     return 'male';
   }
 
+  // Log warning for unknown voices
+  console.warn(`⚠️ Voice gender unknown for voice ID: ${voiceId}. Defaulting to 'neutral'. Gender hints will not be sent to AI.`);
   return 'neutral';
 }
 

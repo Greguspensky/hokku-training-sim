@@ -216,3 +216,75 @@ export async function getVoiceGenderById(voiceId: string): Promise<'male' | 'fem
 
   return voice?.gender || 'neutral'
 }
+
+/**
+ * Resolve voice for a specific question in Recommendation Training
+ * Supports per-question voice variability:
+ * - 'random' keyword: Pick new random voice for each question
+ * - Multiple voices: Cycle through them (Q1 = Voice A, Q2 = Voice B, etc.)
+ * - Single voice: Use consistently (backward compatible)
+ *
+ * @param scenarioVoiceIds - Array of voice IDs selected for the scenario
+ * @param sessionLanguage - Language code selected for the session (e.g., 'ru', 'en', 'pt')
+ * @param questionIndex - Zero-based index of the current question (0, 1, 2, ...)
+ * @returns Resolved voice ID for this specific question
+ */
+export async function resolveVoiceForQuestion(
+  scenarioVoiceIds: string[] | null | undefined,
+  sessionLanguage: string,
+  questionIndex: number
+): Promise<string | null> {
+  console.log(`🎤 Resolving voice for question #${questionIndex + 1} (language: ${sessionLanguage})`)
+  console.log(`📋 Scenario voice IDs:`, scenarioVoiceIds)
+
+  // Case 1: No voices selected for scenario
+  if (!scenarioVoiceIds || scenarioVoiceIds.length === 0) {
+    console.log('⚠️ No voices selected for scenario, using language default')
+    return await getDefaultVoiceForLanguage(sessionLanguage)
+  }
+
+  // Case 2: 'random' special keyword - pick NEW random voice for THIS question
+  if (scenarioVoiceIds.includes('random')) {
+    console.log(`🎲 "random" keyword detected, selecting random voice for question #${questionIndex + 1}`)
+    const languageVoices = await getVoicesForLanguage(sessionLanguage)
+
+    if (languageVoices.length === 0) {
+      console.warn(`⚠️ No voices available for language: ${sessionLanguage}`)
+      return null
+    }
+
+    const randomVoice = languageVoices[Math.floor(Math.random() * languageVoices.length)]
+    console.log(`✅ Selected random voice: ${randomVoice.voice_name} (${randomVoice.voice_id})`)
+    return randomVoice.voice_id
+  }
+
+  // Case 3: Multiple specific voices - cycle through them
+  // Load voice metadata for scenario's selection
+  const voices = await getVoicesByIds(scenarioVoiceIds)
+
+  if (voices.length === 0) {
+    console.warn('⚠️ None of scenario\'s voice IDs found in database')
+    return await getDefaultVoiceForLanguage(sessionLanguage)
+  }
+
+  // Filter voices by session language
+  const languageMatchingVoices = voices.filter(v => v.language_code === sessionLanguage)
+
+  // Use language-matching voices if available
+  const voicesToCycle = languageMatchingVoices.length > 0 ? languageMatchingVoices : voices
+
+  // Cycle through available voices using modulo
+  const voiceIndex = questionIndex % voicesToCycle.length
+  const selectedVoice = voicesToCycle[voiceIndex]
+
+  console.log(`🔄 Cycling through ${voicesToCycle.length} voice(s)`)
+  console.log(`✅ Question #${questionIndex + 1} voice: ${selectedVoice.voice_name} (${selectedVoice.voice_id})`)
+  console.log(`   Language: ${selectedVoice.language_code}`)
+  console.log(`   Gender: ${selectedVoice.gender || 'unspecified'}`)
+
+  if (languageMatchingVoices.length === 0) {
+    console.warn(`⚠️ Note: Voice language (${selectedVoice.language_code}) doesn't match session language (${sessionLanguage})`)
+  }
+
+  return selectedVoice.voice_id
+}
