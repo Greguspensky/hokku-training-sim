@@ -11,6 +11,7 @@ import { getVoiceName } from '@/lib/elevenlabs-voices'
 import PerformanceScoreCard from '@/components/PerformanceScoreCard'
 import MilestoneChecklist from '@/components/MilestoneChecklist'
 import FeedbackSection from '@/components/FeedbackSection'
+import ManagerSummary from '@/components/ManagerSummary'
 
 // Helper function to get training mode display name
 function getTrainingModeDisplay(trainingMode: string): string {
@@ -1004,6 +1005,13 @@ export default function SessionTranscriptPage() {
                       </div>
                     </div>
 
+                    {servicePracticeAssessment.manager_summary && (
+                      <ManagerSummary
+                        summary={servicePracticeAssessment.manager_summary}
+                        overallScore={servicePracticeAssessment.overall_score}
+                      />
+                    )}
+
                     <PerformanceScoreCard
                       overallScore={servicePracticeAssessment.overall_score}
                       metrics={servicePracticeAssessment.metrics}
@@ -1012,7 +1020,7 @@ export default function SessionTranscriptPage() {
 
                     <MilestoneChecklist
                       milestones={servicePracticeAssessment.milestones_achieved}
-                      completionRate={servicePracticeAssessment.metrics.milestone_completion_rate}
+                      completionRate={servicePracticeAssessment.metrics.milestone_completion_rate.score}
                     />
 
                     <FeedbackSection

@@ -41,16 +41,9 @@ export default function MilestoneChecklist({
 
       {/* Completion Summary */}
       <div className={`p-4 rounded-lg border-2 ${getCompletionBackground(completionRate)} mb-4`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-gray-600">Completion Rate</div>
-            <div className={`text-2xl font-bold ${getCompletionColor(completionRate)}`}>
-              {achievedCount} / {totalCount}
-            </div>
-          </div>
-          <div className={`text-3xl font-bold ${getCompletionColor(completionRate)}`}>
-            {Math.round(completionRate)}%
-          </div>
+        <div className="text-sm text-gray-600">Completion Rate</div>
+        <div className={`text-2xl font-bold ${getCompletionColor(completionRate)}`}>
+          {achievedCount} / {totalCount}
         </div>
       </div>
 

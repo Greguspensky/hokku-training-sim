@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { elevenLabsKnowledgeService } from '@/lib/elevenlabs-knowledge'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
@@ -14,14 +15,15 @@ interface ConversationMessage {
 
 interface ServicePracticeAssessment {
   overall_score: number
+  manager_summary: string  // Friendly informal summary for employee
   metrics: {
-    empathy: number
-    professionalism: number
-    problem_resolution: number
-    clarity: number
-    deescalation?: number
-    product_knowledge_accuracy: number
-    milestone_completion_rate: number
+    empathy: { score: number; feedback: string }
+    professionalism: { score: number; feedback: string }
+    problem_resolution: { score: number; feedback: string }
+    clarity: { score: number; feedback: string }
+    deescalation?: { score: number; feedback: string }
+    product_knowledge_accuracy: { score: number; feedback: string }
+    milestone_completion_rate: { score: number; feedback: string }
   }
   milestones_achieved: Array<{
     milestone: string
@@ -304,9 +306,65 @@ export async function POST(request: NextRequest) {
     // Calculate behavioral metrics
     const behavioralMetrics = calculateBehavioralMetrics(transcript, session)
 
-    // Prepare knowledge context
-    const knowledgeContext = session.knowledge_context || {}
-    const knowledgeDocuments = knowledgeContext.documents || []
+    // Prepare knowledge context with smart fallback strategy
+    let knowledgeDocuments: any[] = []
+
+    // Strategy 1: Try to use cached knowledge_context from session (fast path)
+    if (session.knowledge_context && session.knowledge_context.documents && session.knowledge_context.documents.length > 0) {
+      knowledgeDocuments = session.knowledge_context.documents
+      console.log(`📚 Using cached knowledge from session: ${knowledgeDocuments.length} documents`)
+    }
+    // Strategy 2: Fetch knowledge directly from database (robust fallback)
+    else {
+      console.log(`⚠️ No cached knowledge_context found in session, fetching from database...`)
+
+      if (!session.scenario_id) {
+        console.warn(`⚠️ WARNING: No scenario_id in session ${sessionId}`)
+      } else if (!session.company_id) {
+        console.warn(`⚠️ WARNING: No company_id in session ${sessionId}`)
+      } else {
+        try {
+          console.log(`🔄 Fetching knowledge for scenario ${session.scenario_id}, company ${session.company_id}`)
+
+          // Use the existing knowledge service to fetch documents
+          const knowledgeContext = await elevenLabsKnowledgeService.getScenarioKnowledge(
+            session.scenario_id,
+            session.company_id,
+            8 // maxChunks - use 8 for service practice (consistent with original logic)
+          )
+
+          knowledgeDocuments = knowledgeContext.documents
+          console.log(`✅ Successfully fetched knowledge from database: ${knowledgeDocuments.length} documents`)
+          console.log(`📝 Knowledge scope: ${knowledgeContext.knowledgeScope} for ${knowledgeContext.scenarioType} scenario`)
+
+          // Log sample document titles for debugging
+          if (knowledgeDocuments.length > 0) {
+            const sampleTitles = knowledgeDocuments.slice(0, 3).map(d => d.title).join(', ')
+            console.log(`📄 Sample documents: ${sampleTitles}${knowledgeDocuments.length > 3 ? '...' : ''}`)
+          }
+        } catch (fetchError) {
+          console.error(`❌ Failed to fetch knowledge from database:`, fetchError)
+          console.error(`   Session ID: ${sessionId}`)
+          console.error(`   Scenario ID: ${session.scenario_id}`)
+          console.error(`   Company ID: ${session.company_id}`)
+        }
+      }
+    }
+
+    // Final validation
+    console.log(`📚 Total knowledge documents available for assessment: ${knowledgeDocuments.length}`)
+    if (knowledgeDocuments.length === 0) {
+      console.warn('⚠️ ============================================')
+      console.warn('⚠️ WARNING: No knowledge documents available!')
+      console.warn('⚠️ Product knowledge validation will be limited or impossible')
+      console.warn(`⚠️ Session ID: ${sessionId}`)
+      console.warn(`⚠️ Scenario ID: ${scenario?.id}`)
+      console.warn('⚠️ This means the employee CANNOT be properly assessed for product knowledge accuracy')
+      console.warn('⚠️ The system will still generate a score, but it will not be able to validate menu items')
+      console.warn('⚠️ ============================================')
+    } else {
+      console.log(`✅ Knowledge base ready for product validation (${knowledgeDocuments.length} documents loaded)`)
+    }
 
     // Build comprehensive GPT-4 analysis prompt
     const assessment = await analyzeServicePracticeSession(
@@ -465,21 +523,118 @@ CRITICAL INSTRUCTIONS:
 - NEVER include "[AI Customer]" messages when providing examples of what the employee said
 - When providing evidence or quotes, ONLY use text from "[Employee]" lines
 
-EVALUATE THE EMPLOYEE'S PERFORMANCE on these metrics (score each 0-100):
+EVALUATE THE EMPLOYEE'S PERFORMANCE on these metrics (score each 0-100 AND provide 2-3 sentence feedback):
 
-1. **Empathy Score** - Use of empathetic language, acknowledgment of emotions, validation before offering solutions
-2. **Professionalism Score** - Polite addressing, proper greetings/closings, appropriate formality, no slang
-3. **Problem Resolution Quality** - Was a specific solution offered? Was it relevant? Did they confirm satisfaction?
-4. **Communication Clarity** - Clear, easy-to-understand responses, avoiding jargon, proper structure
-${needsDeescalation ? '5. **De-escalation Effectiveness** - Did the employee calm the customer? Avoided defensive language? Maintained calm tone?' : ''}
-${needsDeescalation ? '6' : '5'}. **Product Knowledge Accuracy** - Correctly referenced menu items/products from knowledge base, no false information
-${needsDeescalation ? '7' : '6'}. **Milestone Completion Rate** - Calculate percentage of milestones achieved (0-100)
+1. **Empathy Score (0-100)** - Use of empathetic language, acknowledgment of emotions, validation before offering solutions
+   **Empathy Feedback (2-3 sentences)** - Directly address the employee using "you" pronouns. Quote specific examples from the transcript showing empathy or lack thereof. If low score, explain what was missing and what they should do differently. Example: "You struggled to acknowledge the customer's emotions. When they said 'This is unacceptable!', you immediately offered solutions without first validating their frustration. Try phrases like 'I understand how frustrating this must be' before problem-solving."
+
+2. **Professionalism Score (0-100)** - Polite addressing, proper greetings/closings, appropriate formality, no slang
+   **Professionalism Feedback (2-3 sentences)** - Address the employee directly with specific examples. Quote inappropriate language if applicable. If violations exist, explain what was wrong and the correct approach.
+
+3. **Problem Resolution Quality (0-100)** - Was a specific solution offered? Was it relevant? Did they confirm satisfaction?
+   **Problem Resolution Feedback (2-3 sentences)** - Tell the employee what they did well or poorly in solving the issue. Quote their solution attempts. Explain what would have been more effective.
+
+4. **Communication Clarity (0-100)** - Clear, easy-to-understand responses, avoiding jargon, proper structure
+   **Communication Clarity Feedback (2-3 sentences)** - Give the employee specific examples of clear or unclear communication from the transcript. If confusing, quote the unclear parts and explain how to rephrase.
+${needsDeescalation ? '5. **De-escalation Effectiveness Score (0-100)** - Did the employee calm the customer? Avoided defensive language? Maintained calm tone?\n   **De-escalation Feedback (2-3 sentences)** - Tell the employee how they handled the escalated situation. Quote their de-escalation attempts or failures. Explain techniques they used well or should have used.' : ''}
+${needsDeescalation ? '6' : '5'}. **Product Knowledge Accuracy Score (0-100)** - ⚠️ CRITICAL VALIDATION METRIC ⚠️
+   - You MUST cross-reference EVERY menu item, product, dish, or ingredient the employee mentioned against the knowledge base provided above
+   - If the employee mentioned ANY item that does NOT exist in the knowledge base → They INVENTED/FABRICATED it → This is a SEVERE VIOLATION
+   - Scoring rules:
+     * ALL items correctly match knowledge base: 90-100
+     * Minor errors (wrong price, wrong size): 60-80
+     * ONE invented/fake item: 20-40
+     * MULTIPLE invented/fake items: 0-20
+   - If ANY fake items are found:
+     * You MUST quote the exact fake items in the manager_summary
+     * Use clear language: "invented", "fabricated", "not on our menu", "does not exist"
+     * This MUST appear as one of the numbered moments in the walkthrough
+     * Overall score MUST be below 50 when multiple fake items exist
+   - If knowledge base is empty/missing: Score as "N/A" and state "Cannot validate product knowledge - no menu provided"
+   **Product Knowledge Feedback (2-3 sentences)** - Address the employee about their product knowledge accuracy. If they mentioned fake items, quote them and explain they don't exist on the menu. If accurate, praise their knowledge and cite specific examples.
+
+${needsDeescalation ? '7' : '6'}. **Milestone Completion Rate Score (0-100)** - Calculate percentage of milestones achieved (0-100)
+   **Milestone Completion Feedback (2-3 sentences)** - Tell the employee which milestones they achieved or missed. Explain why certain milestones weren't met and what they need to do to achieve them next time.
 
 For each milestone, determine if it was achieved (true/false) and provide brief evidence.
 
 Also identify:
 - **3 Key Strengths** with specific quotes from the transcript as evidence (ONLY from [Employee] lines)
 - **3 Areas for Improvement** with examples of what the employee said vs. what would be better (ONLY from [Employee] lines - do NOT quote [AI Customer] lines)
+
+⚠️ **CRITICAL REQUIREMENT - MANAGER WALKTHROUGH** ⚠️
+
+You MUST create a detailed, step-by-step walkthrough of the conversation, NOT a generic summary.
+
+**MANDATORY FORMAT WITH CLEAR STRUCTURE** (You will be penalized for generic or unformatted responses):
+
+1. **Opening Line**: Start with: "Let's walk through what happened in this session."
+
+2. **Add blank line** (use \n\n)
+
+3. **Chronological Moments** - List 3-5 specific moments with numbered format:
+
+   **1. [Brief moment title]**
+   At the beginning, when the customer said [quote], you responded with [exact employee quote]. This was [good/problematic] because [explanation]. [If bad: What you should have done instead: 'Better response here.']
+
+   **2. [Brief moment title]**
+   Then, when [specific event], you said [exact employee quote]. [Explanation]. [Alternative if needed]
+
+   **3. [Brief moment title]**
+   Later in the conversation... [continue pattern]
+
+4. **Add blank line** (use \n\n)
+
+5. **Key Takeaways** - Use bullet points:
+
+   **Key takeaways:**
+   • [First takeaway]
+   • [Second takeaway]
+   • [Third takeaway if relevant]
+
+**FORMATTING RULES**:
+- Use \n\n for paragraph breaks (double newline)
+- Use **text** for bold section headers
+- Use numbered format: "**1. Title**" then paragraph
+- Use bullet points (•) for lists
+- Each moment should be its own clear paragraph
+- Minimum 10 sentences total with at least 3-5 specific quoted moments
+
+**⚠️ PRODUCT KNOWLEDGE REQUIREMENT**:
+- If the employee mentioned ANY menu items, products, or dishes that do NOT exist in the knowledge base provided above:
+  * You MUST include this as one of your numbered chronological moments
+  * Title it something like: "**X. Invented/Fabricated Menu Items**" or "**X. Inaccurate Product Information**"
+  * Quote the EXACT fake items the employee mentioned
+  * Clearly state: "This item does not exist on our menu" or "You fabricated this dish"
+  * Explain what they should have done instead (offered real menu items from knowledge base)
+- Product knowledge errors are just as important as professionalism violations
+
+**EXAMPLES OF GOOD WALKTHROUGH**:
+❌ BAD (too generic): "You showed some effort but there were serious issues with professionalism."
+
+✅ GOOD (properly formatted):
+"Let's walk through what happened in this session.
+
+**1. Initial Greeting**
+At the start, when the customer said 'Здравствуйте', you responded with 'Добрый день. У вас есть бронестола?' This was problematic because you asked if they had a reservation instead of directly addressing their request for a menu. A better response would have been to say, 'Добро пожаловать! Позвольте мне принести вам меню.'
+
+**2. Menu Request Delay**
+Then, when the customer asked for the menu, you said, 'Одну секундочку, я проверю наличие столов и вернусь к вам через минутку. Прошу!' This caused unnecessary delay. You should have immediately provided the menu instead of checking for a table, which was unnecessary.
+
+**3. Refusal to Escalate**
+Later in the conversation, when the customer requested to speak with a manager, you said, 'Менеджер недоступен.' This was unacceptable as it dismissed the customer's request for escalation. Instead, you should have offered to find the manager or take their contact information.
+
+**Key takeaways:**
+• Always prioritize immediate customer requests
+• Maintain professionalism and never dismiss escalation requests
+• Provide clear, direct responses without unnecessary delays"
+
+**LENGTH REQUIREMENT**: MINIMUM 10 sentences with at least 3-5 specific quoted moments from the transcript.
+
+**SERIOUS VIOLATIONS** (threats, bribes, refusal to escalate, violence):
+- You MUST quote the exact concerning words
+- You MUST explain why it's a serious violation
+- You MUST use strong language: "unacceptable", "completely inappropriate", "serious violation", "immediate corrective action needed"
 
 Calculate an **Overall Performance Score** (0-100) as weighted average:
 - Empathy: 20%
@@ -497,17 +652,68 @@ IMPORTANT:
 - Consider cultural and language context
 - Focus on actionable feedback
 
+**CRITICAL - SERIOUS VIOLATIONS THAT REQUIRE LOW SCORES (0-20 in affected metrics)**:
+- Threats of violence or harm (e.g., "I'll cut off my finger", physical threats)
+- Bribing customers
+- Refusing to escalate to manager when explicitly requested by customer
+- Forcing/threatening customers to leave
+- Discriminatory language or behavior
+- Any behavior that would result in immediate termination in real workplace
+
+If ANY of these occur, the professionalism score MUST be 0-20, and overall score MUST be below 40.
+
+---
+
+🔴 **FINAL REMINDER BEFORE YOU RESPOND** 🔴
+
+For the "manager_summary" field, you MUST provide a DETAILED CHRONOLOGICAL WALKTHROUGH with PROPER FORMATTING:
+✅ Start with: "Let's walk through what happened in this session."
+✅ Add blank line (use \n\n)
+✅ Use numbered sections: "**1. [Title]**" then paragraph for each moment
+✅ Include 3-5 specific moments with EXACT QUOTES from [Employee] lines
+✅ Explain WHY each moment was good or bad
+✅ State what SHOULD have been done instead for mistakes
+✅ **⚠️ IF EMPLOYEE MENTIONED FAKE/INVENTED MENU ITEMS**: This MUST be one of your numbered moments with exact quotes and clear statement "this does not exist on our menu"
+✅ Add blank line before "**Key takeaways:**"
+✅ Use bullet points (•) for key takeaways list
+✅ Minimum 10 sentences
+❌ NO generic summaries like "There were issues with professionalism"
+❌ NO vague statements without specific quotes
+❌ NO single-paragraph walls of text
+❌ NO ignoring product knowledge errors - they are as serious as professionalism violations
+
+---
+
 Respond in this exact JSON format:
 {
   "overall_score": <number 0-100>,
+  "manager_summary": "DETAILED CHRONOLOGICAL WALKTHROUGH with PROPER FORMATTING. MUST start with 'Let's walk through what happened in this session.' then blank line (\\n\\n), then numbered sections using '**1. [Title]**' format for each moment (3-5 moments) with EXACT QUOTES from [Employee] lines, then blank line, then '**Key takeaways:**' with bullet points (•). Minimum 10 sentences. Use \\n\\n for paragraph breaks.",
   "metrics": {
-    "empathy": <number 0-100>,
-    "professionalism": <number 0-100>,
-    "problem_resolution": <number 0-100>,
-    "clarity": <number 0-100>,
-    ${needsDeescalation ? '"deescalation": <number 0-100>,' : ''}
-    "product_knowledge_accuracy": <number 0-100>,
-    "milestone_completion_rate": <number 0-100>
+    "empathy": {
+      "score": <number 0-100>,
+      "feedback": "2-3 sentences directly addressing employee with 'you', quoting specific examples from transcript, explaining what was good/bad and what to improve"
+    },
+    "professionalism": {
+      "score": <number 0-100>,
+      "feedback": "2-3 sentences with specific examples, using conversational manager tone"
+    },
+    "problem_resolution": {
+      "score": <number 0-100>,
+      "feedback": "2-3 sentences about their solution approach, quoting their attempts, suggesting improvements"
+    },
+    "clarity": {
+      "score": <number 0-100>,
+      "feedback": "2-3 sentences about communication clarity, quoting clear or unclear parts, explaining how to improve"
+    },
+    ${needsDeescalation ? '"deescalation": {\n      "score": <number 0-100>,\n      "feedback": "2-3 sentences about de-escalation techniques used or missed, with specific examples"\n    },' : ''}
+    "product_knowledge_accuracy": {
+      "score": <number 0-100>,
+      "feedback": "2-3 sentences about product knowledge. If fake items were mentioned, MUST quote them and state they don't exist on menu. If accurate, praise with examples."
+    },
+    "milestone_completion_rate": {
+      "score": <number 0-100>,
+      "feedback": "2-3 sentences about which milestones were achieved/missed and why, with guidance on improvement"
+    }
   },
   "milestones_achieved": [
     {
@@ -535,8 +741,14 @@ Respond in this exact JSON format:
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Cost-effective for analysis
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2000,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert training manager conducting a detailed coaching session. You MUST provide specific, chronological walkthroughs with exact quotes from the conversation, not generic summaries. Be thorough, specific, and quote actual words the employee said.'
+        },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 4000, // Increased for detailed manager walkthrough with quotes
       temperature: 0.3, // Some creativity but mostly consistent
       response_format: { type: "json_object" }
     })
@@ -555,6 +767,7 @@ Respond in this exact JSON format:
     // Combine with behavioral metrics
     const finalAssessment: ServicePracticeAssessment = {
       overall_score: analysisResult.overall_score || 0,
+      manager_summary: analysisResult.manager_summary || "Let's review this session together. I'll walk through what I observed and we'll identify areas for improvement. Please review the detailed analysis below.",
       metrics: analysisResult.metrics || {},
       milestones_achieved: analysisResult.milestones_achieved || [],
       strengths: analysisResult.strengths || [],

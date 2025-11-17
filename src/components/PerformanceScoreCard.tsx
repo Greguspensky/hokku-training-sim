@@ -2,14 +2,19 @@
 
 import { CheckCircle, AlertCircle, TrendingUp, Heart, Briefcase, MessageCircle, Lightbulb, ThumbsDown, Package, Clock, Users } from 'lucide-react'
 
+interface MetricData {
+  score: number
+  feedback: string
+}
+
 interface PerformanceMetrics {
-  empathy: number
-  professionalism: number
-  problem_resolution: number
-  clarity: number
-  deescalation?: number
-  product_knowledge_accuracy: number
-  milestone_completion_rate: number
+  empathy: MetricData
+  professionalism: MetricData
+  problem_resolution: MetricData
+  clarity: MetricData
+  deescalation?: MetricData
+  product_knowledge_accuracy: MetricData
+  milestone_completion_rate: MetricData
 }
 
 interface BehavioralMetrics {
@@ -58,16 +63,16 @@ export default function PerformanceScoreCard({
   }
 
   const metricsList = [
-    { key: 'empathy', label: 'Empathy', value: metrics.empathy, icon: Heart },
-    { key: 'professionalism', label: 'Professionalism', value: metrics.professionalism, icon: Briefcase },
-    { key: 'problem_resolution', label: 'Problem Resolution', value: metrics.problem_resolution, icon: Lightbulb },
-    { key: 'clarity', label: 'Communication Clarity', value: metrics.clarity, icon: MessageCircle },
+    { key: 'empathy', label: 'Empathy', data: metrics.empathy, icon: Heart },
+    { key: 'professionalism', label: 'Professionalism', data: metrics.professionalism, icon: Briefcase },
+    { key: 'problem_resolution', label: 'Problem Resolution', data: metrics.problem_resolution, icon: Lightbulb },
+    { key: 'clarity', label: 'Communication Clarity', data: metrics.clarity, icon: MessageCircle },
     ...(metrics.deescalation !== undefined
-      ? [{ key: 'deescalation', label: 'De-escalation', value: metrics.deescalation, icon: ThumbsDown }]
+      ? [{ key: 'deescalation', label: 'De-escalation', data: metrics.deescalation, icon: ThumbsDown }]
       : []
     ),
-    { key: 'product_knowledge', label: 'Product Knowledge', value: metrics.product_knowledge_accuracy, icon: Package },
-    { key: 'milestone_completion', label: 'Milestone Completion', value: metrics.milestone_completion_rate, icon: CheckCircle },
+    { key: 'product_knowledge', label: 'Product Knowledge', data: metrics.product_knowledge_accuracy, icon: Package },
+    { key: 'milestone_completion', label: 'Milestone Completion', data: metrics.milestone_completion_rate, icon: CheckCircle },
   ]
 
   return (
@@ -104,20 +109,26 @@ export default function PerformanceScoreCard({
       {/* Core Metrics */}
       <div className="space-y-4 mb-6">
         <h4 className="text-md font-semibold text-gray-900">Core Metrics</h4>
-        {metricsList.map(({ key, label, value, icon: Icon }) => (
-          <div key={key}>
+        {metricsList.map(({ key, label, data, icon: Icon }) => (
+          <div key={key} className="mb-4">
+            {/* Score and Progress Bar */}
             <div className="flex items-center justify-between text-sm mb-1">
               <div className="flex items-center">
                 <Icon className="w-4 h-4 mr-2 text-gray-500" />
                 <span className="font-medium text-gray-700">{label}</span>
               </div>
-              <span className={`font-bold ${getScoreColor(value)}`}>{value}/100</span>
+              <span className={`font-bold ${getScoreColor(data.score)}`}>{data.score}/100</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
               <div
-                className={`h-2 rounded-full ${getProgressBarColor(value)}`}
-                style={{ width: `${value}%` }}
+                className={`h-2 rounded-full ${getProgressBarColor(data.score)}`}
+                style={{ width: `${data.score}%` }}
               />
+            </div>
+
+            {/* Manager Feedback */}
+            <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md border border-gray-200">
+              {data.feedback}
             </div>
           </div>
         ))}
