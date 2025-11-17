@@ -1,9 +1,10 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import ServicePracticeAnalyticsDashboard from '@/components/Manager/ServicePracticeAnalyticsDashboard'
 
-export default function ServicePracticeAnalyticsPage() {
+function ServicePracticeContent() {
   const searchParams = useSearchParams()
   const companyId = searchParams.get('company_id')
 
@@ -22,5 +23,17 @@ export default function ServicePracticeAnalyticsPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <ServicePracticeAnalyticsDashboard companyId={companyId} showOpenButton={false} />
     </div>
+  )
+}
+
+export default function ServicePracticeAnalyticsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ServicePracticeContent />
+    </Suspense>
   )
 }
