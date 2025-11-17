@@ -168,6 +168,9 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
         return 'Theory Q&A'
       case 'service_practice':
         return 'Service Practice'
+      case 'recommendations':
+      case 'recommendation_tts':
+        return 'Situationships'
       default:
         return scenarioType
     }
