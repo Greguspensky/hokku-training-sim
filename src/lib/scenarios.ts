@@ -47,7 +47,7 @@ export const SCENARIO_TEMPLATES: ScenarioTemplateConfig[] = [
   },
   {
     id: 'recommendations_flow',
-    name: 'Product Recommendations',
+    name: 'Situationships',
     description: 'Video response training for providing product recommendations to customers',
     defaultClientBehavior: '',
     defaultExpectedResponse: '',

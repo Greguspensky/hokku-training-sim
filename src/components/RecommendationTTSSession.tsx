@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVideoRecording } from '@/hooks/useVideoRecording'
+import { resolveVoiceForQuestion } from '@/lib/voice-resolver'
 
 interface RecommendationQuestion {
   id: string
@@ -23,7 +24,8 @@ interface RecommendationTTSSessionProps {
   language?: string
   assignmentId?: string
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
-  voiceId?: string  // ElevenLabs Voice ID or 'random'
+  voiceIds?: string[]  // Array of ElevenLabs Voice IDs or ['random']
+  voiceId?: string  // Legacy support - deprecated
   onSessionEnd?: (sessionData: any) => void
   className?: string
 }
@@ -44,7 +46,8 @@ export function RecommendationTTSSession({
   language = 'en',
   assignmentId,
   videoAspectRatio = '16:9',
-  voiceId,
+  voiceIds,
+  voiceId,  // Legacy support
   onSessionEnd,
   className = ''
 }: RecommendationTTSSessionProps) {
@@ -208,6 +211,16 @@ export function RecommendationTTSSession({
     try {
       console.log('🔊 Loading TTS for question:', currentQuestion.question_text)
 
+      // Resolve voice for THIS specific question (supports per-question variability)
+      const effectiveVoiceIds = voiceIds || (voiceId ? [voiceId] : null)
+      const resolvedVoiceId = await resolveVoiceForQuestion(
+        effectiveVoiceIds,
+        language,
+        currentQuestionIndex
+      )
+
+      console.log(`🎤 Using voice ID for question #${currentQuestionIndex + 1}:`, resolvedVoiceId)
+
       // Send FULL text with audio tags to TTS API
       // Tags like [excited], [happy], [pause] control emotional delivery
       // Tags are stripped from UI display but kept here for TTS processing
@@ -217,7 +230,7 @@ export function RecommendationTTSSession({
         body: JSON.stringify({
           text: currentQuestion.question_text, // Includes audio tags
           language: language,
-          voiceId: voiceId  // Pass voice ID for selection
+          voiceId: resolvedVoiceId  // Pass resolved voice ID for this question
         })
       })
 
@@ -636,7 +649,7 @@ export function RecommendationTTSSession({
   if (!isSessionActive) {
     return (
       <div className={`bg-white rounded-lg shadow-lg p-8 text-center ${className}`}>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">🎯 Product Recommendations Training</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">🎯 Situationships Training</h2>
         <p className="text-gray-600 mb-6">
           Ready to start your recommendation training session with {questions.length} questions
         </p>

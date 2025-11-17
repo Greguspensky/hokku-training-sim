@@ -349,7 +349,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                     {session.training_mode === 'theory'
                       ? 'Theory Q&A'
                       : session.training_mode === 'recommendation_tts'
-                      ? 'Product Recommendations'
+                      ? 'Situationships'
                       : 'Service Practice'}
                   </span>
                 </div>
