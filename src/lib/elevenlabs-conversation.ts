@@ -20,6 +20,7 @@ const THEORY_GREETINGS = {
   'nl': "Hallo! Laten we beginnen met onze theoriesessie.",
   'pl': "Cześć! Zacznijmy naszą sesję teoretyczną.",
   'ka': "გამარჯობა! ავიწყოთ ჩვენი თეორიული სესია.",
+  'cs': "Ahoj! Začněme naši teoretickou lekci.",
   'ja': "こんにちは！理論セッションを始めましょう。",
   'ko': "안녕하세요! 이론 세션을 시작하겠습니다.",
   'zh': "你好！让我们开始理论课程吧。"
@@ -38,6 +39,7 @@ const SERVICE_PRACTICE_GREETINGS = {
   'nl': "Hallo.",
   'pl': "Cześć.",
   'ka': "გამარჯობა.",
+  'cs': "Dobrý den.",
   'ja': "こんにちは。",
   'ko': "안녕하세요.",
   'zh': "你好。"

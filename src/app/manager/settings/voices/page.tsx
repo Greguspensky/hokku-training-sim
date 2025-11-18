@@ -26,16 +26,17 @@ interface Voice {
 }
 
 const LANGUAGE_OPTIONS = [
-  { code: 'ru', name: 'Russian 🇷🇺' },
   { code: 'en', name: 'English 🇺🇸' },
-  { code: 'pt', name: 'Portuguese 🇵🇹' },
   { code: 'es', name: 'Spanish 🇪🇸' },
+  { code: 'ru', name: 'Russian 🇷🇺' },
+  { code: 'pt', name: 'Portuguese 🇵🇹' },
+  { code: 'ka', name: 'Georgian 🇬🇪' },
+  { code: 'cs', name: 'Czech 🇨🇿' },
   { code: 'fr', name: 'French 🇫🇷' },
   { code: 'de', name: 'German 🇩🇪' },
   { code: 'it', name: 'Italian 🇮🇹' },
   { code: 'nl', name: 'Dutch 🇳🇱' },
   { code: 'pl', name: 'Polish 🇵🇱' },
-  { code: 'ka', name: 'Georgian 🇬🇪' },
   { code: 'ja', name: 'Japanese 🇯🇵' },
   { code: 'ko', name: 'Korean 🇰🇷' },
   { code: 'zh', name: 'Chinese 🇨🇳' }

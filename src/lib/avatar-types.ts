@@ -127,14 +127,15 @@ export interface WhisperResponse {
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'ru', name: 'Russian', flag: '🇷🇺' },
+  { code: 'pt', name: 'Portuguese', flag: '🇵🇹' },
+  { code: 'ka', name: 'Georgian', flag: '🇬🇪' },
+  { code: 'cs', name: 'Czech', flag: '🇨🇿' },
   { code: 'fr', name: 'French', flag: '🇫🇷' },
   { code: 'de', name: 'German', flag: '🇩🇪' },
   { code: 'it', name: 'Italian', flag: '🇮🇹' },
-  { code: 'pt', name: 'Portuguese', flag: '🇵🇹' },
   { code: 'nl', name: 'Dutch', flag: '🇳🇱' },
   { code: 'pl', name: 'Polish', flag: '🇵🇱' },
-  { code: 'ru', name: 'Russian', flag: '🇷🇺' },
-  { code: 'ka', name: 'Georgian', flag: '🇬🇪' },
   { code: 'ja', name: 'Japanese', flag: '🇯🇵' },
   { code: 'ko', name: 'Korean', flag: '🇰🇷' },
   { code: 'zh', name: 'Chinese', flag: '🇨🇳' }

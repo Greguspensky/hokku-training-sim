@@ -641,17 +641,6 @@ export default function SessionTranscriptPage() {
                 </div>
               )}
 
-              {/* Customer Behavior */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-start mb-2">
-                  <span className="text-lg mr-2">😤</span>
-                  <h3 className="font-semibold text-gray-900">Customer Behavior</h3>
-                </div>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {scenarioDetails.client_behavior || 'No customer behavior defined'}
-                </p>
-              </div>
-
               {/* Expected Employee Response */}
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                 <div className="flex items-start mb-2">
