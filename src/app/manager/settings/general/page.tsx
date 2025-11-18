@@ -21,6 +21,8 @@ export default function GeneralSettingsPage() {
   const [theoryRecordingOptions, setTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
+  const [showSessionNamesToEmployees, setShowSessionNamesToEmployees] = useState(false)
+  const [savingVisibility, setSavingVisibility] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Load settings on mount
@@ -39,6 +41,7 @@ export default function GeneralSettingsPage() {
         setDefaultLanguage(data.settings.default_training_language || 'en')
         setTheoryRecordingOptions(data.settings.theory_recording_options || ['audio', 'audio_video'])
         setServicePracticeRecordingOptions(data.settings.service_practice_recording_options || ['audio', 'audio_video'])
+        setShowSessionNamesToEmployees(data.settings.show_session_names_to_employees || false)
       }
     } catch (error) {
       console.error('Failed to load company settings:', error)
@@ -103,6 +106,33 @@ export default function GeneralSettingsPage() {
       alert('Failed to update recording options')
     } finally {
       setSavingRecordingOptions(false)
+    }
+  }
+
+  const handleSessionNamesVisibilityChange = async (showNames: boolean) => {
+    setSavingVisibility(true)
+    try {
+      const response = await fetch('/api/company-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: companyId,
+          show_session_names_to_employees: showNames
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setShowSessionNamesToEmployees(showNames)
+        console.log('✅ Session names visibility updated to:', showNames)
+      } else {
+        alert('Failed to update session names visibility')
+      }
+    } catch (error) {
+      console.error('Failed to update session names visibility:', error)
+      alert('Failed to update session names visibility')
+    } finally {
+      setSavingVisibility(false)
     }
   }
 
@@ -181,6 +211,50 @@ export default function GeneralSettingsPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Session Names Visibility Section */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Names Visibility</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Control whether employees can see actual training session names or generic placeholders
+                </p>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        Show actual session names to employees
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {showSessionNamesToEmployees
+                        ? 'Employees will see real scenario titles (e.g., "Handling Angry Customer")'
+                        : 'Employees will see generic names (e.g., "Training Session 1", "Training Session 2")'}
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-4">
+                    <input
+                      type="checkbox"
+                      checked={showSessionNamesToEmployees}
+                      onChange={(e) => handleSessionNamesVisibilityChange(e.target.checked)}
+                      disabled={savingVisibility}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"></div>
+                  </label>
+                  {savingVisibility && (
+                    <div className="ml-3 flex items-center">
+                      <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-xs text-blue-700">
+                    <strong>Note:</strong> Hiding session names creates a "surprise mode" effect where employees discover what they're training on when they start the session. This can increase engagement and simulate real-world unpredictability.
+                  </p>
                 </div>
               </div>
 
