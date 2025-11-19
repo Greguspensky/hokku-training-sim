@@ -12,7 +12,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import UserHeader from '@/components/UserHeader'
-import { Plus, Edit2, Trash2, X, Check } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Check, Upload, User } from 'lucide-react'
+import { uploadVoiceAvatar, deleteVoiceAvatar, validateImageFile, createPreviewUrl, revokePreviewUrl } from '@/lib/avatar-upload'
 
 interface Voice {
   id: string
@@ -21,6 +22,7 @@ interface Voice {
   language_code: string
   gender: 'male' | 'female' | 'neutral' | null
   description: string | null
+  avatar_url: string | null
   created_at: string
   updated_at: string
 }
@@ -64,6 +66,9 @@ export default function VoiceSettingsPage() {
     description: ''
   })
   const [saving, setSaving] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   // Load voices from API
   const loadVoices = async () => {
@@ -96,6 +101,34 @@ export default function VoiceSettingsPage() {
     }
   }, [authLoading])
 
+  // Handle avatar file selection
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid file')
+      return
+    }
+
+    // Set file and create preview
+    setAvatarFile(file)
+    const previewUrl = createPreviewUrl(file)
+    setAvatarPreview(previewUrl)
+    setError(null)
+  }
+
+  // Handle remove avatar
+  const handleRemoveAvatar = () => {
+    if (avatarPreview) {
+      revokePreviewUrl(avatarPreview)
+    }
+    setAvatarFile(null)
+    setAvatarPreview(null)
+  }
+
   // Handle add voice
   const handleAddVoice = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,10 +137,30 @@ export default function VoiceSettingsPage() {
       setSaving(true)
       setError(null)
 
+      let avatarUrl: string | null = null
+
+      // Upload avatar if file is selected
+      if (avatarFile) {
+        setUploadingAvatar(true)
+        try {
+          avatarUrl = await uploadVoiceAvatar(formData.voice_id, avatarFile)
+          console.log('✅ Avatar uploaded:', avatarUrl)
+        } catch (uploadError: any) {
+          console.error('❌ Avatar upload failed:', uploadError)
+          setError(`Failed to upload avatar: ${uploadError.message}`)
+          return
+        } finally {
+          setUploadingAvatar(false)
+        }
+      }
+
       const response = await fetch('/api/voice-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          avatar_url: avatarUrl
+        })
       })
 
       const data = await response.json()
@@ -129,6 +182,7 @@ export default function VoiceSettingsPage() {
         gender: 'neutral',
         description: ''
       })
+      handleRemoveAvatar()
       setShowAddModal(false)
 
     } catch (err: any) {
@@ -149,12 +203,34 @@ export default function VoiceSettingsPage() {
       setSaving(true)
       setError(null)
 
+      let avatarUrl: string | null = editingVoice.avatar_url
+
+      // Upload new avatar if file is selected
+      if (avatarFile) {
+        setUploadingAvatar(true)
+        try {
+          // Delete old avatar if exists
+          if (editingVoice.avatar_url) {
+            await deleteVoiceAvatar(editingVoice.avatar_url)
+          }
+          avatarUrl = await uploadVoiceAvatar(editingVoice.voice_id, avatarFile)
+          console.log('✅ Avatar updated:', avatarUrl)
+        } catch (uploadError: any) {
+          console.error('❌ Avatar upload failed:', uploadError)
+          setError(`Failed to upload avatar: ${uploadError.message}`)
+          return
+        } finally {
+          setUploadingAvatar(false)
+        }
+      }
+
       const response = await fetch('/api/voice-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingVoice.id,
-          ...formData
+          ...formData,
+          avatar_url: avatarUrl
         })
       })
 
@@ -172,6 +248,7 @@ export default function VoiceSettingsPage() {
       // Close modal
       setShowEditModal(false)
       setEditingVoice(null)
+      handleRemoveAvatar()
 
     } catch (err: any) {
       console.error('❌ Failed to update voice:', err)
@@ -221,6 +298,9 @@ export default function VoiceSettingsPage() {
       gender: voice.gender || 'neutral',
       description: voice.description || ''
     })
+    // Set existing avatar preview if available
+    setAvatarPreview(voice.avatar_url)
+    setAvatarFile(null)
     setShowEditModal(true)
   }
 
@@ -315,34 +395,44 @@ export default function VoiceSettingsPage() {
                             key={voice.id}
                             className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
                           >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900">{voice.voice_name}</h3>
-                                <p className="text-sm text-gray-500">
+                            <div className="flex items-start justify-between gap-4">
+                              {/* Left side - Text content */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 mb-1">{voice.voice_name}</h3>
+                                <p className="text-sm text-gray-500 mb-1">
                                   {voice.gender ? `${voice.gender.charAt(0).toUpperCase()}${voice.gender.slice(1)}` : 'Unspecified'}
                                 </p>
+                                {voice.description && (
+                                  <p className="text-sm text-gray-600 mb-2">{voice.description}</p>
+                                )}
+                                <p className="text-xs text-gray-400 font-mono break-all">{voice.voice_id}</p>
                               </div>
-                              <div className="flex items-center space-x-2">
+
+                              {/* Right side - Avatar with Edit button */}
+                              <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                                {voice.avatar_url ? (
+                                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                                    <img
+                                      src={voice.avatar_url}
+                                      alt={`${voice.voice_name} avatar`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                                    <User className="w-8 h-8 text-gray-400" />
+                                  </div>
+                                )}
                                 <button
                                   onClick={() => openEditModal(voice)}
-                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                                   title="Edit voice"
                                 >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteVoice(voice.id, voice.voice_name)}
-                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                  title="Delete voice"
-                                >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Edit2 className="w-3 h-3" />
+                                  <span>Edit</span>
                                 </button>
                               </div>
                             </div>
-                            {voice.description && (
-                              <p className="text-sm text-gray-600 mb-2">{voice.description}</p>
-                            )}
-                            <p className="text-xs text-gray-400 font-mono">{voice.voice_id}</p>
                           </div>
                         ))}
                       </div>
@@ -442,6 +532,48 @@ export default function VoiceSettingsPage() {
                       rows={3}
                       placeholder="Optional description..."
                     />
+                  </div>
+
+                  {/* Avatar Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Avatar Image
+                    </label>
+                    {avatarPreview ? (
+                      <div className="flex items-center space-x-4">
+                        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-300">
+                          <img
+                            src={avatarPreview}
+                            alt="Avatar preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-3">
+                        <label className="flex items-center px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                          <Upload className="w-4 h-4 mr-2" />
+                          <span className="text-sm">Choose Image</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-xs text-gray-500">PNG, JPEG, or WebP (max 2MB)</p>
+                      </div>
+                    )}
+                    {uploadingAvatar && (
+                      <p className="text-sm text-blue-600 mt-2">Uploading avatar...</p>
+                    )}
                   </div>
 
                   <div className="flex justify-end space-x-3 pt-4">
@@ -555,24 +687,87 @@ export default function VoiceSettingsPage() {
                     />
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4">
+                  {/* Avatar Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Avatar Image
+                    </label>
+                    {avatarPreview ? (
+                      <div className="flex items-center space-x-4">
+                        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-300">
+                          <img
+                            src={avatarPreview}
+                            alt="Avatar preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveAvatar}
+                          className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          {avatarFile ? 'Remove New' : 'Remove Avatar'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-3">
+                        <label className="flex items-center px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                          <Upload className="w-4 h-4 mr-2" />
+                          <span className="text-sm">Choose Image</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-xs text-gray-500">PNG, JPEG, or WebP (max 2MB)</p>
+                      </div>
+                    )}
+                    {uploadingAvatar && (
+                      <p className="text-sm text-blue-600 mt-2">Uploading avatar...</p>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                    {/* Delete button on the left */}
                     <button
                       type="button"
                       onClick={() => {
                         setShowEditModal(false)
                         setEditingVoice(null)
+                        handleRemoveAvatar()
+                        if (editingVoice) {
+                          handleDeleteVoice(editingVoice.id, editingVoice.voice_name)
+                        }
                       }}
-                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      Cancel
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Voice</span>
                     </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </button>
+
+                    {/* Cancel and Save buttons on the right */}
+                    <div className="flex space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditModal(false)
+                          setEditingVoice(null)
+                          handleRemoveAvatar()
+                        }}
+                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
                   </div>
                 </form>
               </div>

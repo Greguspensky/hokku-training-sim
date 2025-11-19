@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface UserHeaderProps {
-  title: string
+  title?: string
   subtitle?: string
+  hideProfile?: boolean
 }
 
-export default function UserHeader({ title, subtitle }: UserHeaderProps) {
+export default function UserHeader({ title, subtitle, hideProfile = false }: UserHeaderProps) {
   const { user, signOut } = useAuth()
   const [showDropdown, setShowDropdown] = useState(false)
 
@@ -40,15 +41,18 @@ export default function UserHeader({ title, subtitle }: UserHeaderProps) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-          {subtitle && (
-            <p className="text-gray-600 mt-2">{subtitle}</p>
-          )}
-        </div>
+        {title && (
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+            {subtitle && (
+              <p className="text-gray-600 mt-2">{subtitle}</p>
+            )}
+          </div>
+        )}
 
         {/* User Profile Dropdown */}
-        <div className="relative">
+        {!hideProfile && (
+          <div className="relative">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center space-x-3 bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -128,7 +132,8 @@ export default function UserHeader({ title, subtitle }: UserHeaderProps) {
               </div>
             </>
           )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

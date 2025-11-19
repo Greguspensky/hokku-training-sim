@@ -31,6 +31,7 @@ interface ElevenLabsAvatarSessionProps {
   agentId: string // ElevenLabs Agent ID
   voiceIds?: string[] // Array of voice IDs (multi-select) - NEW
   voiceId?: string // DEPRECATED: Single voice ID for backward compatibility
+  avatarUrl?: string | null // Avatar image URL for the voice
   recordingPreference?: RecordingPreference
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
@@ -48,6 +49,7 @@ export function ElevenLabsAvatarSession({
   agentId,
   voiceIds, // NEW: Multi-select voice support
   voiceId, // DEPRECATED: Backward compatibility
+  avatarUrl = null,
   recordingPreference = 'none',
   videoAspectRatio = '16:9',
   preAuthorizedTabAudio = null,
@@ -1164,72 +1166,36 @@ Ask specific, factual questions based on the company knowledge context provided.
       )}
 
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {isTheoryMode ? '📖 Theory Q&A Session' : '🗣️ Service Practice Session'}
-              </h2>
-              <p className="text-gray-600">
-                {isTheoryMode
-                  ? 'Structured knowledge assessment - Answer questions accurately and concisely'
-                  : 'Interactive roleplay scenario - Practice real customer service situations'
-                }
-              </p>
-            </div>
+        <div className="space-y-6 md:space-y-6">
+          {/* Header - Centered Title */}
+          <div className="text-center mb-8 md:mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isTheoryMode ? 'Theory Q&A Session' : 'Service Practice Session'}
+            </h2>
+          </div>
 
-            {/* Countdown Timer - Big Display */}
-            {isTimerActive && timeRemaining !== null && (
-              <div className="flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl px-8 py-4 shadow-lg">
-                <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Time Remaining</div>
-                <div className={`text-6xl font-bold tabular-nums ${
-                  timeRemaining <= 60 ? 'text-red-600 animate-pulse' :
-                  timeRemaining <= 180 ? 'text-orange-600' :
-                  'text-blue-600'
-                }`}>
-                  {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">minutes</div>
-              </div>
-            )}
-
-            <div className="text-right space-y-1">
-              <div className="flex items-center justify-end space-x-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  connectionStatus === 'connected' ? 'bg-green-100 text-green-800' :
-                  connectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {typeof connectionStatus === 'string' ? connectionStatus : JSON.stringify(connectionStatus)}
-                </span>
-                {recordingPreference !== 'none' && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    isRecording ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {isRecording ? (
-                      <>
-                        <span className="w-1.5 h-1.5 bg-red-600 rounded-full mr-1 animate-pulse"></span>
-                        {recordingPreference === 'audio' ? '🎤 Recording' : '🎥 Recording'}
-                      </>
-                    ) : (
-                      <>{recordingPreference === 'audio' ? '🎤 Ready' : '🎥 Ready'}</>
-                    )}
-                  </span>
+          {/* Avatar - Centered - 2x larger on desktop, normal on mobile */}
+          {avatarUrl && (
+            <div className="flex justify-center mb-8 md:mb-6">
+              <div className="relative w-32 h-32 md:w-64 md:h-64 rounded-full overflow-hidden border-4 border-gray-200 shadow-lg">
+                <img
+                  src={avatarUrl}
+                  alt="AI Agent Avatar"
+                  className={`w-full h-full object-cover transition-all duration-500 ${
+                    isSessionActive && isListening ? 'brightness-50' : 'brightness-100'
+                  }`}
+                />
+                {/* Listening Text Overlay */}
+                {isSessionActive && isListening && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-white font-semibold text-sm md:text-2xl uppercase tracking-wider drop-shadow-lg">
+                      Listening
+                    </span>
+                  </div>
                 )}
               </div>
-              {isTheoryMode && (
-                <div className="mt-1 text-xs text-gray-500">
-                  Flashcard Mode
-                </div>
-              )}
-              {recordingPreference !== 'none' && (
-                <div className="mt-1 text-xs text-gray-500">
-                  {recordingPreference === 'audio' ? 'Audio Recording Enabled' : 'Screen + Audio Recording Enabled'}
-                </div>
-              )}
             </div>
-          </div>
+          )}
 
           {/* Hidden for Surprise Mode: Scenario Context (Title, Description, Goals, Milestones) */}
 
@@ -1242,8 +1208,8 @@ Ask specific, factual questions based on the company knowledge context provided.
           )}
 
           {/* Mode-specific Instructions */}
-          {/* Session Questions Preview - Only show for Theory mode */}
-          {scenarioContext?.type === 'theory' && (
+          {/* Session Questions Preview - HIDDEN - Not needed in UI */}
+          {/* {scenarioContext?.type === 'theory' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-blue-900 flex items-center gap-2">
@@ -1296,7 +1262,7 @@ Ask specific, factual questions based on the company knowledge context provided.
                 </p>
               )}
             </div>
-          )}
+          )} */}
 
           {/* Session Configuration - Only show for Theory mode */}
           {scenarioContext?.type === 'theory' && (
@@ -1327,44 +1293,42 @@ Ask specific, factual questions based on the company knowledge context provided.
             </div>
           )}
 
-          {/* Controls */}
-          <div className="flex items-center gap-4">
+          {/* Timer and Controls - Centered */}
+          <div className="flex flex-col items-center gap-4 mt-8 md:mt-6">
+            {/* Countdown Timer - Above Button - Much smaller on mobile */}
+            {isSessionActive && isTimerActive && timeRemaining !== null && (
+              <div className="flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 md:border-2 rounded-lg md:rounded-xl px-3 py-1.5 md:px-8 md:py-4 shadow-md md:shadow-lg">
+                <div className="text-[7px] md:text-xs font-semibold text-blue-600 uppercase tracking-wide mb-0 md:mb-1">Time Remaining</div>
+                <div className={`text-xl md:text-6xl font-bold tabular-nums leading-tight ${
+                  timeRemaining <= 60 ? 'text-red-600 animate-pulse' :
+                  timeRemaining <= 180 ? 'text-orange-600' :
+                  'text-blue-600'
+                }`}>
+                  {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                </div>
+                <div className="text-[7px] md:text-xs text-gray-500 mt-0 md:mt-1">minutes</div>
+              </div>
+            )}
+
+            {/* Session Button */}
             {!isSessionActive ? (
               <button
                 onClick={startSession}
                 disabled={isInitialized || conversationService !== null}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="inline-flex items-center px-6 py-3 bg-green-600 text-white text-lg rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-lg"
               >
-                <Play className="w-4 h-4 mr-2" />
+                <Play className="w-5 h-5 mr-2" />
                 {isInitialized ? 'Connecting...' : 'Start Session'}
               </button>
             ) : (
               <button
                 onClick={stopSession}
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="inline-flex items-center px-6 py-3 bg-red-600 text-white text-lg rounded-lg hover:bg-red-700 shadow-lg"
               >
-                <Square className="w-4 h-4 mr-2" />
+                <Square className="w-5 h-5 mr-2" />
                 End Session
               </button>
             )}
-
-            {/* Volume Control */}
-            <div className="flex items-center gap-2">
-              {volume > 0 ? (
-                <Volume2 className="w-4 h-4 text-gray-600" />
-              ) : (
-                <VolumeX className="w-4 h-4 text-gray-600" />
-              )}
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                className="w-20"
-              />
-            </div>
           </div>
 
           {/* Video Preview - Show when recording video */}
@@ -1476,13 +1440,13 @@ Ask specific, factual questions based on the company knowledge context provided.
             </div>
           )}
 
-          {/* Session Info - moved above conversation history */}
-          <div className="text-sm text-gray-600 bg-gray-50 rounded p-3">
+          {/* Session Info - Hidden for cleaner UI */}
+          {/* <div className="text-sm text-gray-600 bg-gray-50 rounded p-3">
             <p><strong>Agent ID:</strong> {agentId}</p>
             <p><strong>Language:</strong> {language}</p>
             <p><strong>Company:</strong> {companyId}</p>
             {sessionId && <p><strong>Session ID:</strong> {sessionId}</p>}
-          </div>
+          </div> */}
 
           {/* Conversation History - messages alternate left/right */}
           {conversationHistory.length > 0 && (
@@ -1514,6 +1478,36 @@ Ask specific, factual questions based on the company knowledge context provided.
           )}
         </div>
       </div>
+
+      {/* Status Indicators - Below white card */}
+      <div className="mt-4 flex items-center justify-center space-x-3">
+        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+          connectionStatus === 'connected' ? 'bg-green-100 text-green-800' :
+          connectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' :
+          'bg-red-100 text-red-800'
+        }`}>
+          {typeof connectionStatus === 'string' ? connectionStatus : JSON.stringify(connectionStatus)}
+        </span>
+        {recordingPreference !== 'none' && (
+          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+            isRecording ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
+          }`}>
+            {isRecording ? (
+              <>
+                <span className="w-2 h-2 bg-red-600 rounded-full mr-1.5 animate-pulse"></span>
+                {recordingPreference === 'audio' ? '🎤 Recording' : '🎥 Recording'}
+              </>
+            ) : (
+              <>{recordingPreference === 'audio' ? '🎤 Ready' : '🎥 Ready'}</>
+            )}
+          </span>
+        )}
+      </div>
+      {recordingPreference !== 'none' && (
+        <div className="mt-2 text-center text-sm text-gray-600">
+          {recordingPreference === 'audio' ? 'Audio Recording Enabled' : 'Screen + Audio Recording Enabled'}
+        </div>
+      )}
     </div>
   )
 }

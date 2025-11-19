@@ -18,6 +18,7 @@ export interface ElevenLabsVoiceConfig {
   language_code: string
   gender: 'male' | 'female' | 'neutral' | null
   description: string | null
+  avatar_url: string | null
   created_at: string
   updated_at: string
 }
@@ -215,6 +216,17 @@ export async function getVoiceGenderById(voiceId: string): Promise<'male' | 'fem
   const voice = allVoices.find(v => v.voice_id === voiceId)
 
   return voice?.gender || 'neutral'
+}
+
+/**
+ * Get full voice details by voice ID
+ * Returns complete voice configuration including avatar_url
+ */
+export async function getVoiceDetailsById(voiceId: string): Promise<ElevenLabsVoiceConfig | null> {
+  const allVoices = await loadVoices()
+  const voice = allVoices.find(v => v.voice_id === voiceId)
+
+  return voice || null
 }
 
 /**

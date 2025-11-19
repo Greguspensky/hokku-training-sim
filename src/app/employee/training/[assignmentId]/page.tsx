@@ -15,7 +15,7 @@ import type { RecordingPreference } from '@/lib/training-sessions'
 import Link from 'next/link'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName, resolveVoiceId } from '@/lib/elevenlabs-voices'
-import { resolveVoiceForSession, getVoiceNameById } from '@/lib/voice-resolver'
+import { resolveVoiceForSession, getVoiceNameById, getVoiceDetailsById } from '@/lib/voice-resolver'
 import { getDefaultVideoAspectRatio } from '@/lib/device-detection'
 import HiddenContent, { HiddenSection } from '@/components/SurpriseMode/HiddenContent'
 
@@ -71,6 +71,7 @@ export default function TrainingSessionPage() {
   })
   const [resolvedVoiceId, setResolvedVoiceId] = useState<string | undefined>(undefined)
   const [resolvedVoiceName, setResolvedVoiceName] = useState<string>('Loading...')
+  const [resolvedVoiceAvatarUrl, setResolvedVoiceAvatarUrl] = useState<string | null>(null)
   const [scenarioStats, setScenarioStats] = useState<{attemptCount: number; lastAttempt: string | null; completionPercentage: number; isCompleted: boolean} | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
   const [allowedTheoryRecordingOptions, setAllowedTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
@@ -168,9 +169,20 @@ export default function TrainingSessionPage() {
 
           if (resolved) {
             setResolvedVoiceId(resolved)
-            const voiceName = await getVoiceNameById(resolved)
-            setResolvedVoiceName(voiceName)
-            console.log(`🎤 Voice resolved for ${selectedLanguage}:`, voiceName, `(${resolved})`)
+
+            // Fetch full voice details including avatar
+            const voiceDetails = await getVoiceDetailsById(resolved)
+            if (voiceDetails) {
+              setResolvedVoiceName(voiceDetails.voice_name)
+              setResolvedVoiceAvatarUrl(voiceDetails.avatar_url)
+              console.log(`🎤 Voice resolved for ${selectedLanguage}:`, voiceDetails.voice_name, `(${resolved})`)
+              if (voiceDetails.avatar_url) {
+                console.log(`🖼️ Avatar URL:`, voiceDetails.avatar_url)
+              }
+            } else {
+              const voiceName = await getVoiceNameById(resolved)
+              setResolvedVoiceName(voiceName)
+            }
           } else {
             // Fallback to old logic if voice resolver returns null
             const fallback = currentScenario.voice_id ? resolveVoiceId(currentScenario.voice_id) : null
@@ -800,11 +812,11 @@ export default function TrainingSessionPage() {
     const companyId = assignment?.track?.company_id || user?.company_id
 
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen py-8 bg-[url('/images/training-bg.jpg')] bg-cover bg-center bg-fixed">
         <div className="max-w-6xl mx-auto px-4">
           {/* Header */}
           <div className="mb-8">
-            <UserHeader />
+            <UserHeader hideProfile={true} />
           </div>
 
           {/* Unified Configuration and Session Interface */}
@@ -1199,20 +1211,40 @@ export default function TrainingSessionPage() {
 
                           {/* Voice Display */}
                           <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-                            <p className="font-semibold text-gray-900 mb-2">
+                            <p className="font-semibold text-gray-900 mb-3">
                               🎤 AI Voice
                             </p>
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                                {resolvedVoiceName}
-                              </span>
-                              {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) ||
-                                (currentScenario.voice_ids && currentScenario.voice_ids.length > 1) ||
-                                currentScenario.voice_id === 'random') && (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
-                                  Randomly Selected
-                                </span>
+                            <div className="flex items-center gap-3">
+                              {/* Avatar */}
+                              {resolvedVoiceAvatarUrl ? (
+                                <div className="w-12 h-12 rounded-full overflow-hidden bg-white border-2 border-blue-200 flex-shrink-0">
+                                  <img
+                                    src={resolvedVoiceAvatarUrl}
+                                    alt={`${resolvedVoiceName} avatar`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-white border-2 border-blue-200 flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                </div>
                               )}
+
+                              {/* Voice name and badges */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                  {resolvedVoiceName}
+                                </span>
+                                {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) ||
+                                  (currentScenario.voice_ids && currentScenario.voice_ids.length > 1) ||
+                                  currentScenario.voice_id === 'random') && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                                    Randomly Selected
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p className="text-gray-600 text-xs mt-2">
                               {((currentScenario.voice_ids && currentScenario.voice_ids.includes('random')) || currentScenario.voice_id === 'random')
@@ -1470,6 +1502,7 @@ export default function TrainingSessionPage() {
                   language={selectedLanguage}
                   agentId="agent_9301k5efjt1sf81vhzc3pjmw0fy9"
                   voiceId={resolvedVoiceId || currentScenario.voice_id}
+                  avatarUrl={resolvedVoiceAvatarUrl}
                   recordingPreference={recordingPreference}
                   videoAspectRatio={videoAspectRatio}
                   preAuthorizedTabAudio={preAuthorizedTabAudio}

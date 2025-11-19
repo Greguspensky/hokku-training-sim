@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
  *   language_code: string (ISO 639-1 code)
  *   gender?: 'male' | 'female' | 'neutral'
  *   description?: string
+ *   avatar_url?: string (URL to avatar image)
  * }
  */
 export async function POST(request: NextRequest) {
@@ -132,7 +133,8 @@ export async function POST(request: NextRequest) {
         voice_name: body.voice_name,
         language_code: body.language_code.toLowerCase(),
         gender: body.gender || null,
-        description: body.description || null
+        description: body.description || null,
+        avatar_url: body.avatar_url || null
       })
       .select()
       .single()
@@ -186,6 +188,7 @@ export async function POST(request: NextRequest) {
  *   language_code?: string
  *   gender?: 'male' | 'female' | 'neutral'
  *   description?: string
+ *   avatar_url?: string (URL to avatar image)
  * }
  */
 export async function PUT(request: NextRequest) {
@@ -217,6 +220,7 @@ export async function PUT(request: NextRequest) {
       updates.gender = body.gender
     }
     if (body.description !== undefined) updates.description = body.description
+    if (body.avatar_url !== undefined) updates.avatar_url = body.avatar_url
 
     const { data, error } = await supabaseAdmin
       .from('elevenlabs_voices')
