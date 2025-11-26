@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { VideoRecordingService } from '@/services/VideoRecordingService'
 import { resolveVoiceForSession } from '@/lib/voice-resolver'
+import { useTranslations } from 'next-intl'
+import { useTrainingSession } from '@/hooks/useTrainingSession'
 
 // Helper function to get training mode display name
 function getTrainingModeDisplay(trainingMode: string): string {
@@ -59,6 +61,24 @@ export function ElevenLabsAvatarSession({
 }: ElevenLabsAvatarSessionProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const t = useTranslations('training')
+
+  // ✨ NEW: Use consolidated training session hook
+  const session = useTrainingSession({
+    companyId,
+    scenarioId,
+    userId: user?.id,
+    trainingMode: scenarioContext?.type === 'theory' ? 'theory' : 'service_practice',
+    language,
+    agentId,
+    sessionTimeLimit,
+    onSessionEnd: async () => {
+      console.log('⏰ Timer expired - stopping session')
+      await stopSession()
+    }
+  })
+
+  // Component-specific state (ElevenLabs conversation management)
   const [conversationService, setConversationService] = useState<ElevenLabsConversationService | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
@@ -68,10 +88,6 @@ export function ElevenLabsAvatarSession({
   const [conversationHistory, setConversationHistory] = useState<ConversationMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState('')
   const [volume, setVolume] = useState(0.8)
-  const [isSessionActive, setIsSessionActive] = useState(false)
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const sessionIdRef = useRef<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [knowledgeContext, setKnowledgeContext] = useState<ScenarioKnowledgeContext | null>(null)
   const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -79,41 +95,12 @@ export function ElevenLabsAvatarSession({
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
   const [isLoadingSessionQuestions, setIsLoadingSessionQuestions] = useState(false)
-  const [isSavingSession, setIsSavingSession] = useState(false)
-
-  // Countdown timer state
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null) // time in seconds
-  const [isTimerActive, setIsTimerActive] = useState(false)
 
   // Session recording - simplified with VideoRecordingService
   const videoService = useRef<VideoRecordingService>(new VideoRecordingService())
   const sessionStartTimeRef = useRef<number>(0)
   const tabAudioStreamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const isSavingSessionRef = useRef<boolean>(false) // Guard to prevent duplicate saves
-  const isStartingSessionRef = useRef<boolean>(false) // Guard to prevent multiple simultaneous starts
-
-  /**
-   * Countdown timer logic
-   * Starts when isTimerActive is true and counts down every second
-   */
-  useEffect(() => {
-    if (!isTimerActive || timeRemaining === null || timeRemaining <= 0) return
-
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev === null || prev <= 1) {
-          // Time's up! Stop the session
-          console.log('⏰ Time limit reached - ending session')
-          stopSession()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [isTimerActive, timeRemaining])
 
   /**
    * Load structured questions from database for theory practice
@@ -818,89 +805,48 @@ Ask specific, factual questions based on the company knowledge context provided.
    * Start the avatar session
    */
   const startSession = useCallback(async () => {
-    // GUARD: Prevent multiple simultaneous session starts using synchronous ref
-    if (isStartingSessionRef.current || isInitialized || conversationService) {
+    // GUARD: Prevent multiple simultaneous session starts
+    if (session.isStartingSession() || isInitialized || conversationService) {
       console.warn('⚠️ Session already starting or active - ignoring duplicate click')
       return
     }
 
     // Set guard flag IMMEDIATELY (synchronously) to block subsequent clicks
-    isStartingSessionRef.current = true
-    console.log('🔒 Session start guard activated')
+    session.setStartingSession(true)
 
     console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs')
 
-    // STEP 0: Generate sessionId and record attempt immediately
-    const newSessionId = crypto.randomUUID()
-    setSessionId(newSessionId)
-    sessionIdRef.current = newSessionId
-    console.log('🆔 Generated session ID:', newSessionId)
+    // STEP 0: Initialize session (generates ID and records attempt)
+    await session.initializeSession()
 
-    // Record the attempt immediately (counts even if user abandons session)
-    if (user && scenarioId) {
-      try {
-        const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice'
-        console.log('📊 Recording session start for attempt counting...')
+    // STEP 1: Start countdown timer
+    session.startTimer()
 
-        const response = await fetch('/api/start-training-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: newSessionId,
-            employeeId: user.id,
-            assignmentId: 'standalone', // Will be updated if part of assignment
-            companyId: companyId,
-            scenarioId: scenarioId,
-            trainingMode: trainingMode,
-            language: language,
-            agentId: agentId
-          })
-        })
-
-        if (!response.ok) {
-          console.warn('⚠️ Failed to record session start, but continuing anyway')
-        } else {
-          console.log('✅ Session start recorded - attempt counted')
-        }
-      } catch (error) {
-        console.warn('⚠️ Error recording session start:', error)
-        // Continue anyway - don't block the session
-      }
-    }
-
-    // Start countdown timer if time limit is set (independent of recording)
-    if (sessionTimeLimit) {
-      const timeInSeconds = sessionTimeLimit * 60
-      setTimeRemaining(timeInSeconds)
-      setIsTimerActive(true)
-      console.log(`⏱️ Started countdown timer: ${sessionTimeLimit} minutes (${timeInSeconds} seconds)`)
-    }
-
-    // STEP 1: Start recording FIRST (get camera/mic permissions before agent speaks)
+    // STEP 2: Start recording FIRST (get camera/mic permissions before agent speaks)
     if (recordingPreference !== 'none') {
       console.log('🎬 Pre-initializing recording to get permissions before agent starts speaking...')
       await startSessionRecording()
       console.log('✅ Recording ready - now safe to start ElevenLabs agent')
     }
 
-    // STEP 2: Load knowledge and questions
+    // STEP 3: Load knowledge and questions
     const loadedContext = await loadKnowledgeContext()
     console.log('🔄 Knowledge loaded in startSession:', loadedContext ? `${loadedContext.documents?.length || 0} documents` : 'No context')
 
     const loadedQuestions = await loadStructuredQuestions()
     console.log('🔄 Questions loaded in startSession:', loadedQuestions.length, 'questions')
 
-    // STEP 3: Initialize ElevenLabs conversation (agent can start speaking now)
+    // STEP 4: Initialize ElevenLabs conversation (agent can start speaking now)
     console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...')
     await initializeConversation(loadedContext, loadedQuestions)
-  }, [isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation, user, scenarioId, companyId, scenarioContext, language, agentId, sessionTimeLimit])
+  }, [session, isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation])
 
   /**
    * Stop the avatar session
    */
   const stopSession = useCallback(async () => {
     // Guard: Prevent duplicate saves
-    if (isSavingSessionRef.current) {
+    if (session.isSavingRef.current) {
       console.log('⚠️ Session save already in progress, skipping duplicate call')
       return
     }
@@ -911,14 +857,12 @@ Ask specific, factual questions based on the company knowledge context provided.
     }
 
     try {
-      // Set the guard flag immediately
-      isSavingSessionRef.current = true
+      // Set the guard flag and show saving indicator
+      session.markSessionSaving(true)
 
       // Stop the timer immediately to prevent further calls
-      setIsTimerActive(false)
+      session.stopTimer()
 
-      // Show saving indicator immediately
-      setIsSavingSession(true)
       console.log('🛑 Stopping training session...')
 
       // Get conversation ID from the service before stopping
@@ -929,11 +873,9 @@ Ask specific, factual questions based on the company knowledge context provided.
       await conversationService.stop()
       setConversationService(null)
       setIsInitialized(false)
-      setIsSessionActive(false)
 
       // Reset start session guard to allow new session
-      isStartingSessionRef.current = false
-      console.log('🔓 Session start guard reset (session stopped)')
+      session.setStartingSession(false)
 
       // IMPORTANT: Wait for recording to fully stop before saving
       if (recordingPreference !== 'none') {
@@ -976,20 +918,20 @@ Ask specific, factual questions based on the company knowledge context provided.
       const employeeId = user.id
 
       // Save the session to database using the existing sessionId
-      if (!sessionId) {
+      if (!session.sessionId) {
         console.error('❌ No sessionId available for saving session')
         alert('Session ID not found. Cannot save session.')
         return
       }
 
-      console.log('💾 Saving training session with predefined ID:', sessionId)
+      console.log('💾 Saving training session with predefined ID:', session.sessionId)
 
       // Use the conversationId we captured earlier
       console.log('🆔 Storing ElevenLabs conversation ID:', conversationId)
 
       // Create session record with the existing sessionId
       const sessionRecord = {
-        id: sessionId,
+        id: session.sessionId,
         employee_id: employeeId,
         assignment_id: scenarioId || 'unknown',
         company_id: companyId,
@@ -1080,7 +1022,7 @@ Ask specific, factual questions based on the company knowledge context provided.
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // Redirect to the transcript page
-      router.push(`/employee/sessions/${sessionId}`)
+      router.push(`/employee/sessions/${session.sessionId}`)
 
     } catch (error: any) {
       console.error('❌ Failed to save training session:', error)
@@ -1088,14 +1030,13 @@ Ask specific, factual questions based on the company knowledge context provided.
       console.error('Error details:', errorMessage)
 
       // Reset the guard flags to allow retry
-      isSavingSessionRef.current = false
-      isStartingSessionRef.current = false
+      session.markSessionSaving(false)
+      session.setStartingSession(false)
 
       // Still allow the user to continue, just show an error
       alert(`Failed to save training session: ${errorMessage}\n\nPlease try again or contact support.`)
-      setIsSavingSession(false)
     }
-  }, [conversationService, user, scenarioContext, scenarioId, companyId, language, agentId, knowledgeContext, router, sessionId, recordingPreference, saveSessionRecording, stopSessionRecording])
+  }, [session, conversationService, user, scenarioContext, scenarioId, companyId, language, agentId, knowledgeContext, router, recordingPreference, saveSessionRecording, stopSessionRecording])
 
   /**
    * Handle volume change
@@ -1150,7 +1091,7 @@ Ask specific, factual questions based on the company knowledge context provided.
   return (
     <div className={`w-full max-w-4xl mx-auto ${className} relative`}>
       {/* Saving Session Overlay */}
-      {isSavingSession && (
+      {session.isSavingSession && (
         <div className="absolute inset-0 bg-white bg-opacity-95 z-50 flex items-center justify-center rounded-lg">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
@@ -1170,7 +1111,7 @@ Ask specific, factual questions based on the company knowledge context provided.
           {/* Header - Centered Title */}
           <div className="text-center mb-8 md:mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              {isTheoryMode ? 'Theory Q&A Session' : 'Service Practice Session'}
+              {isTheoryMode ? t('session.theoryTitle') : t('session.servicePracticeTitle')}
             </h2>
           </div>
 
@@ -1296,15 +1237,15 @@ Ask specific, factual questions based on the company knowledge context provided.
           {/* Timer and Controls - Centered */}
           <div className="flex flex-col items-center gap-4 mt-8 md:mt-6">
             {/* Countdown Timer - Above Button - Much smaller on mobile */}
-            {isSessionActive && isTimerActive && timeRemaining !== null && (
+            {isSessionActive && session.isTimerActive && session.timeRemaining !== null && (
               <div className="flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 md:border-2 rounded-lg md:rounded-xl px-3 py-1.5 md:px-8 md:py-4 shadow-md md:shadow-lg">
                 <div className="text-[7px] md:text-xs font-semibold text-blue-600 uppercase tracking-wide mb-0 md:mb-1">Time Remaining</div>
                 <div className={`text-xl md:text-6xl font-bold tabular-nums leading-tight ${
-                  timeRemaining <= 60 ? 'text-red-600 animate-pulse' :
-                  timeRemaining <= 180 ? 'text-orange-600' :
+                  session.timeRemaining <= 60 ? 'text-red-600 animate-pulse' :
+                  session.timeRemaining <= 180 ? 'text-orange-600' :
                   'text-blue-600'
                 }`}>
-                  {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                  {Math.floor(session.timeRemaining / 60)}:{(session.timeRemaining % 60).toString().padStart(2, '0')}
                 </div>
                 <div className="text-[7px] md:text-xs text-gray-500 mt-0 md:mt-1">minutes</div>
               </div>
@@ -1318,7 +1259,7 @@ Ask specific, factual questions based on the company knowledge context provided.
                 className="inline-flex items-center px-6 py-3 bg-green-600 text-white text-lg rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-lg"
               >
                 <Play className="w-5 h-5 mr-2" />
-                {isInitialized ? 'Connecting...' : 'Start Session'}
+                {isInitialized ? t('session.connecting') : t('session.startSession')}
               </button>
             ) : (
               <button
@@ -1498,14 +1439,14 @@ Ask specific, factual questions based on the company knowledge context provided.
                 {recordingPreference === 'audio' ? '🎤 Recording' : '🎥 Recording'}
               </>
             ) : (
-              <>{recordingPreference === 'audio' ? '🎤 Ready' : '🎥 Ready'}</>
+              <>{recordingPreference === 'audio' ? t('session.audioReady') : t('session.videoReady')}</>
             )}
           </span>
         )}
       </div>
       {recordingPreference !== 'none' && (
         <div className="mt-2 text-center text-sm text-gray-600">
-          {recordingPreference === 'audio' ? 'Audio Recording Enabled' : 'Screen + Audio Recording Enabled'}
+          {recordingPreference === 'audio' ? t('session.audioRecordingEnabled') : t('session.screenAudioRecordingEnabled')}
         </div>
       )}
     </div>

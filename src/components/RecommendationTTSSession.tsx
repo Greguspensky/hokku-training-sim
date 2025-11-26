@@ -7,7 +7,9 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVideoRecording } from '@/hooks/useVideoRecording'
+import { useTrainingSession } from '@/hooks/useTrainingSession'
 import { resolveVoiceForQuestion } from '@/lib/voice-resolver'
+import { useTranslations } from 'next-intl'
 
 interface RecommendationQuestion {
   id: string
@@ -53,14 +55,24 @@ export function RecommendationTTSSession({
 }: RecommendationTTSSessionProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const t = useTranslations('training')
 
-  // Session state
+  // ✨ NEW: Use consolidated training session hook (for session ID and attempt recording)
+  const session = useTrainingSession({
+    companyId,
+    scenarioId,
+    userId: user?.id,
+    trainingMode: 'recommendation_tts',
+    language,
+    assignmentId
+  })
+
+  // Component-specific session state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null)
   const [questionStartTime, setQuestionStartTime] = useState<Date | null>(null)
   const [completedQuestions, setCompletedQuestions] = useState<number[]>([])
-  const [sessionId, setSessionId] = useState<string | null>(null)
 
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState(0)
@@ -162,41 +174,10 @@ export function RecommendationTTSSession({
 
   const initializeSession = async () => {
     try {
-      const newSessionId = crypto.randomUUID()
-      setSessionId(newSessionId)
+      // ✨ Use hook to initialize session (generates ID and records attempt)
+      await session.initializeSession()
       setSessionStartTime(new Date())
-      console.log('✅ Initialized TTS recommendation session:', newSessionId)
-
-      // Record the attempt immediately (counts even if user abandons session)
-      if (user && scenarioId) {
-        try {
-          console.log('📊 Recording session start for attempt counting...')
-
-          const response = await fetch('/api/start-training-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: newSessionId,
-              employeeId: user.id,
-              assignmentId: assignmentId || 'standalone',
-              companyId: companyId,
-              scenarioId: scenarioId,
-              trainingMode: 'recommendation_tts',
-              language: language,
-              agentId: voiceId || 'tts'
-            })
-          })
-
-          if (!response.ok) {
-            console.warn('⚠️ Failed to record session start, but continuing anyway')
-          } else {
-            console.log('✅ Session start recorded - attempt counted')
-          }
-        } catch (error) {
-          console.warn('⚠️ Error recording session start:', error)
-          // Continue anyway - don't block the session
-        }
-      }
+      console.log('✅ Initialized TTS recommendation session:', session.sessionId)
     } catch (error) {
       console.error('❌ Error initializing session:', error)
     }
@@ -527,7 +508,7 @@ export function RecommendationTTSSession({
         scenario_id: scenarioId,
         training_mode: 'recommendation_tts',
         language: language,
-        agent_id: sessionId || 'tts-session',
+        agent_id: session.sessionId || 'tts-session',
         knowledge_context: {
           documents: [],
           totalCharacters: 0,
@@ -549,7 +530,7 @@ export function RecommendationTTSSession({
 
       const sessionData = {
         id: savedSession,
-        sessionId,
+        sessionId: session.sessionId,
         scenarioId,
         sessionType: 'recommendation_tts',
         startTime: sessionStartTime,
@@ -578,7 +559,7 @@ export function RecommendationTTSSession({
 
       // Fallback - still call onSessionEnd with basic data
       const sessionData = {
-        sessionId,
+        sessionId: session.sessionId,
         scenarioId,
         sessionType: 'recommendation_tts',
         startTime: sessionStartTime,
@@ -602,7 +583,7 @@ export function RecommendationTTSSession({
     console.log('🚀 Starting session from user button click (user gesture)')
 
     // Initialize session and record attempt FIRST
-    if (!sessionId) {
+    if (!session.sessionId) {
       await initializeSession()
     }
 
@@ -637,9 +618,9 @@ export function RecommendationTTSSession({
       <div className={`bg-white rounded-lg shadow-lg p-8 text-center ${className}`}>
         <div className="flex flex-col items-center justify-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600"></div>
-          <h2 className="text-2xl font-bold text-gray-900">Saving video recording...</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('recommendationTTS.savingVideo')}</h2>
           <p className="text-gray-600">
-            Please wait while we upload your training session video.
+            {t('recommendationTTS.uploadingVideo')}
           </p>
         </div>
       </div>
@@ -649,19 +630,19 @@ export function RecommendationTTSSession({
   if (!isSessionActive) {
     return (
       <div className={`bg-white rounded-lg shadow-lg p-8 text-center ${className}`}>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">🎯 Situationships Training</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('recommendationTTS.trainingTitle')}</h2>
         <p className="text-gray-600 mb-6">
-          Ready to start your recommendation training session with {questions.length} questions
+          {t('recommendationTTS.readyToStart', { count: questions.length })}
         </p>
         <p className="text-sm text-gray-500 mb-8">
-          Each question will be read aloud with {formatTime(questionDurationSeconds)} to respond via video
+          {t('recommendationTTS.eachQuestionRead', { time: formatTime(questionDurationSeconds) })}
         </p>
         <button
           onClick={startSession}
           className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 shadow-lg transform transition hover:scale-105"
         >
           <Play className="w-5 h-5 mr-2" />
-          Start TTS Session
+          {t('recommendationTTS.startTTSSession')}
         </button>
 
         {/* Hidden video element for preview - always present so ref is available */}
@@ -682,7 +663,7 @@ export function RecommendationTTSSession({
       <div className="bg-purple-600 text-white p-6 rounded-t-lg">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">
-            Question {currentQuestionIndex + 1} of {questions.length}
+            {t('recommendationTTS.questionProgress', { current: currentQuestionIndex + 1, total: questions.length })}
           </h2>
           <div className="text-sm opacity-90">
             {scenario?.title}
@@ -697,7 +678,7 @@ export function RecommendationTTSSession({
           <div className={`text-6xl font-bold ${getTimerColor()} mb-2`}>
             {formatTime(timeRemaining)}
           </div>
-          <p className="text-gray-600">Time Remaining</p>
+          <p className="text-gray-600">{t('recommendationTTS.timeRemaining')}</p>
         </div>
 
         {/* Question Text */}
@@ -705,13 +686,13 @@ export function RecommendationTTSSession({
           {!isLoadingTTS ? (
             <div className="flex items-center justify-center gap-4">
               <h3 className="text-2xl font-semibold text-gray-900 text-center leading-relaxed flex-1">
-                {currentQuestion?.question_text ? stripAudioTags(currentQuestion.question_text) : 'Loading question...'}
+                {currentQuestion?.question_text ? stripAudioTags(currentQuestion.question_text) : t('recommendationTTS.loadingQuestion')}
               </h3>
               <button
                 onClick={playTTS}
                 disabled={!audioUrl || isLoadingTTS}
                 className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white transition-colors"
-                title="Play question audio"
+                title={t('recommendationTTS.playQuestionAudio')}
               >
                 <Play className="w-5 h-5 ml-0.5" />
               </button>
@@ -726,7 +707,7 @@ export function RecommendationTTSSession({
           {isLoadingTTS && (
             <div className="flex items-center text-blue-600">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-              Loading audio...
+              {t('recommendationTTS.loadingAudio')}
             </div>
           )}
           {ttsError && (
@@ -738,7 +719,7 @@ export function RecommendationTTSSession({
           {!isLoadingTTS && !ttsError && (
             <div className="flex items-center text-green-600">
               <Volume2 className="w-4 h-4 mr-2" />
-              Audio playing automatically
+              {t('recommendationTTS.audioPlayingAuto')}
             </div>
           )}
         </div>
@@ -762,7 +743,7 @@ export function RecommendationTTSSession({
           {videoRecording.isRecording && (
             <div className="absolute top-4 right-4 flex items-center bg-red-600 text-white px-3 py-1 rounded-full text-sm">
               <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-              Recording
+              {t('recommendationTTS.recording')}
             </div>
           )}
         </div>
@@ -775,7 +756,7 @@ export function RecommendationTTSSession({
               className="inline-flex items-center px-6 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <SkipForward className="w-5 h-5 mr-2" />
-              Next Question
+              {t('recommendationTTS.nextQuestion')}
             </button>
           ) : (
             <button
@@ -783,7 +764,7 @@ export function RecommendationTTSSession({
               className="inline-flex items-center px-6 py-3 text-lg font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
               <StopCircle className="w-5 h-5 mr-2" />
-              End Session
+              {t('recommendationTTS.endSession')}
             </button>
           )}
         </div>
@@ -791,7 +772,7 @@ export function RecommendationTTSSession({
         {/* Progress Bar */}
         <div className="mt-8">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>Progress</span>
+            <span>{t('recommendationTTS.progress')}</span>
             <span>{Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
