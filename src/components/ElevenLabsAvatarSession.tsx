@@ -247,7 +247,7 @@ export function ElevenLabsAvatarSession({
 
       // Use the sessionId that was already generated in startSession
       // (No longer generating it here since we need it earlier for attempt counting)
-      const currentSessionId = sessionIdRef.current
+      const currentSessionId = session.sessionId
       if (!currentSessionId) {
         console.error('❌ No sessionId found - should have been generated in startSession')
         throw new Error('Session ID not initialized')
@@ -614,8 +614,7 @@ Ask specific, factual questions based on the company knowledge context provided.
       console.log('✅ ElevenLabs Avatar Session initialized successfully')
 
       // Release guard flag after successful initialization
-      isStartingSessionRef.current = false
-      console.log('🔓 Session start guard released (success)')
+      session.setStartingSession(false)
 
     } catch (error) {
       console.error('❌ Failed to initialize avatar session:', error)
@@ -626,8 +625,7 @@ Ask specific, factual questions based on the company knowledge context provided.
       setError(errorMessage)
 
       // Release guard flag on error so user can retry
-      isStartingSessionRef.current = false
-      console.log('🔓 Session start guard released (error)')
+      session.setStartingSession(false)
     }
   }, [agentId, language, volume, conversationService, isInitialized])
 
@@ -703,7 +701,7 @@ Ask specific, factual questions based on the company knowledge context provided.
    * Save session recording to Supabase
    */
   const saveSessionRecording = useCallback(async () => {
-    const currentSessionId = sessionIdRef.current
+    const currentSessionId = session.sessionId
     const currentConversationId = conversationService?.getConversationId()
 
     console.log(`🔍 Recording debug - SessionId: ${currentSessionId}, ConversationId: ${currentConversationId}`)
@@ -801,7 +799,7 @@ Ask specific, factual questions based on the company knowledge context provided.
     } catch (error) {
       console.error('❌ Failed to save recording:', error)
     }
-  }, [recordingPreference, conversationService])
+  }, [recordingPreference, conversationService, session])
 
   /**
    * Start the avatar session
