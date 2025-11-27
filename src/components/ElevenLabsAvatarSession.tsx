@@ -92,6 +92,7 @@ export function ElevenLabsAvatarSession({
   const [knowledgeContext, setKnowledgeContext] = useState<ScenarioKnowledgeContext | null>(null)
   const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [error, setError] = useState<string | null>(null) // Component-specific errors (knowledge loading, conversation errors)
   const [structuredQuestions, setStructuredQuestions] = useState<any[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [sessionQuestions, setSessionQuestions] = useState<any[]>([])
