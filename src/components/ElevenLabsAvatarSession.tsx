@@ -81,6 +81,7 @@ export function ElevenLabsAvatarSession({
   // Component-specific state (ElevenLabs conversation management)
   const [conversationService, setConversationService] = useState<ElevenLabsConversationService | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [isSessionActive, setIsSessionActive] = useState(false) // Tracks if conversation is active
   const [isConnected, setIsConnected] = useState(false)
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false)
   const [isListening, setIsListening] = useState(false)
@@ -873,6 +874,7 @@ Ask specific, factual questions based on the company knowledge context provided.
       await conversationService.stop()
       setConversationService(null)
       setIsInitialized(false)
+      setIsSessionActive(false)
 
       // Reset start session guard to allow new session
       session.setStartingSession(false)
