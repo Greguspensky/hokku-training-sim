@@ -238,18 +238,18 @@ export function ElevenLabsAvatarSession({
   /**
    * Initialize the ElevenLabs conversation service
    */
-  const initializeConversation = useCallback(async (loadedKnowledgeContext?: any, loadedQuestions?: any[]) => {
+  const initializeConversation = useCallback(async (sessionIdParam: string, loadedKnowledgeContext?: any, loadedQuestions?: any[]) => {
     if (conversationService || isInitialized) return
 
     try {
       setError(null)
       console.log('🚀 Initializing ElevenLabs Avatar Session...')
 
-      // Use the sessionId that was already generated in startSession
-      // (No longer generating it here since we need it earlier for attempt counting)
-      const currentSessionId = session.sessionId
+      // Use the sessionId that was passed from startSession
+      // (Must be passed as parameter since state updates are async)
+      const currentSessionId = sessionIdParam
       if (!currentSessionId) {
-        console.error('❌ No sessionId found - should have been generated in startSession')
+        console.error('❌ No sessionId provided - should have been generated in startSession')
         throw new Error('Session ID not initialized')
       }
       console.log('🆔 Using session ID:', currentSessionId)
@@ -817,7 +817,8 @@ Ask specific, factual questions based on the company knowledge context provided.
     console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs')
 
     // STEP 0: Initialize session (generates ID and records attempt)
-    await session.initializeSession()
+    const newSessionId = await session.initializeSession()
+    console.log('✅ Session initialized with ID:', newSessionId)
 
     // STEP 1: Start countdown timer
     session.startTimer()
@@ -838,7 +839,7 @@ Ask specific, factual questions based on the company knowledge context provided.
 
     // STEP 4: Initialize ElevenLabs conversation (agent can start speaking now)
     console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...')
-    await initializeConversation(loadedContext, loadedQuestions)
+    await initializeConversation(newSessionId, loadedContext, loadedQuestions)
   }, [session, isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation])
 
   /**
@@ -1017,7 +1018,7 @@ Ask specific, factual questions based on the company knowledge context provided.
       console.log('🔄 Redirecting to transcript...')
 
       // Reset saving state before navigation
-      setIsSavingSession(false)
+      session.markSessionSaving(false)
 
       // Small delay to ensure UI updates
       await new Promise(resolve => setTimeout(resolve, 100))
