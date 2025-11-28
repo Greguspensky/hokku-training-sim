@@ -1,12 +1,9 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
 
-export async function middleware(request: NextRequest) {
-  // Simple pass-through - no complex auth checking
-  return NextResponse.next()
-}
+export default createMiddleware(routing);
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-}
+  // Match only internationalized pathnames
+  matcher: ['/', '/(ru|en)/:path*']
+};

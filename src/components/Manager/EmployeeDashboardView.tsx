@@ -6,10 +6,11 @@ import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import SessionCard from '@/components/Employee/SessionCard'
-import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
+import QuestionProgressDashboard from '@/components/Analytics/QuestionProgressDashboard'
 import EmployeeSessionAnalysis from '@/components/Manager/EmployeeSessionAnalysis'
 import { User, Calendar, Mail, TrendingUp, Clock, Award, AlertTriangle, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTranslations } from 'next-intl'
 
 interface EmployeeDashboardViewProps {
   employee: Employee
@@ -30,6 +31,7 @@ interface EmployeeDataCache {
 const employeeCache = new Map<string, EmployeeDataCache>()
 
 export default function EmployeeDashboardView({ employee }: EmployeeDashboardViewProps) {
+  const t = useTranslations()
   const { user: currentUser } = useAuth()
   const [activeTab, setActiveTab] = useState<'tracks' | 'history' | 'progress' | 'analysis'>('tracks')
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
@@ -141,7 +143,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
       // Try with authUserId first (the actual user auth ID), fallback to employee.id
       const employeeIdParam = authUserId || employee.id
       const companyResponse = await fetch(
-        `/api/company-sessions?company_id=${employee.company_id}&employee_id=${employeeIdParam}`
+        `/api/training/company-sessions?company_id=${employee.company_id}&employee_id=${employeeIdParam}`
       )
       const companyData = await companyResponse.json()
 
@@ -208,7 +210,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
 
       // Determine which API endpoint to use based on training mode
       const apiEndpoint = session.training_mode === 'theory'
-        ? '/api/assess-theory-session'
+        ? '/api/assessment/assess-theory-session'
         : '/api/assess-service-practice-session'
 
       const requestBody = session.training_mode === 'theory'
@@ -303,7 +305,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   }
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not available'
+    if (!dateString) return t('manager.employeeView.notAvailable')
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
       month: 'long',
@@ -324,24 +326,24 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
               </div>
               <div className="ml-3 flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Delete Training Session?
+                  {t('manager.feed.deleteSession')}
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  This will permanently delete:
+                  {t('manager.feed.deleteWarning')}
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 mb-4 ml-4">
-                  <li>• Session transcript and data</li>
-                  <li>• Video/audio recordings from storage</li>
-                  <li>• ElevenLabs conversation history</li>
+                  <li>• {t('manager.feed.deleteTranscript')}</li>
+                  <li>• {t('manager.feed.deleteVideo')}</li>
+                  <li>• {t('manager.feed.deleteElevenLabs')}</li>
                 </ul>
                 <p className="text-sm font-medium text-gray-900 mb-2">
-                  Session: {sessionToDelete.session_name}
+                  {t('manager.feed.sessionLabel')} {sessionToDelete.session_name}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Employee: {employee.name}
+                  {t('manager.feed.employeeLabel')} {employee.name}
                 </p>
                 <p className="text-sm text-red-600 font-semibold mt-3">
-                  This action cannot be undone.
+                  {t('manager.feed.cannotUndo')}
                 </p>
                 {deleteError && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -363,7 +365,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                 disabled={deletingSessionId !== null}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmDelete}
@@ -373,10 +375,10 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                 {deletingSessionId ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Deleting...
+                    {t('manager.feed.deleting')}
                   </>
                 ) : (
-                  'Delete Session'
+                  t('manager.feed.deleteButton')
                 )}
               </button>
             </div>
@@ -404,7 +406,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                 {employee.joined_at && (
                   <div className="flex items-center text-sm text-gray-600">
                     <Calendar className="w-4 h-4 mr-2" />
-                    Joined {formatDate(employee.joined_at)}
+                    {t('manager.progress.joined')} {formatDate(employee.joined_at)}
                   </div>
                 )}
               </div>
@@ -413,11 +415,11 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
           <div className="flex items-center space-x-2">
             {employee.has_joined ? (
               <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                Active
+                {t('manager.employeeView.active')}
               </span>
             ) : (
               <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
-                Invited
+                {t('manager.employeeView.invited')}
               </span>
             )}
           </div>
@@ -436,7 +438,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
-              Training Tracks
+              {t('manager.employeeView.trainingTracks')}
             </button>
             <button
               onClick={() => setActiveTab('history')}
@@ -446,7 +448,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
-              Training History
+              {t('manager.employeeView.trainingHistory')}
             </button>
             <button
               onClick={() => setActiveTab('progress')}
@@ -456,7 +458,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
-              Progress by Topic
+              {t('manager.employeeView.progressByTopic')}
             </button>
             <button
               onClick={() => setActiveTab('analysis')}
@@ -466,7 +468,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
-              Session Analysis
+              {t('manager.employeeView.sessionAnalysis')}
             </button>
           </nav>
         </div>
@@ -490,10 +492,10 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                 <div className="text-center py-12">
                   <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-3" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Training Tracks Assigned
+                    {t('manager.employeeView.noTracksAssigned')}
                   </h3>
                   <p className="text-gray-500">
-                    This employee hasn't been assigned any training tracks yet.
+                    {t('manager.employeeView.noTracksDescription')}
                   </p>
                 </div>
               ) : (
@@ -529,19 +531,19 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                       <div className="text-3xl font-bold text-blue-600 mb-2">
                         {historyStats.totalSessions}
                       </div>
-                      <div className="text-sm text-gray-600">Total Sessions</div>
+                      <div className="text-sm text-gray-600">{t('employee.dashboard.statsTotal')}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-6 text-center">
                       <div className="text-3xl font-bold text-green-600 mb-2">
                         {trainingSessionsService.formatDuration(historyStats.totalDuration)}
                       </div>
-                      <div className="text-sm text-gray-600">Total Training Time</div>
+                      <div className="text-sm text-gray-600">{t('manager.employeeView.totalTrainingTime')}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-6 text-center">
                       <div className="text-3xl font-bold text-purple-600 mb-2">
                         {historyStats.completedThisWeek}
                       </div>
-                      <div className="text-sm text-gray-600">Completed This Week</div>
+                      <div className="text-sm text-gray-600">{t('employee.dashboard.statsWeek')}</div>
                     </div>
                   </div>
 
@@ -550,10 +552,10 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
                     <div className="text-center py-12">
                       <Clock className="w-12 h-12 mx-auto text-gray-400 mb-3" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        No Training Sessions Yet
+                        {t('manager.feed.noSessionsYet')}
                       </h3>
                       <p className="text-gray-500">
-                        This employee hasn't completed any training sessions yet.
+                        {t('manager.employeeView.noSessionsDescription')}
                       </p>
                     </div>
                   ) : (

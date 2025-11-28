@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scenarioService } from '@/lib/scenarios';
+import { apiErrorHandler, createSuccessResponse, createErrorResponse, parseRequestBody } from '@/lib/utils/api';
 // import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -15,14 +16,11 @@ export async function POST(request: NextRequest) {
       role: 'manager'
     };
 
-    const body = await request.json();
+    const body = await parseRequestBody<any>(request);
     const { company_id, name, description, target_audience } = body;
 
     if (!company_id || !name || !description || !target_audience) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return createErrorResponse('Missing required fields', 400);
     }
 
     const track = await scenarioService.createTrack({
@@ -32,22 +30,10 @@ export async function POST(request: NextRequest) {
       target_audience
     });
 
-    return NextResponse.json({
-      success: true,
-      track,
-      message: 'Track created successfully'
-    });
+    return createSuccessResponse({ track }, 'Track created successfully');
 
   } catch (error) {
-    console.error('Create track error:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create track' 
-      },
-      { status: 500 }
-    );
+    return apiErrorHandler(error, 'Create track');
   }
 }
 
@@ -57,28 +43,14 @@ export async function GET(request: NextRequest) {
     const companyId = searchParams.get('company_id');
 
     if (!companyId) {
-      return NextResponse.json(
-        { success: false, error: 'company_id is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('company_id is required', 400);
     }
 
     const tracks = await scenarioService.getTracks(companyId);
 
-    return NextResponse.json({
-      success: true,
-      tracks
-    });
+    return createSuccessResponse({ tracks });
 
   } catch (error) {
-    console.error('Get tracks error:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch tracks' 
-      },
-      { status: 500 }
-    );
+    return apiErrorHandler(error, 'Get tracks');
   }
 }

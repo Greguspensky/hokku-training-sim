@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Minus, BarChart3, Lightbulb, Target, Sparkles
 import ReactMarkdown from 'react-markdown'
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '@/lib/languages'
 import KnowledgeAnalysisSection from '@/components/Manager/KnowledgeAnalysisSection'
+import { useTranslations } from 'next-intl'
 
 interface MetricSummary {
   empathy: number
@@ -29,6 +30,7 @@ interface EmployeeSessionAnalysisProps {
 }
 
 export default function EmployeeSessionAnalysis({ employeeId, employeeName, companyId }: EmployeeSessionAnalysisProps) {
+  const t = useTranslations()
   const [loading, setLoading] = useState(true)
   const [hasData, setHasData] = useState(false)
   const [summary, setSummary] = useState<any>(null)
@@ -64,7 +66,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/employee-service-practice-summary?employee_id=${employeeId}`)
+      const response = await fetch(`/api/employees/employee-service-practice-summary?employee_id=${employeeId}`)
       const result = await response.json()
 
       if (result.success && result.has_data) {
@@ -163,11 +165,11 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
   const getTrendText = (trend: string) => {
     switch (trend) {
       case 'improving':
-        return <span className="text-green-700 font-medium">Improving</span>
+        return <span className="text-green-700 font-medium">{t('sessionAnalysis.improving')}</span>
       case 'declining':
-        return <span className="text-red-700 font-medium">Declining</span>
+        return <span className="text-red-700 font-medium">{t('sessionAnalysis.declining')}</span>
       default:
-        return <span className="text-gray-700 font-medium">Stable</span>
+        return <span className="text-gray-700 font-medium">{t('sessionAnalysis.stable')}</span>
     }
   }
 
@@ -189,9 +191,9 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
         <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Session Data Available</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('sessionAnalysis.noDataTitle')}</h3>
         <p className="text-gray-600">
-          {employeeName} needs to complete at least 2 Service Practice sessions with analysis to view this report.
+          {t('sessionAnalysis.noDataDescription', { employeeName })}
         </p>
       </div>
     )
@@ -208,8 +210,8 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
       {/* Summary Stats */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-          <h2 className="text-xl font-bold">Overall Performance Summary</h2>
-          <p className="text-blue-100 text-sm mt-1">Service Practice Sessions Analysis</p>
+          <h2 className="text-xl font-bold">{t('sessionAnalysis.overallSummary')}</h2>
+          <p className="text-blue-100 text-sm mt-1">{t('sessionAnalysis.servicePracticeAnalysis')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
@@ -217,7 +219,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 font-medium">Total Sessions</p>
+                <p className="text-sm text-blue-600 font-medium">{t('sessionAnalysis.totalSessions')}</p>
                 <p className="text-3xl font-bold text-blue-900">{summary.total_sessions}</p>
               </div>
               <BarChart3 className="w-8 h-8 text-blue-400" />
@@ -228,7 +230,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
           <div className={`rounded-lg p-4 ${getScoreColor(summary.average_overall_score)}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium opacity-75">Average Score</p>
+                <p className="text-sm font-medium opacity-75">{t('sessionAnalysis.averageScore')}</p>
                 <p className="text-3xl font-bold">{summary.average_overall_score}/100</p>
               </div>
               <Target className="w-8 h-8 opacity-50" />
@@ -239,7 +241,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Performance Trend</p>
+                <p className="text-sm text-gray-600 font-medium">{t('sessionAnalysis.performanceTrend')}</p>
                 <div className="text-2xl font-bold mt-1">{getTrendText(summary.trend)}</div>
               </div>
               {getTrendIcon(summary.trend)}
@@ -252,12 +254,20 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-blue-600" />
-          Average Performance Metrics
+          {t('sessionAnalysis.averageMetrics')}
         </h3>
         <div className="space-y-3">
           {Object.entries(summary.average_metrics).map(([key, value]) => {
             if (key === 'deescalation' && value === undefined) return null
-            const label = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
+            // Map metric keys to translation keys
+            const metricTranslationKey = key === 'product_knowledge_accuracy'
+              ? 'productKnowledge'
+              : key === 'milestone_completion_rate'
+              ? 'milestoneCompletion'
+              : key.replace(/_/g, '')
+
+            const label = t(`assessment.metrics.${metricTranslationKey}`)
             const score = value as number
             return (
               <div key={key}>
@@ -287,7 +297,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-green-600" />
-            Consistent Strengths
+            {t('sessionAnalysis.consistentStrengths')}
           </h3>
           {patterns.top_strengths.length > 0 ? (
             <ul className="space-y-3">
@@ -306,7 +316,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">No recurring strengths identified yet.</p>
+            <p className="text-gray-500 text-sm">{t('sessionAnalysis.noStrengths')}</p>
           )}
         </div>
 
@@ -314,7 +324,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Target className="w-5 h-5 text-orange-600" />
-            Areas for Development
+            {t('sessionAnalysis.areasForDevelopment')}
           </h3>
           {patterns.top_improvements.length > 0 ? (
             <ul className="space-y-3">
@@ -333,7 +343,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">No recurring improvement areas identified yet.</p>
+            <p className="text-gray-500 text-sm">{t('sessionAnalysis.noImprovements')}</p>
           )}
         </div>
       </div>
@@ -350,7 +360,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
         <div className="px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
-            <h3 className="text-lg font-semibold">AI-Generated Coaching Analysis</h3>
+            <h3 className="text-lg font-semibold">{t('sessionAnalysis.aiCoachingAnalysis')}</h3>
           </div>
           {!generatingAi && (
             <div className="flex items-center gap-3">
@@ -376,7 +386,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
                 onClick={() => generateAiAnalysis(!!aiAnalysis)}
                 className="bg-white text-purple-700 px-4 py-2 rounded-lg font-medium hover:bg-purple-50 transition-colors text-sm"
               >
-                {aiAnalysis ? 'Redo Analysis' : 'Generate Analysis'}
+                {aiAnalysis ? t('sessionAnalysis.redoAnalysis') : t('sessionAnalysis.generateAnalysis')}
               </button>
             </div>
           )}
@@ -386,8 +396,8 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
           {generatingAi ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-12 h-12 animate-spin text-purple-600 mb-4" />
-              <p className="text-gray-700 font-medium">Analyzing {summary.total_sessions} sessions...</p>
-              <p className="text-gray-500 text-sm mt-1">This may take 10-30 seconds</p>
+              <p className="text-gray-700 font-medium">{t('sessionAnalysis.analyzingSessions', { count: summary.total_sessions })}</p>
+              <p className="text-gray-500 text-sm mt-1">{t('sessionAnalysis.analysisWait')}</p>
             </div>
           ) : aiAnalysis ? (
             <>
@@ -396,18 +406,18 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6 flex items-center justify-between">
                   <div className="flex items-center gap-6 text-sm">
                     <div>
-                      <span className="text-gray-600">Sessions analyzed:</span>{' '}
+                      <span className="text-gray-600">{t('sessionAnalysis.sessionsAnalyzed')}</span>{' '}
                       <span className="font-semibold text-gray-900">{analysisMetadata.sessions_analyzed}</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Generated:</span>{' '}
+                      <span className="text-gray-600">{t('sessionAnalysis.generated')}</span>{' '}
                       <span className="font-semibold text-gray-900">
                         {new Date(analysisMetadata.generated_at).toLocaleDateString()} at{' '}
                         {new Date(analysisMetadata.generated_at).toLocaleTimeString()}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Language:</span>{' '}
+                      <span className="text-gray-600">{t('sessionAnalysis.language')}</span>{' '}
                       <span className="font-semibold text-gray-900">
                         {SUPPORTED_LANGUAGES.find(l => l.code === analysisMetadata.language)?.flag}{' '}
                         {SUPPORTED_LANGUAGES.find(l => l.code === analysisMetadata.language)?.name}
@@ -416,7 +426,7 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
                   </div>
                   {summary && analysisMetadata.sessions_analyzed < summary.total_sessions && (
                     <div className="text-sm text-orange-700 bg-orange-100 px-3 py-1 rounded-lg">
-                      New sessions available
+                      {t('sessionAnalysis.newSessionsAvailable')}
                     </div>
                   )}
                 </div>
@@ -438,10 +448,10 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
             <div className="text-center py-8">
               <Sparkles className="w-12 h-12 mx-auto mb-3 text-purple-300" />
               <p className="text-gray-600">
-                Click "Generate Analysis" to get AI-powered coaching insights and personalized recommendations.
+                {t('sessionAnalysis.clickToGenerate')}
               </p>
               <p className="text-gray-500 text-sm mt-2">
-                The AI will analyze patterns across all {summary.total_sessions} sessions to provide actionable feedback.
+                {t('sessionAnalysis.aiWillAnalyze', { count: summary.total_sessions })}
               </p>
             </div>
           )}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scenarioService, type CreateScenarioData } from '@/lib/scenarios';
 import { getCurrentUser } from '@/lib/auth';
+import { apiErrorHandler, createSuccessResponse, createErrorResponse, parseRequestBody } from '@/lib/utils/api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     
     console.log('Using user:', demoUser);
 
-    const body = await request.json();
+    const body = await parseRequestBody<any>(request);
     const scenarioData: CreateScenarioData = {
       track_id: body.track_id,
       company_id: body.company_id,
@@ -43,66 +44,39 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields for all scenarios
     if (!scenarioData.track_id || !scenarioData.company_id) {
-      return NextResponse.json(
-        { success: false, error: 'track_id and company_id are required' },
-        { status: 400 }
-      );
+      return createErrorResponse('track_id and company_id are required', 400);
     }
 
     // Validate required fields based on scenario type
     if (scenarioData.scenario_type === 'service_practice') {
       if (!scenarioData.title) {
-        return NextResponse.json(
-          { success: false, error: 'Situation is required for service practice scenarios' },
-          { status: 400 }
-        );
+        return createErrorResponse('Situation is required for service practice scenarios', 400);
       }
       if (!scenarioData.client_behavior || !scenarioData.expected_response) {
-        return NextResponse.json(
-          { success: false, error: 'For service practice scenarios: client_behavior and expected_response are required' },
-          { status: 400 }
-        );
+        return createErrorResponse('For service practice scenarios: client_behavior and expected_response are required', 400);
       }
     }
 
     // For theory scenarios, validate topic selection
     if (scenarioData.scenario_type === 'theory') {
       if (!scenarioData.topic_ids || scenarioData.topic_ids.length === 0) {
-        return NextResponse.json(
-          { success: false, error: 'At least one topic must be selected for theory scenarios' },
-          { status: 400 }
-        );
+        return createErrorResponse('At least one topic must be selected for theory scenarios', 400);
       }
     }
 
     // For recommendations scenarios, validate question selection
     if (scenarioData.scenario_type === 'recommendations') {
       if (!scenarioData.recommendation_question_ids || scenarioData.recommendation_question_ids.length === 0) {
-        return NextResponse.json(
-          { success: false, error: 'At least one recommendation question must be selected for recommendations scenarios' },
-          { status: 400 }
-        );
+        return createErrorResponse('At least one recommendation question must be selected for recommendations scenarios', 400);
       }
     }
 
     const scenario = await scenarioService.createScenario(scenarioData);
 
-    return NextResponse.json({
-      success: true,
-      scenario,
-      message: 'Scenario created successfully'
-    });
+    return createSuccessResponse({ scenario }, 'Scenario created successfully');
 
   } catch (error) {
-    console.error('Create scenario error:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create scenario' 
-      },
-      { status: 500 }
-    );
+    return apiErrorHandler(error, 'Create scenario');
   }
 }
 
@@ -124,10 +98,7 @@ export async function GET(request: NextRequest) {
     const trackId = searchParams.get('track_id');
 
     if (!companyId && !trackId) {
-      return NextResponse.json(
-        { success: false, error: 'Either company_id or track_id parameter is required' },
-        { status: 400 }
-      );
+      return createErrorResponse('Either company_id or track_id parameter is required', 400);
     }
 
     let scenarios;
@@ -137,22 +108,10 @@ export async function GET(request: NextRequest) {
       scenarios = await scenarioService.getScenarios(companyId!);
     }
 
-    return NextResponse.json({
-      success: true,
-      scenarios,
-      count: scenarios.length
-    });
+    return createSuccessResponse({ scenarios, count: scenarios.length });
 
   } catch (error) {
-    console.error('Get scenarios error:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch scenarios' 
-      },
-      { status: 500 }
-    );
+    return apiErrorHandler(error, 'Get scenarios');
   }
 }
 

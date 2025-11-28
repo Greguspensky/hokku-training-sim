@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Employee } from '@/lib/employees'
 
 interface ScenarioAssignment {
@@ -31,6 +32,7 @@ interface EmployeeScenariosListProps {
 }
 
 export default function EmployeeScenariosList({ employee }: EmployeeScenariosListProps) {
+  const t = useTranslations('employees')
   const [scenarios, setScenarios] = useState<ScenarioAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
@@ -43,7 +45,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
     }
 
     try {
-      const response = await fetch(`/api/scenario-assignments?employee_id=${employee.id}`)
+      const response = await fetch(`/api/scenarios/scenario-assignments?employee_id=${employee.id}`)
       const data = await response.json()
 
       if (data.success) {
@@ -63,14 +65,14 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
   }, [employee.id])
 
   const handleRemoveScenario = async (assignmentId: string, scenarioTitle: string) => {
-    if (!confirm(`Are you sure you want to remove "${scenarioTitle}" from this employee?`)) {
+    if (!confirm(t('confirmRemoveScenario', { scenarioTitle }))) {
       return
     }
 
     setRemovingIds(prev => new Set([...prev, assignmentId]))
 
     try {
-      const response = await fetch(`/api/scenario-assignments?assignment_id=${assignmentId}`, {
+      const response = await fetch(`/api/scenarios/scenario-assignments?assignment_id=${assignmentId}`, {
         method: 'DELETE'
       })
 
@@ -99,7 +101,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
     setSavingAttempts(prev => new Set([...prev, assignmentId]))
 
     try {
-      const response = await fetch('/api/scenario-assignments', {
+      const response = await fetch('/api/scenarios/scenario-assignments', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,7 +151,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
         <svg className="mx-auto h-6 w-6 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
         </svg>
-        No individual scenarios assigned
+        {t('noIndividualScenarios')}
       </div>
     )
   }
@@ -164,9 +166,9 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed': return 'Completed'
-      case 'in_progress': return 'In Progress'
-      default: return 'Ready to Start'
+      case 'completed': return t('completed')
+      case 'in_progress': return t('inProgress')
+      default: return t('readyToStart')
     }
   }
 
@@ -181,9 +183,9 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
 
   const getScenarioTypeText = (type: string) => {
     switch (type) {
-      case 'theory': return 'Theory (Q&A)'
-      case 'service_practice': return 'Service Practice'
-      case 'recommendations': return 'Recommendations'
+      case 'theory': return t('theoryQA')
+      case 'service_practice': return t('servicePractice')
+      case 'recommendations': return t('recommendations')
       default: return type
     }
   }
@@ -206,7 +208,7 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
                 onClick={() => handleRemoveScenario(assignment.id, assignment.scenarios.title)}
                 disabled={removingIds.has(assignment.id)}
                 className="inline-flex items-center p-1 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Remove scenario from employee"
+                title={t('removeScenarioFromEmployee')}
               >
                 {removingIds.has(assignment.id) ? (
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -237,8 +239,8 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
               )}
             </div>
             <div className="flex items-center space-x-2">
-              <label className="text-xs text-gray-600" title="Leave empty for unlimited attempts">
-                Attempts limit:
+              <label className="text-xs text-gray-600" title={t('leaveEmptyForUnlimited')}>
+                {t('attemptsLimit')}
               </label>
               <div className="relative flex items-center">
                 <input
@@ -260,13 +262,13 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
                   disabled={savingAttempts.has(assignment.id)}
                   className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="∞"
-                  title="Leave empty for unlimited attempts"
+                  title={t('leaveEmptyForUnlimited')}
                 />
                 {assignment.max_attempts && !savingAttempts.has(assignment.id) && (
                   <button
                     onClick={() => handleUpdateAttemptsLimit(assignment.id, null)}
                     className="ml-1 text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Clear limit (set to unlimited)"
+                    title={t('clearLimit')}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -286,13 +288,13 @@ export default function EmployeeScenariosList({ employee }: EmployeeScenariosLis
           {assignment.notes && (
             <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-2">
               <p className="text-xs text-blue-700">
-                <strong>Manager's Note:</strong> {assignment.notes}
+                <strong>{t('managersNote')}</strong> {assignment.notes}
               </p>
             </div>
           )}
 
           <div className="mt-2 text-xs text-gray-400">
-            Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+            {t('assigned', { date: new Date(assignment.assigned_at).toLocaleDateString() })}
           </div>
         </div>
       ))}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Trophy, Users, BarChart3, TrendingUp, ExternalLink } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface EmployeeScore {
   score: number
@@ -41,6 +42,7 @@ export default function ServicePracticeAnalyticsDashboard({
   companyId: string
   showOpenButton?: boolean
 }) {
+  const t = useTranslations()
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +58,7 @@ export default function ServicePracticeAnalyticsDashboard({
 
       console.log('📊 Loading Service Practice analytics')
 
-      const response = await fetch(`/api/service-practice-analytics?company_id=${companyId}`)
+      const response = await fetch(`/api/assessment/service-practice-analytics?company_id=${companyId}`)
       const result = await response.json()
 
       if (response.ok && result.success) {
@@ -121,13 +123,13 @@ export default function ServicePracticeAnalyticsDashboard({
       <div className="bg-white rounded-lg shadow p-8">
         <div className="text-center">
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Analytics</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('manager.progress.errorLoadingAnalytics')}</h3>
           <p className="text-gray-500 mb-4">{error}</p>
           <button
             onClick={loadAnalytics}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Try Again
+            {t('manager.feed.tryAgain')}
           </button>
         </div>
       </div>
@@ -138,7 +140,7 @@ export default function ServicePracticeAnalyticsDashboard({
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
         <div className="text-gray-400 text-5xl mb-4">📊</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Service Practice Data Yet</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('manager.progress.noServicePracticeData')}</h3>
         <p className="text-gray-500">
           Service Practice sessions with scores will appear here once employees complete and analyze them.
         </p>
@@ -161,8 +163,8 @@ export default function ServicePracticeAnalyticsDashboard({
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Service Practice Analytics</h2>
-            <p className="text-gray-500 mt-1">Company-wide performance across all scenarios</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('manager.progress.servicePracticeAnalytics')}</h2>
+            <p className="text-gray-500 mt-1">{t('manager.progress.companyWidePerformance')}</p>
           </div>
           {showOpenButton && (
             <button
@@ -171,7 +173,7 @@ export default function ServicePracticeAnalyticsDashboard({
               title="Open in new window"
             >
               <ExternalLink className="w-5 h-5" />
-              <span className="text-sm font-medium">Open in New Window</span>
+              <span className="text-sm font-medium">{t('manager.progress.openInNewWindow')}</span>
             </button>
           )}
         </div>
@@ -181,7 +183,7 @@ export default function ServicePracticeAnalyticsDashboard({
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 font-medium">Scenarios</p>
+                <p className="text-sm text-blue-600 font-medium">{t('manager.progress.scenarios')}</p>
                 <p className="text-2xl font-bold text-blue-900">{data.total_scenarios}</p>
               </div>
               <Trophy className="w-8 h-8 text-blue-400" />
@@ -191,7 +193,7 @@ export default function ServicePracticeAnalyticsDashboard({
           <div className="bg-green-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-600 font-medium">Company Avg</p>
+                <p className="text-sm text-green-600 font-medium">{t('manager.progress.companyAvg')}</p>
                 <p className="text-2xl font-bold text-green-900">{companyAvgScore}/100</p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-400" />
@@ -201,7 +203,7 @@ export default function ServicePracticeAnalyticsDashboard({
           <div className="bg-purple-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-600 font-medium">Total Attempts</p>
+                <p className="text-sm text-purple-600 font-medium">{t('manager.progress.totalAttempts')}</p>
                 <p className="text-2xl font-bold text-purple-900">{totalAttempts}</p>
               </div>
               <BarChart3 className="w-8 h-8 text-purple-400" />
@@ -211,7 +213,7 @@ export default function ServicePracticeAnalyticsDashboard({
           <div className="bg-orange-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">Employees</p>
+                <p className="text-sm text-orange-600 font-medium">{t('manager.progress.employees')}</p>
                 <p className="text-2xl font-bold text-orange-900">{data.total_employees}</p>
               </div>
               <Users className="w-8 h-8 text-orange-400" />
@@ -298,26 +300,26 @@ export default function ServicePracticeAnalyticsDashboard({
 
       {/* Legend */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">Score Color Legend</h4>
+        <h4 className="text-sm font-medium text-gray-700 mb-2">{t('manager.progress.scoreColorLegend')}</h4>
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-green-200 border border-green-300"></div>
-            <span className="text-gray-600">Excellent (80-100)</span>
+            <span className="text-gray-600">{t('manager.progress.excellent')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-300"></div>
-            <span className="text-gray-600">Good (60-79)</span>
+            <span className="text-gray-600">{t('manager.progress.good')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-red-200 border border-red-300"></div>
-            <span className="text-gray-600">Needs Improvement (&lt;60)</span>
+            <span className="text-gray-600">{t('manager.progress.needsImprovement')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-300 font-bold">—</span>
-            <span className="text-gray-600">Not attempted</span>
+            <span className="text-gray-600">{t('manager.progress.notAttempted')}</span>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-2">Click on any score to view the full session details</p>
+        <p className="text-xs text-gray-500 mt-2">{t('manager.progress.clickToViewDetails')}</p>
       </div>
     </div>
   )

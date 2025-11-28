@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ElevenLabsAvatarSession } from '@/components/ElevenLabsAvatarSession'
+import { ElevenLabsAvatarSession } from '@/components/Training/ElevenLabsAvatarSession'
 import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '@/lib/avatar-types'
 
 export default function TestElevenLabsPage() {

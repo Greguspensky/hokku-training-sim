@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import TrainingTrackCard from '@/components/Employee/TrainingTrackCard'
 import IndividualScenariosCard from '@/components/Employee/IndividualScenariosCard'
-import UserHeader from '@/components/UserHeader'
-import QuestionProgressDashboard from '@/components/QuestionProgressDashboard'
+import UserHeader from '@/components/Shared/UserHeader'
+import QuestionProgressDashboard from '@/components/Analytics/QuestionProgressDashboard'
 import SessionCard from '@/components/Employee/SessionCard'
 import { useAuth } from '@/contexts/AuthContext'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
@@ -18,6 +19,7 @@ declare global {
 }
 
 export default function EmployeeDashboard() {
+  const t = useTranslations('employeeDashboard')
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [redirectTimeout, setRedirectTimeout] = useState<NodeJS.Timeout | null>(null)
@@ -46,8 +48,8 @@ export default function EmployeeDashboard() {
         const response = await fetch(`/api/employees?company_id=${user.company_id}`)
         const data = await response.json()
 
-        if (data.employees) {
-          const employee = data.employees.find((e: any) => e.email === user.email)
+        if (data.success && data.data?.employees) {
+          const employee = data.data.employees.find((e: any) => e.email === user.email)
           if (employee) {
             setEmployeeTableId(employee.id)
             console.log('📋 Found employee table ID:', employee.id)
@@ -68,7 +70,7 @@ export default function EmployeeDashboard() {
     }
 
     try {
-      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employeeTableId}`)
+      const response = await fetch(`/api/tracks/track-assignments-standalone?employee_id=${employeeTableId}`)
       const data = await response.json()
 
       if (data.success) {
@@ -190,7 +192,7 @@ export default function EmployeeDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -203,7 +205,7 @@ export default function EmployeeDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking authentication...</p>
+          <p className="text-gray-600">{t('checkingAuthentication')}</p>
         </div>
       </div>
     )
@@ -216,8 +218,8 @@ export default function EmployeeDashboard() {
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* User Header */}
         <UserHeader
-          title="Training Dashboard"
-          subtitle="Welcome to your training portal"
+          title={t('trainingDashboard')}
+          subtitle={t('welcomePortal')}
         />
 
         {/* Tabs */}
@@ -232,7 +234,7 @@ export default function EmployeeDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                My Training Tracks
+                {t('myTrainingTracks')}
               </button>
               <button
                 onClick={() => setActiveTab('history')}
@@ -242,7 +244,7 @@ export default function EmployeeDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                Training History
+                {t('trainingHistory')}
               </button>
               <button
                 onClick={() => setActiveTab('progress')}
@@ -252,7 +254,7 @@ export default function EmployeeDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                Progress by Topic
+                {t('progressByTopic')}
               </button>
             </nav>
           </div>
@@ -263,7 +265,7 @@ export default function EmployeeDashboard() {
           <>
             {/* Training Tracks Section */}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">My Training Tracks</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('myTrainingTracks')}</h2>
 
           {loading ? (
             <div className="space-y-4">
@@ -280,16 +282,16 @@ export default function EmployeeDashboard() {
               <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Training Tracks Assigned Yet</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noTracksAssignedYet')}</h3>
               <p className="text-gray-500 mb-4">
-                Your manager hasn't assigned any training tracks to you yet. Once assigned, you'll see them here and can start your training sessions.
+                {t('noTracksDescription')}
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4 max-w-md mx-auto">
                 <p className="text-sm text-blue-700">
-                  <strong>What happens next?</strong><br />
-                  • Your manager will assign specific training tracks<br />
-                  • You'll see available scenarios and exercises<br />
-                  • Track your progress and achievements
+                  <strong>{t('whatHappensNext')}</strong><br />
+                  • {t('managerWillAssign')}<br />
+                  • {t('youWillSeeScenarios')}<br />
+                  • {t('trackProgressAchievements')}
                 </p>
               </div>
             </div>
@@ -316,41 +318,41 @@ export default function EmployeeDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6 text-center">
                 <div className="text-3xl font-bold text-blue-600 mb-2">{historyStats.totalSessions}</div>
-                <div className="text-sm text-gray-600">Total Sessions</div>
+                <div className="text-sm text-gray-600">{t('totalSessions')}</div>
               </div>
               <div className="bg-white rounded-lg shadow p-6 text-center">
                 <div className="text-3xl font-bold text-green-600 mb-2">
                   {trainingSessionsService.formatDuration(historyStats.totalDuration)}
                 </div>
-                <div className="text-sm text-gray-600">Total Training Time</div>
+                <div className="text-sm text-gray-600">{t('totalTrainingTime')}</div>
               </div>
               <div className="bg-white rounded-lg shadow p-6 text-center">
                 <div className="text-3xl font-bold text-purple-600 mb-2">{historyStats.completedThisWeek}</div>
-                <div className="text-sm text-gray-600">Completed This Week</div>
+                <div className="text-sm text-gray-600">{t('completedThisWeek')}</div>
               </div>
             </div>
 
             {/* Sessions List */}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Training Sessions</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('trainingSessions')}</h2>
 
               {historyLoading ? (
                 <div className="bg-white rounded-lg shadow p-12 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading training history...</p>
+                  <p className="text-gray-600">{t('loadingHistory')}</p>
                 </div>
               ) : sessions.length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-12 text-center">
                   <div className="text-gray-400 text-5xl mb-4">📚</div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Training Sessions Yet</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noSessionsYet')}</h3>
                   <p className="text-gray-500 mb-4">
-                    You haven't completed any training sessions yet. Start your first training session to see it here.
+                    {t('noSessionsDescription')}
                   </p>
                   <button
                     onClick={() => setActiveTab('tracks')}
                     className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
                   >
-                    Start Training
+                    {t('startTraining')}
                   </button>
                 </div>
               ) : (

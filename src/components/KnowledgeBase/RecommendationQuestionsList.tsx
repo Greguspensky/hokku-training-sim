@@ -28,7 +28,7 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
 
   const loadQuestions = async () => {
     try {
-      const response = await fetch(`/api/recommendation-questions?company_id=${companyId}`)
+      const response = await fetch(`/api/questions/recommendation-questions?company_id=${companyId}`)
       const data = await response.json()
 
       if (data.success) {
@@ -70,7 +70,7 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
     try {
       console.log('🎵 Previewing audio for:', text)
 
-      const response = await fetch('/api/elevenlabs-tts', {
+      const response = await fetch('/api/elevenlabs/elevenlabs-tts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +116,7 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
     if (!editingQuestion) return
 
     try {
-      const response = await fetch(`/api/recommendation-questions/${editingQuestion.id}`, {
+      const response = await fetch(`/api/questions/recommendation-questions/${editingQuestion.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +146,7 @@ export default function RecommendationQuestionsList({ companyId, refreshTrigger 
     if (!confirm('Are you sure you want to delete this recommendation question?')) return
 
     try {
-      const response = await fetch(`/api/recommendation-questions/${questionId}`, {
+      const response = await fetch(`/api/questions/recommendation-questions/${questionId}`, {
         method: 'DELETE'
       })
 

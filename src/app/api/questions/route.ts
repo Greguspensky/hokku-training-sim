@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiErrorHandler, createSuccessResponse, createErrorResponse, parseRequestBody } from '@/lib/utils/api';
 import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
-    const { question_ids } = await request.json()
+    const { question_ids } = await parseRequestBody<any>(request)
 
     if (!question_ids || !Array.isArray(question_ids) || question_ids.length === 0) {
       return NextResponse.json(
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { question_ids } = await request.json()
+    const { question_ids } = await parseRequestBody<any>(request)
 
     if (!question_ids || !Array.isArray(question_ids) || question_ids.length === 0) {
       return NextResponse.json(

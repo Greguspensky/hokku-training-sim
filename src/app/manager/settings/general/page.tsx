@@ -9,15 +9,20 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import UserHeader from '@/components/UserHeader'
+import { useTranslations, useLocale } from 'next-intl'
+import UserHeader from '@/components/Shared/UserHeader'
 import { SUPPORTED_LANGUAGES } from '@/lib/languages'
 
 export default function GeneralSettingsPage() {
   const { user, loading: authLoading } = useAuth()
+  const t = useTranslations()
+  const currentLocale = useLocale() // Get actual current locale from next-intl
   const companyId = user?.company_id
 
   const [defaultLanguage, setDefaultLanguage] = useState('en')
   const [savingLanguage, setSavingLanguage] = useState(false)
+  const [uiLanguage, setUiLanguage] = useState(currentLocale) // Initialize with current locale
+  const [savingUiLanguage, setSavingUiLanguage] = useState(false)
   const [theoryRecordingOptions, setTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
@@ -35,13 +40,19 @@ export default function GeneralSettingsPage() {
   const loadCompanySettings = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/company-settings?company_id=${companyId}`)
+      const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
       const data = await response.json()
       if (data.success && data.settings) {
+        // Use current locale as fallback if database doesn't have ui_language set
+        const uiLang = data.settings.ui_language || currentLocale
         setDefaultLanguage(data.settings.default_training_language || 'en')
+        setUiLanguage(uiLang)
         setTheoryRecordingOptions(data.settings.theory_recording_options || ['audio', 'audio_video'])
         setServicePracticeRecordingOptions(data.settings.service_practice_recording_options || ['audio', 'audio_video'])
         setShowSessionNamesToEmployees(data.settings.show_session_names_to_employees || false)
+
+        // Set cookie for server-side locale detection
+        document.cookie = `NEXT_LOCALE=${uiLang}; path=/; max-age=31536000; SameSite=Lax`
       }
     } catch (error) {
       console.error('Failed to load company settings:', error)
@@ -53,7 +64,7 @@ export default function GeneralSettingsPage() {
   const handleLanguageChange = async (languageCode: string) => {
     setSavingLanguage(true)
     try {
-      const response = await fetch('/api/company-settings', {
+      const response = await fetch('/api/settings/company-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -77,11 +88,44 @@ export default function GeneralSettingsPage() {
     }
   }
 
+  const handleUiLanguageChange = async (languageCode: string) => {
+    setSavingUiLanguage(true)
+    try {
+      const response = await fetch('/api/settings/company-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: companyId,
+          ui_language: languageCode
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setUiLanguage(languageCode)
+        console.log('✅ UI language updated to:', languageCode)
+
+        // Set cookie for server-side locale detection
+        document.cookie = `NEXT_LOCALE=${languageCode}; path=/; max-age=31536000; SameSite=Lax`
+
+        // Reload page to apply new language
+        window.location.reload()
+      } else {
+        alert('Failed to update UI language')
+      }
+    } catch (error) {
+      console.error('Failed to update UI language:', error)
+      alert('Failed to update UI language')
+    } finally {
+      setSavingUiLanguage(false)
+    }
+  }
+
   const handleRecordingOptionsChange = async (scenarioType: 'theory' | 'service_practice', options: string[]) => {
     setSavingRecordingOptions(true)
     try {
       const settingKey = scenarioType === 'theory' ? 'theory_recording_options' : 'service_practice_recording_options'
-      const response = await fetch('/api/company-settings', {
+      const response = await fetch('/api/settings/company-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +156,7 @@ export default function GeneralSettingsPage() {
   const handleSessionNamesVisibilityChange = async (showNames: boolean) => {
     setSavingVisibility(true)
     try {
-      const response = await fetch('/api/company-settings', {
+      const response = await fetch('/api/settings/company-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +185,7 @@ export default function GeneralSettingsPage() {
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     )
@@ -150,12 +194,15 @@ export default function GeneralSettingsPage() {
   if (!companyId) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <UserHeader />
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-4 py-6 sm:px-0">
+            <UserHeader
+              title={t('manager.settings.general')}
+              subtitle={t('manager.settings.generalDescription')}
+            />
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-red-800 mb-2">Company ID Missing</h2>
-              <p className="text-red-700">Your account is not associated with a company. Please contact your administrator.</p>
+              <h2 className="text-xl font-semibold text-red-800 mb-2">{t('header.companyIdMissing')}</h2>
+              <p className="text-red-700">{t('header.companyIdMissing')}</p>
             </div>
           </div>
         </div>
@@ -165,30 +212,25 @@ export default function GeneralSettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <UserHeader />
-
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">General Settings</h1>
-            <p className="mt-2 text-gray-600">
-              Configure default training language and recording options for your team.
-            </p>
-          </div>
+          <UserHeader
+            title={t('manager.settings.general')}
+            subtitle={t('manager.settings.generalDescription')}
+          />
 
           {loading ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading settings...</p>
+              <p className="text-gray-600">{t('manager.settings.loadingSettings')}</p>
             </div>
           ) : (
             <div className="space-y-6">
               {/* Default Language Section */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Training Language by Default</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('manager.settings.defaultTrainingLanguage')}</h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  This will be the default language for all employee training sessions
+                  {t('manager.settings.defaultTrainingLanguageDescription')}
                 </p>
 
                 <div className="max-w-md">
@@ -214,24 +256,54 @@ export default function GeneralSettingsPage() {
                 </div>
               </div>
 
+              {/* UI Language Section */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('manager.settings.uiLanguage')}</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  {t('manager.settings.uiLanguageDescription')}
+                </p>
+
+                <div className="max-w-md">
+                  <div className="relative">
+                    <select
+                      value={uiLanguage}
+                      onChange={(e) => handleUiLanguageChange(e.target.value)}
+                      disabled={savingUiLanguage}
+                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md disabled:bg-gray-100"
+                    >
+                      <option value="en">🇬🇧 English</option>
+                      <option value="ru">🇷🇺 Русский (Russian)</option>
+                    </select>
+                    {savingUiLanguage && (
+                      <div className="absolute right-8 top-2.5">
+                        <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    ⚠️ {t('manager.settings.uiLanguageReloadWarning')}
+                  </p>
+                </div>
+              </div>
+
               {/* Session Names Visibility Section */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Names Visibility</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('manager.settings.sessionNamesVisibility')}</h2>
                 <p className="text-sm text-gray-600 mb-4">
-                  Control whether employees can see actual training session names or generic placeholders
+                  {t('manager.settings.sessionNamesVisibilityDescription')}
                 </p>
 
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex-1">
                     <div className="flex items-center mb-1">
                       <span className="text-sm font-medium text-gray-900">
-                        Show actual session names to employees
+                        {t('manager.settings.showActualNames')}
                       </span>
                     </div>
                     <p className="text-xs text-gray-500">
                       {showSessionNamesToEmployees
-                        ? 'Employees will see real scenario titles (e.g., "Handling Angry Customer")'
-                        : 'Employees will see generic names (e.g., "Training Session 1", "Training Session 2")'}
+                        ? t('manager.settings.showActualNamesDescription')
+                        : t('manager.settings.showGenericNames')}
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer ml-4">
@@ -253,23 +325,23 @@ export default function GeneralSettingsPage() {
 
                 <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-xs text-blue-700">
-                    <strong>Note:</strong> Hiding session names creates a "surprise mode" effect where employees discover what they're training on when they start the session. This can increase engagement and simulate real-world unpredictability.
+                    <strong>Note:</strong> {t('manager.settings.sessionNamesNote')}
                   </p>
                 </div>
               </div>
 
               {/* Recording Options Section */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Recording Options by Scenario Type</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('manager.settings.recordingOptions')}</h2>
                 <p className="text-sm text-gray-600 mb-6">
-                  Configure which recording options will be available to employees for each scenario type.
+                  {t('manager.settings.recordingOptionsDescription')}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Theory Q&A Recording Options */}
                   <div className="border border-gray-200 rounded-lg p-4">
                     <label className="block text-sm font-medium text-gray-900 mb-3">
-                      📖 Theory Q&A
+                      📖 {t('scenario.theory')}
                     </label>
                     <div className="space-y-2">
                       <label className="flex items-center">
@@ -287,7 +359,7 @@ export default function GeneralSettingsPage() {
                           disabled={savingRecordingOptions}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">🎤 Audio Recording</span>
+                        <span className="ml-2 text-sm text-gray-700">🎤 {t('manager.settings.audioRecording')}</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -304,13 +376,13 @@ export default function GeneralSettingsPage() {
                           disabled={savingRecordingOptions}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">🎥 Video Recording</span>
+                        <span className="ml-2 text-sm text-gray-700">🎥 {t('manager.settings.videoRecording')}</span>
                       </label>
                     </div>
                     {savingRecordingOptions && (
                       <div className="mt-2 flex items-center text-xs text-gray-500">
                         <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
-                        Saving...
+                        {t('common.saving')}
                       </div>
                     )}
                   </div>
@@ -318,7 +390,7 @@ export default function GeneralSettingsPage() {
                   {/* Service Practice Recording Options */}
                   <div className="border border-gray-200 rounded-lg p-4">
                     <label className="block text-sm font-medium text-gray-900 mb-3">
-                      🗣️ Service Practice
+                      🗣️ {t('scenario.servicePractice')}
                     </label>
                     <div className="space-y-2">
                       <label className="flex items-center">
@@ -336,7 +408,7 @@ export default function GeneralSettingsPage() {
                           disabled={savingRecordingOptions}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">🎤 Audio Recording</span>
+                        <span className="ml-2 text-sm text-gray-700">🎤 {t('manager.settings.audioRecording')}</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -353,13 +425,13 @@ export default function GeneralSettingsPage() {
                           disabled={savingRecordingOptions}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="ml-2 text-sm text-gray-700">🎥 Video Recording</span>
+                        <span className="ml-2 text-sm text-gray-700">🎥 {t('manager.settings.videoRecording')}</span>
                       </label>
                     </div>
                     {savingRecordingOptions && (
                       <div className="mt-2 flex items-center text-xs text-gray-500">
                         <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
-                        Saving...
+                        {t('common.saving')}
                       </div>
                     )}
                   </div>
@@ -367,7 +439,7 @@ export default function GeneralSettingsPage() {
 
                 <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-xs text-blue-700">
-                    <strong>Note:</strong> At least one recording option must be selected for each scenario type. These settings control what recording options employees will see in the dropdown menu.
+                    <strong>Note:</strong> {t('manager.settings.recordingOptionsNote')}
                   </p>
                 </div>
               </div>

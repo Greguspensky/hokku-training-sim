@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { Scenario } from '@/lib/scenarios'
 import { useAuth } from '@/contexts/AuthContext'
@@ -29,6 +30,7 @@ interface TrainingTrackCardProps {
 }
 
 export default function TrainingTrackCard({ assignment, managerView = false, employeeUserId }: TrainingTrackCardProps) {
+  const t = useTranslations('employeeDashboard')
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [scenariosLoading, setScenariosLoading] = useState(true)
   const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
@@ -47,10 +49,10 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
       if (!companyId || managerView) return // Don't load for manager view
 
       try {
-        const response = await fetch(`/api/company-settings?company_id=${companyId}`)
+        const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
         const data = await response.json()
-        if (data.success && data.settings) {
-          setShowSessionNames(data.settings.show_session_names_to_employees || false)
+        if (data.success && data.data?.settings) {
+          setShowSessionNames(data.data.settings.show_session_names_to_employees || false)
         }
       } catch (error) {
         console.error('Failed to load session visibility settings:', error)
@@ -78,11 +80,11 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
   const formatStatus = (status: string) => {
     switch (status) {
       case 'in_progress':
-        return 'In Progress'
+        return t('inProgress')
       case 'completed':
-        return 'Completed'
+        return t('completed')
       case 'assigned':
-        return 'Ready to Start'
+        return t('readyToStart')
       default:
         return status
     }
@@ -122,11 +124,12 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
         const data = await response.json()
 
         if (data.success) {
-          setScenarios(data.scenarios || [])
+          const scenariosData = data.data?.scenarios || []
+          setScenarios(scenariosData)
 
           // Load stats for each scenario
-          if (userId && data.scenarios) {
-            loadScenarioStats(data.scenarios)
+          if (userId && scenariosData.length > 0) {
+            loadScenarioStats(scenariosData)
           }
         }
       } catch (error) {
@@ -148,7 +151,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
       const scenarioIds = scenariosList.map(s => s.id).join(',')
 
       // Make a single batch request for all scenarios
-      const response = await fetch(`/api/scenario-stats-batch?scenario_ids=${scenarioIds}&user_id=${userId}`)
+      const response = await fetch(`/api/scenarios/scenario-stats-batch?scenario_ids=${scenarioIds}&user_id=${userId}`)
       const data = await response.json()
 
       if (data.success && data.stats) {
@@ -188,12 +191,12 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
   const getScenarioTypeLabel = (scenarioType: string) => {
     switch (scenarioType) {
       case 'theory':
-        return 'Theory Q&A'
+        return t('theoryQA')
       case 'service_practice':
-        return 'Service Practice'
+        return t('servicePractice')
       case 'recommendations':
       case 'recommendation_tts':
-        return 'Situationships'
+        return t('situationships')
       default:
         return scenarioType
     }
@@ -238,7 +241,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
           <div className="flex-1">
             <div className="flex items-center space-x-3 mb-2">
               <h3 className="text-lg font-semibold text-gray-900">
-                {assignment.track?.name || 'Unknown Track'}
+                {assignment.track?.name || t('unknownTrack')}
               </h3>
               <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(assignment.status)}`}>
                 {formatStatus(assignment.status)}
@@ -246,7 +249,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
             </div>
 
             <p className="text-gray-600 mb-3">
-              {assignment.track?.description || 'No description available'}
+              {assignment.track?.description || t('noDescriptionAvailable')}
             </p>
 
             <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
@@ -254,7 +257,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>Assigned: {new Date(assignment.assigned_at).toLocaleDateString()}</span>
+                <span>{t('assignedDate', { date: new Date(assignment.assigned_at).toLocaleDateString() })}</span>
               </div>
 
               {assignment.track?.target_audience && (
@@ -263,7 +266,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <span>
-                    {assignment.track.target_audience === 'new_hire' ? 'New Hire Training' : 'Continuing Education'}
+                    {assignment.track.target_audience === 'new_hire' ? t('newHireTraining') : t('continuingEducation')}
                   </span>
                 </div>
               )}
@@ -274,7 +277,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
         {/* Progress Bar */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Progress</span>
+            <span className="text-sm font-medium text-gray-700">{t('progress')}</span>
             <span className="text-sm text-gray-500">{displayProgress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
@@ -293,7 +296,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
 
         {/* Available Scenarios */}
         <div className="mt-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Available Training Scenarios</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-3">{t('availableTrainingScenarios')}</h4>
 
           {scenariosLoading ? (
             <div className="space-y-2">
@@ -335,27 +338,26 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                               <>
                                 {scenario.scenario_type === 'theory' ? (
                                   <span className="text-xs text-blue-600 font-medium">
-                                    Completed: {stats.completionPercentage}%
+                                    {t('completedPercentage', { percentage: stats.completionPercentage })}
                                   </span>
                                 ) : (
                                   <span className={`text-xs font-medium ${stats.isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
-                                    {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                                    {stats.isCompleted ? `✓ ${t('completed')}` : t('notCompleted')}
                                   </span>
                                 )}
 
                                 {/* Attempts with limit */}
                                 <span className="text-xs text-gray-600">
-                                  Attempts: {stats.attemptCount}/{
-                                    (assignment as any).scenario_attempts_limits?.[scenario.id]
-                                      ? (assignment as any).scenario_attempts_limits[scenario.id]
-                                      : '∞'
-                                  }
+                                  {t('attemptsCount', {
+                                    current: stats.attemptCount,
+                                    max: (assignment as any).scenario_attempts_limits?.[scenario.id] || '∞'
+                                  })}
                                 </span>
 
                                 {/* Last Attempt */}
                                 {stats.lastAttempt && (
                                   <span className="text-xs text-gray-500">
-                                    Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                                    {t('lastDate', { date: new Date(stats.lastAttempt).toLocaleDateString() })}
                                   </span>
                                 )}
                               </>
@@ -378,13 +380,13 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
-                            title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                            title={isLimitReached ? t('attemptLimitReached') : t('viewSession')}
                           >
                             <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            {isLimitReached ? 'Limit Reached' : 'View'}
+                            {isLimitReached ? t('limitReached') : t('view')}
                           </button>
                         )
                       })()}
@@ -409,27 +411,26 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                               <>
                                 {scenario.scenario_type === 'theory' ? (
                                   <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
-                                    {stats.completionPercentage}% Done
+                                    {t('done', { percentage: stats.completionPercentage })}
                                   </span>
                                 ) : (
                                   <span className={`text-xs font-medium px-2 py-1 rounded ${stats.isCompleted ? 'text-green-600 bg-green-50' : 'text-gray-500 bg-gray-100'}`}>
-                                    {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                                    {stats.isCompleted ? `✓ ${t('completed')}` : t('notCompleted')}
                                   </span>
                                 )}
 
                                 {/* Attempts with limit */}
                                 <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                  Attempts: {stats.attemptCount}/{
-                                    (assignment as any).scenario_attempts_limits?.[scenario.id]
-                                      ? (assignment as any).scenario_attempts_limits[scenario.id]
-                                      : '∞'
-                                  }
+                                  {t('attemptsCount', {
+                                    current: stats.attemptCount,
+                                    max: (assignment as any).scenario_attempts_limits?.[scenario.id] || '∞'
+                                  })}
                                 </span>
 
                                 {/* Last Attempt */}
                                 {stats.lastAttempt && (
                                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                    Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                                    {t('lastDate', { date: new Date(stats.lastAttempt).toLocaleDateString() })}
                                   </span>
                                 )}
                               </>
@@ -453,13 +454,13 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
-                            title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                            title={isLimitReached ? t('attemptLimitReached') : t('viewSession')}
                           >
                             <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            {isLimitReached ? 'Attempt Limit Reached' : 'View Session'}
+                            {isLimitReached ? t('attemptLimitReachedFull') : t('viewSession')}
                           </button>
                         )
                       })()}
@@ -473,7 +474,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
               <svg className="mx-auto h-6 w-6 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <p className="text-sm">No scenarios available yet</p>
+              <p className="text-sm">{t('noScenariosAvailable')}</p>
             </div>
           )}
         </div>
@@ -490,7 +491,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                View Session
+                {t('viewSession')}
               </button>
             )}
 
@@ -502,7 +503,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                 <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Continue Training
+                {t('continueTraining')}
               </button>
             )}
 
@@ -511,10 +512,10 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                 <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="font-medium">Completed</span>
+                <span className="font-medium">{t('completed')}</span>
                 {assignment.completed_at && (
                   <span className="text-sm text-gray-500 ml-2">
-                    on {new Date(assignment.completed_at).toLocaleDateString()}
+                    {t('completedOn', { date: new Date(assignment.completed_at).toLocaleDateString() })}
                   </span>
                 )}
               </div>
@@ -530,7 +531,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="text-sm font-medium text-blue-900">Manager Notes:</p>
+                <p className="text-sm font-medium text-blue-900">{t('managerNotes')}</p>
                 <p className="text-sm text-blue-800 mt-1">{assignment.notes}</p>
               </div>
             </div>

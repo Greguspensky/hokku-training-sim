@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { BookOpen, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronRight, Loader2, RefreshCw, Brain } from 'lucide-react'
 
 interface TopicMastery {
@@ -54,6 +55,7 @@ interface KnowledgeAnalysisSectionProps {
 }
 
 export default function KnowledgeAnalysisSection({ employeeId, companyId, employeeName }: KnowledgeAnalysisSectionProps) {
+  const t = useTranslations()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<KnowledgeAnalysisData | null>(null)
@@ -66,7 +68,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/employee-knowledge-analysis', {
+      const response = await fetch('/api/employees/employee-knowledge-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,15 +133,15 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
       <div className="bg-white rounded-lg shadow p-8">
         <div className="text-center">
           <Brain className="w-12 h-12 mx-auto mb-4 text-blue-500" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Knowledge Analysis</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('knowledgeAnalysis.title')}</h3>
           <p className="text-gray-600 mb-4">
-            Analyze {employeeName}'s knowledge mastery across Theory Q&A and Service Practice sessions.
+            {t('knowledgeAnalysis.analyzeDescription', { employeeName })}
           </p>
           <button
             onClick={() => loadAnalysis(false)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Generate Analysis
+            {t('sessionAnalysis.generateAnalysis')}
           </button>
         </div>
       </div>
@@ -151,8 +153,8 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
       <div className="bg-white rounded-lg shadow p-12">
         <div className="flex flex-col items-center justify-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mb-4" />
-          <p className="text-gray-600">Analyzing knowledge patterns...</p>
-          <p className="text-sm text-gray-500 mt-2">This may take 10-20 seconds</p>
+          <p className="text-gray-600">{t('knowledgeAnalysis.analyzingPatterns')}</p>
+          <p className="text-sm text-gray-500 mt-2">{t('knowledgeAnalysis.analysisWait')}</p>
         </div>
       </div>
     )
@@ -177,10 +179,10 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <BookOpen className="w-6 h-6" />
-                Knowledge Analysis
+                {t('knowledgeAnalysis.title')}
               </h2>
               <p className="text-purple-100 text-sm mt-1">
-                Comprehensive knowledge mastery evaluation
+                {t('knowledgeAnalysis.comprehensiveEvaluation')}
               </p>
             </div>
             <button
@@ -189,7 +191,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
               title="Regenerate analysis"
             >
               <RefreshCw className="w-4 h-4" />
-              Redo Analysis
+              {t('sessionAnalysis.redoAnalysis')}
             </button>
           </div>
         </div>
@@ -200,7 +202,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
           <div className={`rounded-lg p-4 border-2 ${getScoreColor(analysis.overall_knowledge_score)}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium opacity-75">Overall Knowledge Score</p>
+                <p className="text-sm font-medium opacity-75">{t('knowledgeAnalysis.overallKnowledgeScore')}</p>
                 <p className="text-3xl font-bold">{analysis.overall_knowledge_score}/100</p>
               </div>
               <Brain className="w-8 h-8 opacity-50" />
@@ -211,7 +213,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 font-medium">Topics Analyzed</p>
+                <p className="text-sm text-blue-600 font-medium">{t('knowledgeAnalysis.topicsAnalyzed')}</p>
                 <p className="text-3xl font-bold text-blue-900">{analysis.topic_mastery.length}</p>
               </div>
               <BookOpen className="w-8 h-8 text-blue-400" />
@@ -222,7 +224,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
           <div className="bg-orange-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-600 font-medium">Quality Issues</p>
+                <p className="text-sm text-orange-600 font-medium">{t('knowledgeAnalysis.qualityIssues')}</p>
                 <p className="text-3xl font-bold text-orange-900">{analysis.answer_quality_themes.length}</p>
               </div>
               <AlertTriangle className="w-8 h-8 text-orange-400" />
@@ -242,10 +244,10 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
         {/* Metadata */}
         {metadata && (
           <div className="px-6 pb-4 flex items-center gap-4 text-sm text-gray-500">
-            <span>Sessions analyzed: {metadata.sessionsAnalyzed}</span>
+            <span>{t('knowledgeAnalysis.sessionsAnalyzed')} {metadata.sessionsAnalyzed}</span>
             <span>•</span>
             <span>
-              {metadata.cached ? '📦 Cached' : '✨ Fresh'} analysis from{' '}
+              {metadata.cached ? t('knowledgeAnalysis.cachedAnalysis') : t('knowledgeAnalysis.freshAnalysis')}{' '}
               {new Date(metadata.analyzedAt).toLocaleString()}
             </span>
           </div>
@@ -257,7 +259,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-blue-600" />
-            Topic-Level Mastery
+            {t('knowledgeAnalysis.topicLevelMastery')}
           </h3>
           <div className="space-y-4">
             {analysis.topic_mastery.map((topic, index) => (
@@ -289,21 +291,21 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
                     <div className="flex gap-4 text-sm">
                       <span className="text-green-600 flex items-center gap-1">
                         <CheckCircle2 className="w-4 h-4" />
-                        {topic.correct} correct
+                        {topic.correct} {t('knowledgeAnalysis.correct')}
                       </span>
                       <span className="text-red-600 flex items-center gap-1">
                         <XCircle className="w-4 h-4" />
-                        {topic.incorrect} incorrect
+                        {topic.incorrect} {t('knowledgeAnalysis.incorrect')}
                       </span>
                       <span className="text-gray-500">
-                        {topic.unanswered} unanswered
+                        {topic.unanswered} {t('knowledgeAnalysis.unanswered')}
                       </span>
                     </div>
                   </div>
                 </div>
                 {expandedTopic === index && topic.issues.length > 0 && (
                   <div className="bg-red-50 p-4 border-t border-red-100">
-                    <p className="text-sm font-semibold text-red-900 mb-2">Identified Issues:</p>
+                    <p className="text-sm font-semibold text-red-900 mb-2">{t('knowledgeAnalysis.identifiedIssues')}</p>
                     <ul className="list-disc list-inside space-y-1">
                       {topic.issues.map((issue, issueIndex) => (
                         <li key={issueIndex} className="text-sm text-red-800">{issue}</li>
@@ -322,7 +324,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-orange-600" />
-            Answer Quality Themes
+            {t('knowledgeAnalysis.answerQualityThemes')}
           </h3>
           <div className="space-y-4">
             {analysis.answer_quality_themes.map((theme, index) => (
@@ -339,7 +341,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-gray-600">
-                          {theme.frequency} {theme.frequency === 1 ? 'instance' : 'instances'}
+                          {theme.frequency} {theme.frequency === 1 ? t('knowledgeAnalysis.instance') : t('knowledgeAnalysis.instances')}
                         </span>
                         {expandedTheme === index ? (
                           <ChevronDown className="w-5 h-5 text-gray-400" />
@@ -352,18 +354,18 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
                 </div>
                 {expandedTheme === index && theme.examples.length > 0 && (
                   <div className="bg-gray-50 p-4 border-t border-gray-200">
-                    <p className="text-sm font-semibold text-gray-900 mb-3">Examples:</p>
+                    <p className="text-sm font-semibold text-gray-900 mb-3">{t('knowledgeAnalysis.examples')}</p>
                     <div className="space-y-3">
                       {theme.examples.map((example, exampleIndex) => (
                         <div key={exampleIndex} className="bg-white p-3 rounded-lg border border-gray-200">
                           <p className="text-sm font-medium text-gray-900 mb-1">
-                            Q: {example.question}
+                            {t('knowledgeAnalysis.question')} {example.question}
                           </p>
                           <p className="text-sm text-gray-700 mb-2">
-                            A: "{example.answer}"
+                            {t('knowledgeAnalysis.answer')} "{example.answer}"
                           </p>
                           <p className="text-sm text-red-600">
-                            <span className="font-semibold">Issue:</span> {example.issue}
+                            <span className="font-semibold">{t('knowledgeAnalysis.issue')}</span> {example.issue}
                           </p>
                         </div>
                       ))}
@@ -379,7 +381,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
       {/* Product Knowledge */}
       {analysis.product_knowledge.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Product Knowledge Application</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">{t('knowledgeAnalysis.productKnowledgeApplication')}</h3>
           <div className="space-y-3">
             {analysis.product_knowledge.map((product, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4">
@@ -388,12 +390,12 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
                   <div className="flex gap-2">
                     {product.mentioned_in_theory && (
                       <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        Theory ✓
+                        {t('knowledgeAnalysis.theory')} ✓
                       </span>
                     )}
                     {product.applied_in_practice && (
                       <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        Practice ✓
+                        {t('knowledgeAnalysis.practice')} ✓
                       </span>
                     )}
                   </div>
@@ -413,7 +415,7 @@ export default function KnowledgeAnalysisSection({ employeeId, companyId, employ
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-red-600" />
-            Theory vs Practice Gaps
+            {t('knowledgeAnalysis.theoryVsPracticeGaps')}
           </h3>
           <div className="space-y-3">
             {analysis.theory_vs_practice_gaps.map((gap, index) => (

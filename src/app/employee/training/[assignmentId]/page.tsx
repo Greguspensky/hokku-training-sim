@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 import { KnowledgeBaseDocument } from '@/lib/knowledge-base'
 import { useAuth } from '@/contexts/AuthContext'
-import UserHeader from '@/components/UserHeader'
-import { ElevenLabsAvatarSession } from '@/components/ElevenLabsAvatarSession'
-import { RecommendationTTSSession } from '@/components/RecommendationTTSSession'
-import TheoryPracticeSession from '@/components/TheoryPracticeSession'
+import UserHeader from '@/components/Shared/UserHeader'
+import { ElevenLabsAvatarSession } from '@/components/Training/ElevenLabsAvatarSession'
+import { RecommendationTTSSession } from '@/components/Training/RecommendationTTSSession'
+import TheoryPracticeSession from '@/components/Training/TheoryPracticeSession'
 import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '@/lib/avatar-types'
-import { RecordingConsent } from '@/components/RecordingConsent'
+import { RecordingConsent } from '@/components/Training/RecordingConsent'
 import type { RecordingPreference } from '@/lib/training-sessions'
 import Link from 'next/link'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
@@ -32,6 +33,7 @@ export default function TrainingSessionPage() {
   const params = useParams()
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const t = useTranslations('training')
   const assignmentId = params.assignmentId as string
   const [redirectTimeout, setRedirectTimeout] = useState<NodeJS.Timeout | null>(null)
 
@@ -606,7 +608,7 @@ export default function TrainingSessionPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading training session...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -616,10 +618,10 @@ export default function TrainingSessionPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Training Assignment Not Found</h1>
-          <p className="text-gray-600 mb-4">The training assignment you're looking for doesn't exist.</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('notFound')}</h1>
+          <p className="text-gray-600 mb-4">{t('notFoundDescription')}</p>
           <Link href="/employee" className="text-blue-600 hover:text-blue-700">
-            ← Back to Dashboard
+            ← {t('backToDashboard')}
           </Link>
         </div>
       </div>
@@ -631,8 +633,8 @@ export default function TrainingSessionPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <UserHeader
-            title="Training Complete!"
-            subtitle={`You've completed: ${assignment.track.name}`}
+            title={t('complete.title')}
+            subtitle={t('complete.subtitle', { trackName: assignment.track.name })}
           />
 
           <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -642,9 +644,9 @@ export default function TrainingSessionPage() {
               </svg>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Congratulations!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('complete.congratulations')}</h2>
             <p className="text-gray-600 mb-6">
-              You've successfully completed the training session. Your progress has been recorded.
+              {t('complete.successMessage')}
             </p>
 
             {/* Session Statistics */}
@@ -653,9 +655,9 @@ export default function TrainingSessionPage() {
                 // TTS Recommendation Session Stats - No scoring, just question count
                 <div className="text-center">
                   <div className="text-3xl font-bold text-blue-600">{sessionData.questionsCompleted || 0}</div>
-                  <div className="text-lg text-gray-600">Questions Completed</div>
+                  <div className="text-lg text-gray-600">{t('complete.questionsCompleted')}</div>
                   <p className="text-sm text-gray-500 mt-2">
-                    Recommendation training focuses on practical skills - no right or wrong answers
+                    {t('complete.recommendationNote')}
                   </p>
                   {sessionData.savedSessionId && (
                     <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -669,25 +671,25 @@ export default function TrainingSessionPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">{questions.length}</div>
-                    <div className="text-sm text-gray-600">Questions Answered</div>
+                    <div className="text-sm text-gray-600">{t('complete.questionsAnswered')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
                       {Object.values(scores).filter(score => score).length}
                     </div>
-                    <div className="text-sm text-gray-600">Correct Answers</div>
+                    <div className="text-sm text-gray-600">{t('complete.correctAnswers')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
                       {Object.values(scores).filter(score => !score).length}
                     </div>
-                    <div className="text-sm text-gray-600">Factual Errors</div>
+                    <div className="text-sm text-gray-600">{t('complete.factualErrors')}</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
                       {Math.round((Object.values(scores).filter(score => score).length / questions.length) * 100)}%
                     </div>
-                    <div className="text-sm text-gray-600">Factual Score</div>
+                    <div className="text-sm text-gray-600">{t('complete.factualScore')}</div>
                   </div>
                 </div>
               )}
@@ -696,7 +698,7 @@ export default function TrainingSessionPage() {
             {/* Transcript Analysis Results */}
             {transcriptAnalysis && (
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Transcript Analysis Results</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 {t('analysis.title')}</h3>
 
                 {/* Transcript Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -704,35 +706,35 @@ export default function TrainingSessionPage() {
                     <div className="text-2xl font-bold text-blue-600">
                       {transcriptAnalysis.transcriptAnalysis?.totalMessages || 0}
                     </div>
-                    <div className="text-sm text-gray-600">Total Messages</div>
+                    <div className="text-sm text-gray-600">{t('analysis.totalMessages')}</div>
                   </div>
                   <div className="text-center bg-white rounded-lg p-4">
                     <div className="text-2xl font-bold text-green-600">
                       {transcriptAnalysis.transcriptAnalysis?.qaPairsFound || 0}
                     </div>
-                    <div className="text-sm text-gray-600">Q&A Pairs Found</div>
+                    <div className="text-sm text-gray-600">{t('analysis.qaPairsFound')}</div>
                   </div>
                   <div className="text-center bg-white rounded-lg p-4">
                     <div className="text-2xl font-bold text-purple-600">
                       {transcriptAnalysis.assessment?.summary?.score || 0}%
                     </div>
-                    <div className="text-sm text-gray-600">Assessment Score</div>
+                    <div className="text-sm text-gray-600">{t('analysis.assessmentScore')}</div>
                   </div>
                 </div>
 
                 {/* Assessment Details */}
                 {transcriptAnalysis.assessment?.success && (
                   <div className="bg-white rounded-lg p-4 mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">🎯 Assessment Results</h4>
+                    <h4 className="font-semibold text-gray-900 mb-3">🎯 {t('analysis.assessmentResults')}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                       <div>
-                        <span className="font-medium">Total Questions:</span> {transcriptAnalysis.assessment.summary?.totalQuestions || 0}
+                        <span className="font-medium">{t('analysis.totalQuestions')}:</span> {transcriptAnalysis.assessment.summary?.totalQuestions || 0}
                       </div>
                       <div>
-                        <span className="font-medium">Correct Answers:</span> {transcriptAnalysis.assessment.summary?.correctAnswers || 0}
+                        <span className="font-medium">{t('complete.correctAnswers')}:</span> {transcriptAnalysis.assessment.summary?.correctAnswers || 0}
                       </div>
                       <div>
-                        <span className="font-medium">Success Rate:</span> {Math.round(((transcriptAnalysis.assessment.summary?.correctAnswers || 0) / Math.max(transcriptAnalysis.assessment.summary?.totalQuestions || 1, 1)) * 100)}%
+                        <span className="font-medium">{t('analysis.successRate')}:</span> {Math.round(((transcriptAnalysis.assessment.summary?.correctAnswers || 0) / Math.max(transcriptAnalysis.assessment.summary?.totalQuestions || 1, 1)) * 100)}%
                       </div>
                     </div>
                   </div>
@@ -740,10 +742,10 @@ export default function TrainingSessionPage() {
 
                 {/* User/Assistant Message Breakdown */}
                 <div className="bg-white rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">💬 Conversation Breakdown</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">💬 {t('analysis.conversationBreakdown')}</h4>
                   <div className="flex justify-between text-sm">
-                    <span>👤 Your messages: <strong>{transcriptAnalysis.transcriptAnalysis?.userMessages || 0}</strong></span>
-                    <span>🤖 AI Trainer messages: <strong>{transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0}</strong></span>
+                    <span>👤 {t('analysis.yourMessages')}: <strong>{transcriptAnalysis.transcriptAnalysis?.userMessages || 0}</strong></span>
+                    <span>🤖 {t('analysis.aiTrainerMessages')}: <strong>{transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0}</strong></span>
                   </div>
                 </div>
               </div>
@@ -760,11 +762,11 @@ export default function TrainingSessionPage() {
                   {isAnalyzingTranscript ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Analyzing Transcript...
+                      {t('analysis.analyzing')}
                     </>
                   ) : (
                     <>
-                      📊 Get Transcript & Analysis
+                      📊 {t('analysis.getAnalysis')}
                     </>
                   )}
                 </button>
@@ -774,7 +776,7 @@ export default function TrainingSessionPage() {
                 href="/employee"
                 className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
-                Return to Dashboard
+                {t('returnToDashboard')}
               </Link>
             </div>
           </div>
@@ -789,8 +791,8 @@ export default function TrainingSessionPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <UserHeader
-            title="Theory Practice Session"
-            subtitle="Practice questions that need work"
+            title={t('practice.title')}
+            subtitle={t('practice.subtitle')}
           />
 
           <TheoryPracticeSession
@@ -833,7 +835,7 @@ export default function TrainingSessionPage() {
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    <span className="font-medium">Go Back</span>
+                    <span className="font-medium">{t('goBack')}</span>
                   </Link>
                 </div>
 
@@ -841,17 +843,17 @@ export default function TrainingSessionPage() {
                 <div className="mb-8">
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
                     {currentScenario.scenario_type === 'theory'
-                      ? '📖 Theory Q&A Session'
+                      ? `📖 ${t('sessionTypes.theory')}`
                       : currentScenario.scenario_type === 'recommendations'
-                      ? '🎯 Situationships Session'
-                      : '🗣️ Service Practice Session'
+                      ? `🎯 ${t('sessionTypes.recommendations')}`
+                      : `🗣️ ${t('sessionTypes.servicePractice')}`
                     }
                   </h1>
                   {currentScenario.scenario_type !== 'service_practice' && (
                     <p className="text-gray-600">
                       {currentScenario.scenario_type === 'theory'
-                        ? 'Structured knowledge assessment - Answer questions accurately and concisely'
-                        : 'Situationships training - Learn to suggest appropriate products and services'
+                        ? t('sessionTypes.theoryDescription')
+                        : t('sessionTypes.recommendationsDescription')
                       }
                     </p>
                   )}
@@ -862,9 +864,9 @@ export default function TrainingSessionPage() {
                   {/* Scenario Goals - Hidden for Surprise Mode */}
                   {currentScenario.scenario_type === 'service_practice' && (
                     <HiddenSection
-                      title="Scenario Goals & Milestones"
+                      title={t('configuration.scenarioGoals')}
                       icon="🎯"
-                      message="Your goals and key milestones will be revealed when you start the training session"
+                      message={t('configuration.goalsHiddenMessage')}
                       className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200"
                     />
                   )}
@@ -872,9 +874,9 @@ export default function TrainingSessionPage() {
                   {/* Language Selection - Second for Service Practice */}
                   {currentScenario.scenario_type === 'service_practice' && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2">🌍 Language Selection</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">🌍 {t('configuration.languageSelection')}</h3>
                       <p className="text-sm text-gray-600 mb-3">
-                        Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
+                        {t('configuration.languageDescription')}
                       </p>
 
                       <div className="relative inline-block text-left w-full max-w-xs">
@@ -901,9 +903,9 @@ export default function TrainingSessionPage() {
                   {/* Session Recording - Second for Service Practice */}
                   {currentScenario.scenario_type === 'service_practice' && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2">🎥 Session Recording</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">🎥 {t('recording.title')}</h3>
                       <p className="text-sm text-gray-600 mb-3">
-                        Recording is required for this training session. Choose your preferred recording format.
+                        {t('recording.theoryDescription')}
                       </p>
 
                       <div className="relative inline-block text-left w-full max-w-xs">
@@ -913,10 +915,10 @@ export default function TrainingSessionPage() {
                           className="block w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
                         >
                           {allowedServicePracticeRecordingOptions.includes('audio') && (
-                            <option value="audio">🎤 Audio Recording</option>
+                            <option value="audio">🎤 {t('recording.options.audio')}</option>
                           )}
                           {allowedServicePracticeRecordingOptions.includes('audio_video') && (
-                            <option value="audio_video">🎬 Audio + Video Recording</option>
+                            <option value="audio_video">🎬 {t('recording.options.audioVideo')}</option>
                           )}
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
@@ -931,9 +933,9 @@ export default function TrainingSessionPage() {
                   {/* Video Aspect Ratio - Third for Service Practice (only if video selected) */}
                   {currentScenario.scenario_type === 'service_practice' && recordingPreference === 'audio_video' && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2">📐 Video Aspect Ratio</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">📐 {t('videoAspectRatio.title')}</h3>
                       <p className="text-sm text-gray-600 mb-3">
-                        Choose the video format that works best for your device and viewing preferences.
+                        {t('videoAspectRatio.description')}
                       </p>
 
                       <div className="relative inline-block text-left w-full max-w-xs">
@@ -942,10 +944,10 @@ export default function TrainingSessionPage() {
                           onChange={(e) => setVideoAspectRatio(e.target.value as '16:9' | '9:16' | '4:3' | '1:1')}
                           className="block w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
                         >
-                          <option value="16:9">📺 16:9 Widescreen (Landscape)</option>
-                          <option value="9:16">📱 9:16 Vertical (Portrait)</option>
-                          <option value="4:3">📺 4:3 Standard</option>
-                          <option value="1:1">⬛ 1:1 Square</option>
+                          <option value="16:9">📺 {t('videoAspectRatio.options.widescreen')}</option>
+                          <option value="9:16">📱 {t('videoAspectRatio.options.portrait')}</option>
+                          <option value="4:3">📺 {t('videoAspectRatio.options.standard')}</option>
+                          <option value="1:1">⬛ {t('videoAspectRatio.options.square')}</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -966,9 +968,9 @@ export default function TrainingSessionPage() {
                           </svg>
                         </div>
                         <div className="ml-3">
-                          <h4 className="text-sm font-medium text-blue-900">Data Security & Privacy</h4>
+                          <h4 className="text-sm font-medium text-blue-900">{t('privacy.title')}</h4>
                           <div className="mt-1 text-sm text-blue-800">
-                            All recordings are stored securely and are only accessible by you and authorized training managers. You can request deletion of your recordings at any time.
+                            {t('privacy.description')}
                           </div>
                         </div>
                       </div>
@@ -1003,13 +1005,13 @@ export default function TrainingSessionPage() {
                               ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                               : 'text-white bg-green-600 hover:bg-green-700 focus:ring-green-500 hover:scale-105'
                           }`}
-                          title={isLimitReached ? `Attempt limit reached (${currentAttempts}/${maxAttempts})` : undefined}
+                          title={isLimitReached ? `${t('buttons.attemptLimitReached')} (${currentAttempts}/${maxAttempts})` : undefined}
                         >
-                          {isLimitReached ? '🚫 Attempt Limit Reached' : '🚀 Start Training Session'}
+                          {isLimitReached ? `🚫 ${t('buttons.attemptLimitReached')}` : `🚀 ${t('buttons.startSession')}`}
                         </button>
                         {isLimitReached && (
                           <p className="mt-2 text-sm text-red-600">
-                            You have reached the maximum number of attempts ({maxAttempts}) for this scenario.
+                            {t('buttons.attemptLimitMessage', { maxAttempts })}
                           </p>
                         )}
                       </div>
@@ -1266,9 +1268,9 @@ export default function TrainingSessionPage() {
                   {/* Language Selection - Hide for recommendations and service_practice (shown at top for service_practice) */}
                   {currentScenario?.scenario_type === 'theory' && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 Language Selection</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 {t('configuration.languageSelection')}</h3>
                       <p className="text-gray-600 mb-4">
-                        Choose the language for your conversation with the AI trainer. The agent will respond in the selected language.
+                        {t('configuration.languageDescription')}
                       </p>
 
                       <div className="relative inline-block text-left w-full max-w-xs">
@@ -1292,7 +1294,7 @@ export default function TrainingSessionPage() {
 
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
-                          <strong>Selected:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
+                          <strong>{t('configuration.selected')}:</strong> {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.flag} {SUPPORTED_LANGUAGES.find(lang => lang.code === selectedLanguage)?.name}
                         </p>
                       </div>
                     </div>
@@ -1301,13 +1303,13 @@ export default function TrainingSessionPage() {
                   {/* Recording Preferences - Only show for Theory and Recommendations (Service Practice has it at top) */}
                   {currentScenario?.scenario_type !== 'service_practice' && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 Session Recording</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 {t('recording.title')}</h3>
                       <p className="text-gray-600 mb-4">
                         {currentScenario?.scenario_type === 'recommendations'
-                          ? 'This recommendation training requires video recording to capture your responses to spoken questions.'
+                          ? t('recording.recommendationsDescription')
                           : currentScenario?.scenario_type === 'theory'
-                          ? 'Recording is required for this training session. Choose your preferred recording format.'
-                          : 'Choose your recording preference for this training session.'
+                          ? t('recording.theoryDescription')
+                          : t('recording.defaultDescription')
                         }
                       </p>
 
@@ -1319,21 +1321,21 @@ export default function TrainingSessionPage() {
                           disabled={currentScenario?.scenario_type === 'recommendations'}
                         >
                           {currentScenario?.scenario_type === 'recommendations' ? (
-                            <option value="audio_video">🎬 Video Recording (Required)</option>
+                            <option value="audio_video">🎬 {t('recording.options.videoRequired')}</option>
                           ) : currentScenario?.scenario_type === 'theory' ? (
                             <>
                               {allowedTheoryRecordingOptions.includes('audio') && (
-                                <option value="audio">🎤 Audio Recording</option>
+                                <option value="audio">🎤 {t('recording.options.audio')}</option>
                               )}
                               {allowedTheoryRecordingOptions.includes('audio_video') && (
-                                <option value="audio_video">🎬 Audio + Video Recording</option>
+                                <option value="audio_video">🎬 {t('recording.options.audioVideo')}</option>
                               )}
                             </>
                           ) : (
                             <>
-                              <option value="none">🚫 No Recording</option>
-                              <option value="audio">🎤 Audio Recording</option>
-                              <option value="audio_video">🎬 Audio + Video Recording</option>
+                              <option value="none">🚫 {t('recording.options.none')}</option>
+                              <option value="audio">🎤 {t('recording.options.audio')}</option>
+                              <option value="audio_video">🎬 {t('recording.options.audioVideo')}</option>
                             </>
                           )}
                         </select>
@@ -1347,13 +1349,13 @@ export default function TrainingSessionPage() {
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
                           {recordingPreference === 'none' && (
-                            <><strong>Selected:</strong> 🚫 No Recording - Only text transcript will be saved</>
+                            <><strong>{t('configuration.selected')}:</strong> 🚫 {t('recording.selectedDescriptions.none')}</>
                           )}
                           {recordingPreference === 'audio' && (
-                            <><strong>Selected:</strong> 🎤 Audio Recording - Your voice will be captured for review</>
+                            <><strong>{t('configuration.selected')}:</strong> 🎤 {t('recording.selectedDescriptions.audio')}</>
                           )}
                           {recordingPreference === 'audio_video' && (
-                            <><strong>Selected:</strong> 🎬 Audio + Video Recording - Full session recording for detailed analysis</>
+                            <><strong>{t('configuration.selected')}:</strong> 🎬 {t('recording.selectedDescriptions.audioVideo')}</>
                           )}
                         </p>
                       </div>
@@ -1363,9 +1365,9 @@ export default function TrainingSessionPage() {
                   {/* Video Aspect Ratio Selection - Only show for Theory and Recommendations if video enabled (Service Practice has it at top) */}
                   {currentScenario?.scenario_type !== 'service_practice' && recordingPreference === 'audio_video' && (
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">📐 Video Aspect Ratio</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">📐 {t('videoAspectRatio.title')}</h3>
                       <p className="text-gray-600 mb-4">
-                        Choose the video format that works best for your device and viewing preferences.
+                        {t('videoAspectRatio.description')}
                       </p>
 
                       <div className="relative inline-block text-left w-full max-w-xs">
@@ -1374,10 +1376,10 @@ export default function TrainingSessionPage() {
                           onChange={(e) => setVideoAspectRatio(e.target.value as '16:9' | '9:16' | '4:3' | '1:1')}
                           className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
                         >
-                          <option value="16:9">📺 16:9 Widescreen (Landscape)</option>
-                          <option value="9:16">📱 9:16 Vertical (Portrait)</option>
-                          <option value="4:3">📺 4:3 Standard</option>
-                          <option value="1:1">⬛ 1:1 Square</option>
+                          <option value="16:9">📺 {t('videoAspectRatio.options.widescreen')}</option>
+                          <option value="9:16">📱 {t('videoAspectRatio.options.portrait')}</option>
+                          <option value="4:3">📺 {t('videoAspectRatio.options.standard')}</option>
+                          <option value="1:1">⬛ {t('videoAspectRatio.options.square')}</option>
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1388,10 +1390,10 @@ export default function TrainingSessionPage() {
 
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
-                          <strong>Selected:</strong> {videoAspectRatio === '16:9' && '📺 16:9 Widescreen - Best for desktop viewing'}
-                          {videoAspectRatio === '9:16' && '📱 9:16 Portrait - Best for mobile devices'}
-                          {videoAspectRatio === '4:3' && '📺 4:3 Standard - Classic video format'}
-                          {videoAspectRatio === '1:1' && '⬛ 1:1 Square - Perfect for social media'}
+                          <strong>{t('configuration.selected')}:</strong> {videoAspectRatio === '16:9' && `📺 ${t('videoAspectRatio.selectedDescriptions.widescreen')}`}
+                          {videoAspectRatio === '9:16' && `📱 ${t('videoAspectRatio.selectedDescriptions.portrait')}`}
+                          {videoAspectRatio === '4:3' && `📺 ${t('videoAspectRatio.selectedDescriptions.standard')}`}
+                          {videoAspectRatio === '1:1' && `⬛ ${t('videoAspectRatio.selectedDescriptions.square')}`}
                         </p>
                       </div>
                     </div>
@@ -1407,9 +1409,9 @@ export default function TrainingSessionPage() {
                           </svg>
                         </div>
                         <div className="ml-3">
-                          <h4 className="text-sm font-medium text-blue-900">Data Security & Privacy</h4>
+                          <h4 className="text-sm font-medium text-blue-900">{t('privacy.title')}</h4>
                           <div className="mt-1 text-sm text-blue-800">
-                            All recordings are stored securely and are only accessible by you and authorized training managers. You can request deletion of your recordings at any time.
+                            {t('privacy.description')}
                           </div>
                         </div>
                       </div>
@@ -1445,13 +1447,13 @@ export default function TrainingSessionPage() {
                             ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                             : 'text-white bg-green-600 hover:bg-green-700 focus:ring-green-500 hover:scale-105'
                         }`}
-                        title={isLimitReached ? `Attempt limit reached (${currentAttempts}/${maxAttempts})` : undefined}
+                        title={isLimitReached ? `${t('buttons.attemptLimitReached')} (${currentAttempts}/${maxAttempts})` : undefined}
                       >
-                        {isLimitReached ? '🚫 Attempt Limit Reached' : '🚀 Start Training Session'}
+                        {isLimitReached ? `🚫 ${t('buttons.attemptLimitReached')}` : `🚀 ${t('buttons.startSession')}`}
                       </button>
                       {isLimitReached && (
                         <p className="mt-2 text-sm text-red-600">
-                          You have reached the maximum number of attempts ({maxAttempts}) for this scenario.
+                          {t('buttons.attemptLimitMessage', { maxAttempts })}
                         </p>
                       )}
                     </div>

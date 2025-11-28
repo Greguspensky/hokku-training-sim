@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { AudioTagsReference } from '@/components/AudioTagsReference'
+import { useTranslations } from 'next-intl'
+import { AudioTagsReference } from '@/components/Shared/AudioTagsReference'
 
 interface RecommendationQuestionInputProps {
   companyId: string
@@ -9,6 +10,7 @@ interface RecommendationQuestionInputProps {
 }
 
 export default function RecommendationQuestionInput({ companyId, onQuestionsAdded }: RecommendationQuestionInputProps) {
+  const t = useTranslations('knowledgeBase')
   const [questions, setQuestions] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -38,7 +40,7 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
 
       console.log('🎵 Previewing audio for:', previewText)
 
-      const response = await fetch('/api/elevenlabs-tts', {
+      const response = await fetch('/api/elevenlabs/elevenlabs-tts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +95,7 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
     setMessage('')
 
     try {
-      const response = await fetch('/api/recommendation-questions', {
+      const response = await fetch('/api/questions/recommendation-questions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,11 +129,11 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center space-x-2 mb-4">
         <span className="text-2xl">💡</span>
-        <h2 className="text-xl font-semibold text-gray-900">Add Questions Manually</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t('addQuestionsManually')}</h2>
       </div>
 
       <p className="text-gray-600 mb-6">
-        Enter your questions (one per line). AI will search your knowledge base documents to find answers.
+        {t('enterQuestionsDescription')}
       </p>
 
       {/* Audio Tags Reference for Emotional TTS Control */}
@@ -140,27 +142,21 @@ export default function RecommendationQuestionInput({ companyId, onQuestionsAdde
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="questions" className="block text-sm font-medium text-gray-700 mb-2">
-            Questions (one per line)
+            {t('questionsOnePerLine')}
           </label>
           <textarea
             id="questions"
             value={questions}
             onChange={(e) => setQuestions(e.target.value)}
             rows={8}
-            placeholder="Enter your questions here, one per line. Use audio tags for emotion control!
-
-Examples:
-[excited] Have you tried our seasonal special?
-[curious] What flavors do you enjoy? [pause]
-[professional] I'd recommend our signature blend."
+            placeholder={t('recommendationPlaceholder')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
             required
           />
         </div>
 
         <p className="text-sm text-gray-500">
-          💡 <strong>Tip:</strong> Click audio tags above to copy them, then paste into your questions to control TTS emotion and delivery.
-          Questions work best when specific to your knowledge base documents.
+          💡 {t('audioTagsTip')}
         </p>
 
         <div className="flex items-center space-x-3">
@@ -172,7 +168,7 @@ Examples:
           >
             <span className="text-xl">{currentlyPlayingAudio ? '🔊' : '▶️'}</span>
             <span>
-              {audioPreviewLoading ? 'Generating...' : currentlyPlayingAudio ? 'Playing...' : 'Preview Audio'}
+              {audioPreviewLoading ? t('generating') : currentlyPlayingAudio ? t('playing') : t('previewAudio')}
             </span>
           </button>
 
@@ -182,14 +178,14 @@ Examples:
             className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md font-medium transition-colors"
           >
             <span className="text-xl">🔍</span>
-            <span>{loading ? 'Adding Questions...' : 'Submit & Find Answers'}</span>
+            <span>{loading ? t('addingQuestions') : t('submitAndFindAnswers')}</span>
           </button>
 
           <button
             type="button"
             className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md font-medium transition-colors"
           >
-            Cancel
+            {t('cancel')}
           </button>
 
           {(loading || audioPreviewLoading) && (

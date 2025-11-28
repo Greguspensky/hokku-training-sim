@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { employeeService, type CreateEmployeeData } from '@/lib/employees'
+import { apiErrorHandler, createSuccessResponse, createErrorResponse, parseRequestBody } from '@/lib/utils/api'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,10 +15,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     if (!companyId) {
-      return NextResponse.json(
-        { success: false, error: 'company_id parameter is required' },
-        { status: 400 }
-      )
+      return createErrorResponse('company_id parameter is required', 400)
     }
 
     // Use demo user for testing
@@ -35,22 +33,10 @@ export async function GET(request: NextRequest) {
       employees = await employeeService.getEmployeesByManager(demoUser.id, companyId)
     }
 
-    return NextResponse.json({
-      success: true,
-      employees,
-      count: employees.length
-    })
+    return createSuccessResponse({ employees, count: employees.length })
 
   } catch (error) {
-    console.error('Get employees error:', error)
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch employees' 
-      },
-      { status: 500 }
-    )
+    return apiErrorHandler(error, 'Get employees')
   }
 }
 
@@ -75,7 +61,7 @@ export async function POST(request: NextRequest) {
       role: 'manager'
     };
 
-    const body = await request.json()
+    const body = await parseRequestBody<any>(request)
     const employeeData: CreateEmployeeData = {
       name: body.name,
       company_id: body.company_id,
@@ -84,17 +70,11 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!employeeData.name || !employeeData.company_id) {
-      return NextResponse.json(
-        { success: false, error: 'name and company_id are required' },
-        { status: 400 }
-      )
+      return createErrorResponse('name and company_id are required', 400)
     }
 
     if (!employeeData.name.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Employee name cannot be empty' },
-        { status: 400 }
-      )
+      return createErrorResponse('Employee name cannot be empty', 400)
     }
 
     const employee = await employeeService.createEmployee(employeeData)
@@ -102,22 +82,9 @@ export async function POST(request: NextRequest) {
     // Generate invite link
     const inviteLink = employeeService.getInviteLink(employee)
 
-    return NextResponse.json({
-      success: true,
-      employee,
-      invite_link: inviteLink,
-      message: 'Employee invite created successfully'
-    })
+    return createSuccessResponse({ employee, invite_link: inviteLink }, 'Employee invite created successfully')
 
   } catch (error) {
-    console.error('Create employee error:', error)
-    
-    return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create employee invite' 
-      },
-      { status: 500 }
-    )
+    return apiErrorHandler(error, 'Create employee')
   }
 }

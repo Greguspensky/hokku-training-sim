@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Employee } from '@/lib/employees'
 import AddEmployeeForm from './AddEmployeeForm'
 import EmployeeList from './EmployeeList'
@@ -10,6 +11,7 @@ interface EmployeeManagementProps {
 }
 
 export default function EmployeeManagement({ companyId }: EmployeeManagementProps) {
+  const t = useTranslations('employees')
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -34,10 +36,10 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
       const response = await fetch(url)
       const data = await response.json()
 
-      console.log('📊 Employees API response:', { success: data.success, count: data.count, employees: data.employees?.length })
+      console.log('📊 Employees API response:', { success: data.success, count: data.data?.count, employees: data.data?.employees?.length })
 
       if (data.success) {
-        setEmployees(data.employees || [])
+        setEmployees(data.data?.employees || [])
       }
     } catch (error) {
       console.error('Failed to load employees:', error)
@@ -81,7 +83,7 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
       <div className="min-h-64 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading employees...</p>
+          <p className="text-gray-600">{t('loadingEmployees')}</p>
         </div>
       </div>
     )
@@ -92,16 +94,16 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Employee Management</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('employeeManagement')}</h2>
           <p className="text-gray-600 mt-1">
-            Invite employees and manage their training access
+            {t('inviteEmployeesDescription')}
           </p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          Invite Employee
+          {t('inviteEmployee')}
         </button>
       </div>
 
@@ -113,7 +115,7 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search employees by name or email..."
+              placeholder={t('searchPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -123,7 +125,7 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
               onClick={clearSearch}
               className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             >
-              Clear
+              {t('clear')}
             </button>
           )}
         </form>
@@ -142,8 +144,8 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
             <div className="mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Invite New Employee</h3>
-              <p className="text-sm text-gray-600">Create an invite link for a new team member</p>
+              <h3 className="text-lg font-medium text-gray-900">{t('inviteNewEmployee')}</h3>
+              <p className="text-sm text-gray-600">{t('inviteLinkDescription')}</p>
             </div>
             <AddEmployeeForm
               companyId={companyId}

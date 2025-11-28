@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import ManualQuestionInput from './ManualQuestionInput'
 import FlatQuestionListView from './FlatQuestionListView'
 
@@ -29,6 +30,7 @@ interface QuestionPoolViewProps {
 }
 
 export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
+  const t = useTranslations('knowledgeBase')
   const [topics, setTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set())
@@ -405,7 +407,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading question pool...</p>
+          <p className="text-gray-600">{t('loadingQuestionPool')}</p>
         </div>
       </div>
     )
@@ -416,8 +418,8 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
       <div className="space-y-6">
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🤖</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Questions Generated Yet</h3>
-          <p className="text-gray-600 mb-6">Click "🤖 Generate Questions" to create an AI-powered question pool from your documents.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noQuestionsYet')}</h3>
+          <p className="text-gray-600 mb-6">{t('noQuestionsDescription')}</p>
         </div>
 
         <ManualQuestionInput companyId={companyId} onQuestionsAdded={loadTopics} />
@@ -431,7 +433,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
       <div className="bg-white rounded-lg shadow-sm border p-6">
         {/* Header with Title and View Toggle */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">AI-Generated Question Pool</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('aiQuestionPool')}</h2>
 
           {/* View Toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
@@ -444,7 +446,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
               }`}
             >
               <span>📁</span>
-              <span>Grouped by Topic</span>
+              <span>{t('groupedByTopic')}</span>
             </button>
             <button
               onClick={() => setViewMode('flat')}
@@ -455,7 +457,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
               }`}
             >
               <span>📄</span>
-              <span>Flat List</span>
+              <span>{t('flatList')}</span>
             </button>
           </div>
         </div>
@@ -465,14 +467,14 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
           {/* Stats */}
           <div className="flex items-center space-x-3">
             <span className="bg-blue-50 px-3 py-1.5 rounded-full text-sm font-medium text-blue-700">
-              📚 {topics.length} Topics
+              📚 {topics.length} {t('topics')}
             </span>
             <span className="bg-green-50 px-3 py-1.5 rounded-full text-sm font-medium text-green-700">
-              ❓ {totalQuestions} Questions
+              ❓ {totalQuestions} {t('questions')}
             </span>
             {selectedQuestions.size > 0 && (
               <span className="bg-purple-50 px-3 py-1.5 rounded-full text-sm font-medium text-purple-700">
-                ✅ {selectedQuestions.size} Selected
+                ✅ {selectedQuestions.size} {t('selected')}
               </span>
             )}
           </div>
@@ -484,7 +486,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
             >
               <span>➕</span>
-              <span>Create Topic</span>
+              <span>{t('createTopic')}</span>
             </button>
 
             {selectedQuestions.size > 0 && (
@@ -495,7 +497,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                   className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
                 >
                   <span>📦</span>
-                  <span>{movingQuestions ? 'Moving...' : 'Move Selected'}</span>
+                  <span>{movingQuestions ? t('moving') : t('moveSelected')}</span>
                 </button>
                 <button
                   onClick={deleteSelectedQuestions}
@@ -503,13 +505,13 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                   className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
                 >
                   <span>🗑️</span>
-                  <span>{deletingQuestions ? 'Deleting...' : 'Delete Selected'}</span>
+                  <span>{deletingQuestions ? t('deleting') : t('deleteSelected')}</span>
                 </button>
                 <button
                   onClick={deselectAllQuestions}
                   className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Clear Selection
+                  {t('clearSelection')}
                 </button>
               </>
             )}
@@ -521,7 +523,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                 className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-1.5"
               >
                 <span>🗑️</span>
-                <span>{clearing ? 'Clearing...' : 'Clear All'}</span>
+                <span>{clearing ? t('clearing') : t('clearAll')}</span>
               </button>
             )}
           </div>
@@ -540,7 +542,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {category === 'all' ? 'All Categories' : category.charAt(0).toUpperCase() + category.slice(1)}
+                {category === 'all' ? t('allCategories') : category.charAt(0).toUpperCase() + category.slice(1)}
               </button>
             ))}
           </div>
@@ -632,7 +634,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                             className="text-purple-600 hover:text-purple-800 text-sm ml-2"
                             title="Select all questions in this topic"
                           >
-                            ☑️ Select All
+                            ☑️ {t('selectAll')}
                           </button>
                         </>
                       )}
@@ -641,7 +643,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                       <>
                         <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
                         <div className="text-sm text-gray-500">
-                          {topic.topic_questions?.length || 0} questions
+                          {topic.topic_questions?.length || 0} {t('questions').toLowerCase()}
                         </div>
                       </>
                     )}
@@ -693,13 +695,13 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                                     onClick={() => saveQuestion(question.id)}
                                     className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
                                   >
-                                    Save
+                                    {t('save')}
                                   </button>
                                   <button
                                     onClick={cancelEdit}
                                     className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
                                   >
-                                    Cancel
+                                    {t('cancel')}
                                   </button>
                                 </div>
                               </div>
@@ -707,7 +709,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                               <>
                                 <h4 className="font-medium text-gray-900 mb-3">{question.question_template}</h4>
                                 <div className="mb-3">
-                                  <p className="text-xs text-gray-500 mb-1">Answer:</p>
+                                  <p className="text-xs text-gray-500 mb-1">{t('answer')}</p>
                                   <p className="text-sm font-medium text-green-700">{question.correct_answer}</p>
                                 </div>
                               </>
@@ -750,12 +752,12 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
       {showCreateTopic && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
           <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Topic</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('createNewTopic')}</h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Topic Name *
+                  {t('topicName')}
                 </label>
                 <input
                   type="text"
@@ -769,7 +771,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  {t('description')}
                 </label>
                 <textarea
                   value={newTopicDescription}
@@ -782,14 +784,14 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  {t('category')}
                 </label>
                 <select
                   value={newTopicCategory}
                   onChange={(e) => setNewTopicCategory(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="manual">Manual</option>
+                  <option value="manual">{t('manual')}</option>
                   <option value="menu">Menu</option>
                   <option value="procedures">Procedures</option>
                   <option value="policies">Policies</option>
@@ -816,7 +818,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                 disabled={creatingTopic || !newTopicName.trim()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {creatingTopic ? 'Creating...' : 'Create Topic'}
+                {creatingTopic ? t('creating') : t('createTopicButton')}
               </button>
             </div>
           </div>
@@ -828,13 +830,13 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
           <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Move {selectedQuestions.size} Question{selectedQuestions.size !== 1 ? 's' : ''}
+              {t('moveQuestions', { count: selectedQuestions.size, plural: selectedQuestions.size !== 1 ? 's' : '' })}
             </h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Target Topic *
+                  {t('selectTargetTopic')}
                 </label>
                 <select
                   value={targetTopicId}
@@ -842,7 +844,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   autoFocus
                 >
-                  <option value="">-- Select a topic --</option>
+                  <option value="">{t('selectTopicPlaceholder')}</option>
                   {topics.map(topic => (
                     <option key={topic.id} value={topic.id}>
                       {topic.name} ({topic.category})
@@ -853,7 +855,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
 
               <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
                 <p className="text-sm text-purple-800">
-                  <strong>{selectedQuestions.size}</strong> question{selectedQuestions.size !== 1 ? 's' : ''} will be moved to the selected topic.
+                  {t('questionsWillBeMoved', { count: selectedQuestions.size, plural: selectedQuestions.size !== 1 ? 's' : '' })}
                 </p>
               </div>
             </div>
@@ -874,7 +876,7 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                 disabled={movingQuestions || !targetTopicId}
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {movingQuestions ? 'Moving...' : 'Move Questions'}
+                {movingQuestions ? t('moving') : t('moveQuestionsButton')}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Employee } from '@/lib/employees'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
 
@@ -10,13 +11,14 @@ interface EmployeeTracksListProps {
 }
 
 export default function EmployeeTracksList({ employee, companyId }: EmployeeTracksListProps) {
+  const t = useTranslations('assignments')
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [savingAttempts, setSavingAttempts] = useState<Set<string>>(new Set())
 
   const loadEmployeeAssignments = async () => {
     try {
-      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employee.id}`)
+      const response = await fetch(`/api/tracks/track-assignments-standalone?employee_id=${employee.id}`)
       const data = await response.json()
 
       if (data.success) {
@@ -69,7 +71,7 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
     }
 
     try {
-      const response = await fetch(`/api/track-assignments-standalone/${assignmentId}`, {
+      const response = await fetch(`/api/tracks/track-assignments-standalone/${assignmentId}`, {
         method: 'DELETE'
       })
 
@@ -91,7 +93,7 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
     setSavingAttempts(prev => new Set([...prev, key]))
 
     try {
-      const response = await fetch(`/api/track-assignments-standalone/${assignmentId}`, {
+      const response = await fetch(`/api/tracks/track-assignments-standalone/${assignmentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,7 +224,7 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
                         </div>
                         <div className="ml-4 flex items-center space-x-2">
                           <label className="text-xs text-gray-600" title="Leave empty for unlimited attempts">
-                            Attempts limit:
+                            {t('attemptsLimit')}
                           </label>
                           <div className="relative flex items-center">
                             <input

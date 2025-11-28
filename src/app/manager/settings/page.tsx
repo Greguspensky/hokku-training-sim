@@ -9,7 +9,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import UserHeader from '@/components/UserHeader'
+import UserHeader from '@/components/Shared/UserHeader'
 import { Settings, Mic, Languages, ChevronRight } from 'lucide-react'
 
 export default function SettingsPage() {

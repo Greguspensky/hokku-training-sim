@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/contexts/AuthContext'
 import HiddenContent from '@/components/SurpriseMode/HiddenContent'
 
@@ -47,14 +48,37 @@ interface IndividualScenariosCardProps {
 }
 
 export default function IndividualScenariosCard({ employeeId }: IndividualScenariosCardProps) {
+  const t = useTranslations('employeeDashboard')
   const [scenarioAssignments, setScenarioAssignments] = useState<ScenarioAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<{[key: string]: KnowledgeTopic}>({})
   const [scenarioStats, setScenarioStats] = useState<{[key: string]: ScenarioStats}>({})
+  const [showSessionNames, setShowSessionNames] = useState(false)
   const { user } = useAuth()
 
   // Use auth user ID for stats queries (training sessions are saved with auth user ID)
   const statsUserId = user?.id
+  const companyId = user?.company_id
+
+  // Load company setting for session names visibility
+  useEffect(() => {
+    const loadCompanySettings = async () => {
+      if (!companyId) return
+
+      try {
+        const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
+        const data = await response.json()
+        if (data.success && data.data?.settings) {
+          setShowSessionNames(data.data.settings.show_session_names_to_employees || false)
+        }
+      } catch (error) {
+        console.error('Failed to load session visibility settings:', error)
+        setShowSessionNames(false)
+      }
+    }
+
+    loadCompanySettings()
+  }, [companyId])
 
   // Function to fetch topic details
   const loadTopics = async (topicIds: string[]) => {
@@ -90,12 +114,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
 
     const statsPromises = assignments.map(async (assignment) => {
       try {
-        const response = await fetch(`/api/scenario-stats?scenario_id=${assignment.scenario_id}&user_id=${statsUserId}`)
+        const response = await fetch(`/api/scenarios/scenario-stats?scenario_id=${assignment.scenario_id}&user_id=${statsUserId}`)
         const data = await response.json()
 
         if (data.success) {
-          console.log(`✅ Loaded stats for scenario ${assignment.scenario_id}:`, data.stats)
-          return { scenarioId: assignment.scenario_id, stats: data.stats }
+          const stats = data.data?.stats || data.stats // Support both nested and flat structure
+          console.log(`✅ Loaded stats for scenario ${assignment.scenario_id}:`, stats)
+          return { scenarioId: assignment.scenario_id, stats }
         }
       } catch (error) {
         console.error(`Failed to load stats for scenario ${assignment.scenario_id}:`, error)
@@ -126,7 +151,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
     }
 
     try {
-      const url = `/api/scenario-assignments?employee_id=${employeeId}`
+      const url = `/api/scenarios/scenario-assignments?employee_id=${employeeId}`
       console.log('🔍 Fetching scenario assignments from:', url)
 
       const response = await fetch(url)
@@ -172,12 +197,12 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
   if (scenarioAssignments.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Individual Scenarios</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">{t('individualScenarios')}</h3>
         <div className="text-center py-8">
           <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
           </svg>
-          <p className="text-gray-500 text-sm">No individual scenarios assigned</p>
+          <p className="text-gray-500 text-sm">{t('noIndividualScenariosAssigned')}</p>
         </div>
       </div>
     )
@@ -193,18 +218,18 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed': return 'Completed'
-      case 'in_progress': return 'In Progress'
-      default: return 'Ready to Start'
+      case 'completed': return t('completed')
+      case 'in_progress': return t('inProgress')
+      default: return t('readyToStart')
     }
   }
 
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">Individual Scenarios</h3>
+        <h3 className="text-lg font-medium text-gray-900">{t('individualScenarios')}</h3>
         <p className="text-sm text-gray-500 mt-1">
-          Specific scenarios assigned to you individually
+          {t('specificScenariosAssigned')}
         </p>
       </div>
 
@@ -222,7 +247,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <h4 className="text-lg font-medium text-gray-900">
-                      <HiddenContent type="title" customPlaceholder="Mystery Scenario" />
+                      {showSessionNames ? assignment.scenarios.title : <HiddenContent type="title" customPlaceholder="Mystery Scenario" />}
                     </h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
                       {getStatusText(assignment.status)}
@@ -230,7 +255,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   </div>
 
                   <p className="text-gray-600 mb-3 text-sm">
-                    <HiddenContent type="description" showIcon={false} />
+                    {showSessionNames ? assignment.scenarios.description : <HiddenContent type="description" showIcon={false} />}
                   </p>
 
                   <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
@@ -244,9 +269,9 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         ? 'bg-orange-100 text-orange-800'
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                       assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
-                       'Service Practice'}
+                      {assignment.scenarios.scenario_type === 'theory' ? t('theoryQA') :
+                       assignment.scenarios.scenario_type === 'recommendations' ? t('situationships') :
+                       t('servicePractice')}
                     </span>
 
                     {assignment.scenarios.session_time_limit_minutes && (
@@ -259,21 +284,21 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                       <>
                         {assignment.scenarios.scenario_type === 'theory' ? (
                           <span className="text-xs text-blue-600 font-medium">
-                            Completed: {stats.completionPercentage}%
+                            {t('completedPercentage', { percentage: stats.completionPercentage })}
                           </span>
                         ) : (
                           <span className={`text-xs font-medium ${stats.isCompleted ? 'text-green-600' : 'text-gray-500'}`}>
-                            {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                            {stats.isCompleted ? `✓ ${t('completed')}` : t('notCompleted')}
                           </span>
                         )}
 
                         <span className="text-xs text-gray-600">
-                          Attempts: {stats.attemptCount}/{assignment.max_attempts || '∞'}
+                          {t('attemptsCount', { current: stats.attemptCount, max: assignment.max_attempts || '∞' })}
                         </span>
 
                         {stats.lastAttempt && (
                           <span className="text-xs text-gray-500">
-                            Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                            {t('lastDate', { date: new Date(stats.lastAttempt).toLocaleDateString() })}
                           </span>
                         )}
                       </>
@@ -283,13 +308,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   {assignment.notes && (
                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
                       <p className="text-sm text-blue-700">
-                        <strong>Manager's Note:</strong> {assignment.notes}
+                        <strong>{t('managersNote')}</strong> {assignment.notes}
                       </p>
                     </div>
                   )}
 
                   <div className="text-xs text-gray-400">
-                    Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+                    {t('assignedOn', { date: new Date(assignment.assigned_at).toLocaleDateString() })}
                   </div>
                 </div>
 
@@ -308,15 +333,15 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                           window.location.href = `/employee/training/${assignmentId}`
                         }
                       }}
-                      title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                      title={isLimitReached ? t('attemptLimitReached') : t('viewSession')}
                     >
                       <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                       {isLimitReached
-                        ? 'Limit Reached'
-                        : assignment.status === 'in_progress' ? 'Continue Training' : 'View Session'
+                        ? t('limitReached')
+                        : assignment.status === 'in_progress' ? t('continueTraining') : t('viewSession')
                       }
                     </button>
                   )}
@@ -328,7 +353,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                 <div>
                   <div className="flex items-center flex-wrap gap-2 mb-2">
                     <h4 className="text-lg font-medium text-gray-900">
-                      <HiddenContent type="title" customPlaceholder="Mystery Scenario" />
+                      {showSessionNames ? assignment.scenarios.title : <HiddenContent type="title" customPlaceholder="Mystery Scenario" />}
                     </h4>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(assignment.status)}`}>
                       {getStatusText(assignment.status)}
@@ -336,7 +361,7 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   </div>
 
                   <p className="text-gray-600 mb-3 text-sm">
-                    <HiddenContent type="description" showIcon={false} />
+                    {showSessionNames ? assignment.scenarios.description : <HiddenContent type="description" showIcon={false} />}
                   </p>
 
                   <div className="flex flex-wrap gap-2 text-sm mb-3">
@@ -350,9 +375,9 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         ? 'bg-orange-100 text-orange-800'
                         : 'bg-green-100 text-green-800'
                     }`}>
-                      {assignment.scenarios.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                       assignment.scenarios.scenario_type === 'recommendations' ? 'Recommendations' :
-                       'Service Practice'}
+                      {assignment.scenarios.scenario_type === 'theory' ? t('theoryQA') :
+                       assignment.scenarios.scenario_type === 'recommendations' ? t('situationships') :
+                       t('servicePractice')}
                     </span>
 
                     {assignment.scenarios.session_time_limit_minutes && (
@@ -365,21 +390,21 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                       <>
                         {assignment.scenarios.scenario_type === 'theory' ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
-                            {stats.completionPercentage}% Done
+                            {t('done', { percentage: stats.completionPercentage })}
                           </span>
                         ) : (
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stats.isCompleted ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                            {stats.isCompleted ? '✓ Completed' : 'Not completed'}
+                            {stats.isCompleted ? `✓ ${t('completed')}` : t('notCompleted')}
                           </span>
                         )}
 
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                          Attempts: {stats.attemptCount}/{assignment.max_attempts || '∞'}
+                          {t('attemptsCount', { current: stats.attemptCount, max: assignment.max_attempts || '∞' })}
                         </span>
 
                         {stats.lastAttempt && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                            Last: {new Date(stats.lastAttempt).toLocaleDateString()}
+                            {t('lastDate', { date: new Date(stats.lastAttempt).toLocaleDateString() })}
                           </span>
                         )}
                       </>
@@ -389,13 +414,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                   {assignment.notes && (
                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
                       <p className="text-sm text-blue-700">
-                        <strong>Manager's Note:</strong> {assignment.notes}
+                        <strong>{t('managersNote')}</strong> {assignment.notes}
                       </p>
                     </div>
                   )}
 
                   <div className="text-xs text-gray-400">
-                    Assigned {new Date(assignment.assigned_at).toLocaleDateString()}
+                    {t('assignedOn', { date: new Date(assignment.assigned_at).toLocaleDateString() })}
                   </div>
                 </div>
 
@@ -413,15 +438,15 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         window.location.href = `/employee/training/${assignmentId}`
                       }
                     }}
-                    title={isLimitReached ? 'Attempt limit reached' : 'View session details'}
+                    title={isLimitReached ? t('attemptLimitReached') : t('viewSession')}
                   >
                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                     {isLimitReached
-                      ? 'Attempt Limit Reached'
-                      : assignment.status === 'in_progress' ? 'Continue Training' : 'View Session'
+                      ? t('attemptLimitReachedFull')
+                      : assignment.status === 'in_progress' ? t('continueTraining') : t('viewSession')
                     }
                   </button>
                 )}

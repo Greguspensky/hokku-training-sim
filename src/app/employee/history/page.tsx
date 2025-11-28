@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Clock, Calendar, Brain, MessageCircle, User } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
-import UserHeader from '@/components/UserHeader'
+import UserHeader from '@/components/Shared/UserHeader'
 import SessionCard from '@/components/Employee/SessionCard'
 
 export default function TrainingHistoryPage() {

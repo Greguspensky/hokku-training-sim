@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { apiErrorHandler, createSuccessResponse, createErrorResponse, parseRequestBody } from '@/lib/utils/api';
 import { knowledgeBaseService, type CreateCategoryData } from '@/lib/knowledge-base'
 import { getCurrentUser } from '@/lib/auth'
 

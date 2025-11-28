@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import TrackList from '@/components/TrackList'
-import TrackForm from '@/components/TrackForm'
-import ScenarioForm from '@/components/ScenarioForm'
-import EditScenarioForm from '@/components/EditScenarioForm'
-import AddScenariosDialog from '@/components/AddScenariosDialog'
-import UserHeader from '@/components/UserHeader'
+import { useTranslations } from 'next-intl'
+import TrackList from '@/components/Tracks/TrackList'
+import TrackForm from '@/components/Tracks/TrackForm'
+import ScenarioForm from '@/components/Scenarios/ScenarioForm'
+import EditScenarioForm from '@/components/Scenarios/EditScenarioForm'
+import AddScenariosDialog from '@/components/Scenarios/AddScenariosDialog'
+import UserHeader from '@/components/Shared/UserHeader'
 import SessionFeed from '@/components/Manager/SessionFeed'
 import EmployeeProgressList from '@/components/Manager/EmployeeProgressList'
 import EmployeeDashboardView from '@/components/Manager/EmployeeDashboardView'
 import ServicePracticeAnalyticsDashboard from '@/components/Manager/ServicePracticeAnalyticsDashboard'
-import EmployeeSkillComparison from '@/components/EmployeeSkillComparison'
+import EmployeeSkillComparison from '@/components/Analytics/EmployeeSkillComparison'
 import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario, scenarioService } from '@/lib/scenarios'
 import { employeeService, Employee } from '@/lib/employees'
@@ -22,25 +23,26 @@ import { getVoiceName } from '@/lib/elevenlabs-voices'
 
 // Voice Badge Component - displays voice names from voice_ids array
 function VoiceBadge({ voiceIds }: { voiceIds?: string[] | null }) {
-  const [voiceNames, setVoiceNames] = useState<string>('Loading...')
+  const t = useTranslations()
+  const [voiceNames, setVoiceNames] = useState<string>(t('manager.tracks.loading'))
 
   useEffect(() => {
     const fetchVoiceNames = async () => {
       // Handle legacy voice_id or empty array
       if (!voiceIds || voiceIds.length === 0) {
-        setVoiceNames('Random Voice')
+        setVoiceNames(t('manager.tracks.randomVoice'))
         return
       }
 
       // If includes 'random' keyword
       if (voiceIds.includes('random')) {
-        setVoiceNames('Random Voice')
+        setVoiceNames(t('manager.tracks.randomVoice'))
         return
       }
 
       try {
         // Fetch voice metadata from API
-        const response = await fetch('/api/voice-settings')
+        const response = await fetch('/api/settings/voice-settings')
         const data = await response.json()
 
         if (data.success && data.voices) {
@@ -53,23 +55,23 @@ function VoiceBadge({ voiceIds }: { voiceIds?: string[] | null }) {
             .filter(Boolean)
 
           if (names.length === 0) {
-            setVoiceNames('Random Voice')
+            setVoiceNames(t('manager.tracks.randomVoice'))
           } else if (names.length === 1) {
             setVoiceNames(names[0])
           } else {
-            setVoiceNames(`${names.length} voices`)
+            setVoiceNames(t('manager.tracks.voicesCount', { count: names.length }))
           }
         } else {
-          setVoiceNames('Random Voice')
+          setVoiceNames(t('manager.tracks.randomVoice'))
         }
       } catch (error) {
         console.error('Failed to fetch voice names:', error)
-        setVoiceNames('Random Voice')
+        setVoiceNames(t('manager.tracks.randomVoice'))
       }
     }
 
     fetchVoiceNames()
-  }, [voiceIds])
+  }, [voiceIds, t])
 
   return (
     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -85,6 +87,7 @@ interface TopicTagProps {
 }
 
 function TopicTag({ topicId, companyId }: TopicTagProps) {
+  const t = useTranslations()
   const [topicData, setTopicData] = useState<{
     name: string
     questionCount: number
@@ -122,7 +125,7 @@ function TopicTag({ topicId, companyId }: TopicTagProps) {
   if (loading) {
     return (
       <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 animate-pulse">
-        Loading...
+        {t('manager.tracks.loading')}
       </div>
     )
   }
@@ -130,7 +133,7 @@ function TopicTag({ topicId, companyId }: TopicTagProps) {
   if (!topicData) {
     return (
       <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-        Topic not found
+        {t('manager.tracks.topicNotFound')}
       </div>
     )
   }
@@ -150,7 +153,7 @@ function TopicTag({ topicId, companyId }: TopicTagProps) {
         {topicData.name}
       </span>
       <span className="text-xs text-gray-500">
-        {topicData.questionCount} questions
+        {topicData.questionCount} {t('manager.tracks.questions')}
       </span>
       {topicData.difficulty_level && (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -164,6 +167,7 @@ function TopicTag({ topicId, companyId }: TopicTagProps) {
 export default function ManagerDashboard() {
   const router = useRouter()
   const { user } = useAuth()
+  const t = useTranslations()
   const [tracks, setTracks] = useState<Track[]>([])
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [allScenarios, setAllScenarios] = useState<Scenario[]>([])
@@ -211,7 +215,7 @@ export default function ManagerDashboard() {
       const response = await fetch(`/api/tracks?company_id=${companyId}`)
       const data = await response.json()
       if (data.success) {
-        setTracks(data.tracks || [])
+        setTracks(data.data?.tracks || [])
       }
     } catch (error) {
       console.error('Failed to load tracks:', error)
@@ -225,7 +229,7 @@ export default function ManagerDashboard() {
       const response = await fetch(`/api/scenarios?track_id=${trackId}`)
       const data = await response.json()
       if (data.success) {
-        setScenarios(data.scenarios || [])
+        setScenarios(data.data?.scenarios || [])
       }
     } catch (error) {
       console.error('Failed to load scenarios:', error)
@@ -238,7 +242,7 @@ export default function ManagerDashboard() {
       const response = await fetch(`/api/scenarios?company_id=${companyId}`)
       const data = await response.json()
       if (data.success) {
-        setAllScenarios(data.scenarios || [])
+        setAllScenarios(data.data?.scenarios || [])
       }
     } catch (error) {
       console.error('Failed to load all scenarios:', error)
@@ -248,7 +252,7 @@ export default function ManagerDashboard() {
 
   const loadCompanySettings = async () => {
     try {
-      const response = await fetch(`/api/company-settings?company_id=${companyId}`)
+      const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
       const data = await response.json()
       if (data.success && data.settings) {
         setDefaultLanguage(data.settings.default_training_language || 'en')
@@ -263,7 +267,7 @@ export default function ManagerDashboard() {
   const handleLanguageChange = async (languageCode: string) => {
     setSavingLanguage(true)
     try {
-      const response = await fetch('/api/company-settings', {
+      const response = await fetch('/api/settings/company-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +295,7 @@ export default function ManagerDashboard() {
     setSavingRecordingOptions(true)
     try {
       const settingKey = scenarioType === 'theory' ? 'theory_recording_options' : 'service_practice_recording_options'
-      const response = await fetch('/api/company-settings', {
+      const response = await fetch('/api/settings/company-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -392,7 +396,7 @@ export default function ManagerDashboard() {
   }
 
   const handleDeleteTrack = async (trackId: string) => {
-    if (!confirm('Are you sure you want to delete this track? This will also delete all scenarios in this track.')) {
+    if (!confirm(t('manager.tracks.confirmDeleteTrack'))) {
       return
     }
 
@@ -407,16 +411,16 @@ export default function ManagerDashboard() {
           setSelectedTrack(null)
         }
       } else {
-        alert('Failed to delete track')
+        alert(t('manager.tracks.deleteTrackFailed'))
       }
     } catch (error) {
       console.error('Failed to delete track:', error)
-      alert('Failed to delete track')
+      alert(t('manager.tracks.deleteTrackFailed'))
     }
   }
 
   const handleDeleteScenario = async (scenarioId: string) => {
-    if (!confirm('Are you sure you want to delete this scenario?')) {
+    if (!confirm(t('manager.tracks.confirmDeleteScenario'))) {
       return
     }
 
@@ -431,11 +435,11 @@ export default function ManagerDashboard() {
           loadScenarios(selectedTrack.id)
         }
       } else {
-        alert('Failed to delete scenario')
+        alert(t('manager.tracks.deleteScenarioFailed'))
       }
     } catch (error) {
       console.error('Failed to delete scenario:', error)
-      alert('Failed to delete scenario')
+      alert(t('manager.tracks.deleteScenarioFailed'))
     }
   }
 
@@ -445,7 +449,7 @@ export default function ManagerDashboard() {
       return
     }
 
-    if (!confirm('Are you sure you want to remove this scenario from this track? The scenario will still be available in other tracks and in the main scenarios list.')) {
+    if (!confirm(t('manager.tracks.confirmRemoveFromTrack'))) {
       return
     }
 
@@ -465,11 +469,11 @@ export default function ManagerDashboard() {
           throw new Error('Failed to remove scenario assignment')
         }
 
-        alert('Scenario successfully removed from track!')
+        alert(t('manager.tracks.removeSuccess'))
       } else {
         // No assignment found - this scenario has a direct track_id
         // We need to clear the track_id from the scenario
-        alert('This scenario uses the legacy track_id system. To remove it, please edit the scenario and change its track assignment.')
+        alert(t('manager.tracks.legacyTrackWarning'))
         return
       }
 
@@ -509,10 +513,11 @@ export default function ManagerDashboard() {
       loadScenarios(selectedTrack.id)
       setShowAddScenariosDialog(false)
 
-      alert(`Successfully added ${selectedScenarioIds.length} scenario(s) to track!`)
+      const plural = selectedScenarioIds.length === 1 ? '' : 's'
+      alert(t('manager.tracks.addScenariosSuccess', { count: selectedScenarioIds.length, plural }))
     } catch (error) {
       console.error('Failed to add scenarios:', error)
-      alert('Failed to add scenarios: ' + (error as Error).message)
+      alert(t('manager.tracks.addScenariosFailed') + ' ' + (error as Error).message)
     }
   }
 
@@ -581,8 +586,8 @@ export default function ManagerDashboard() {
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* User Header */}
         <UserHeader
-          title="Training Manager"
-          subtitle={selectedTrack ? `Managing scenarios for: ${selectedTrack.name}` : 'Manage your training tracks and scenarios'}
+          title={t('manager.dashboard.trainingManager')}
+          subtitle={selectedTrack ? `${t('manager.dashboard.managingScenarios')}: ${selectedTrack.name}` : t('manager.dashboard.manageTrainings')}
         />
 
         {/* Action Buttons */}
@@ -593,7 +598,7 @@ export default function ManagerDashboard() {
                 onClick={handleBackToTracks}
                 className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
-                Back to Tracks
+                {t('manager.tracks.backToTracks')}
               </button>
               <div></div>
             </>
@@ -606,13 +611,13 @@ export default function ManagerDashboard() {
                   onClick={() => setShowScenarioForm(true)}
                   className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
-                  Add Scenario
+                  {t('manager.dashboard.addScenario')}
                 </button>
                 <button
                   onClick={() => setShowTrackForm(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  Create Track
+                  {t('manager.dashboard.createTrack')}
                 </button>
               </div>
             </>
@@ -631,7 +636,7 @@ export default function ManagerDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Feed
+                {t('manager.dashboard.tabFeed')}
               </button>
               <button
                 onClick={() => setActiveTab('progress')}
@@ -641,7 +646,7 @@ export default function ManagerDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Progress
+                {t('manager.dashboard.tabProgress')}
               </button>
               <button
                 onClick={() => setActiveTab('training')}
@@ -651,19 +656,19 @@ export default function ManagerDashboard() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Scenarios and Tracks
+                {t('manager.dashboard.tabTracks')}
               </button>
               <button
                 onClick={() => router.push('/manager/knowledge-base')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Knowledge Base
+                {t('manager.dashboard.tabKnowledge')}
               </button>
               <button
                 onClick={() => router.push('/manager/employees')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Employees
+                {t('manager.dashboard.tabEmployees')}
               </button>
             </nav>
           </div>
@@ -678,9 +683,9 @@ export default function ManagerDashboard() {
             /* Track Management View */
             <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Training Tracks</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t('manager.tracks.trainingTracks')}</h2>
               <p className="text-gray-600">
-                Create and manage training tracks for your team. Each track contains multiple scenarios.
+                {t('manager.tracks.trainingTracksDescription')}
               </p>
             </div>
             <TrackList
@@ -692,9 +697,9 @@ export default function ManagerDashboard() {
 
             {/* All Scenarios Section */}
             <div className="bg-white rounded-lg shadow p-6 mt-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Scenarios</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('manager.tracks.allScenarios')}</h2>
               <p className="text-gray-600 mb-4">
-                All scenarios available in your company. You can edit them here or assign them to training tracks.
+                {t('manager.tracks.allScenariosDescription')}
               </p>
 
               {/* Scenarios List */}
@@ -704,8 +709,8 @@ export default function ManagerDashboard() {
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No scenarios yet</h3>
-                    <p className="mt-1 text-sm text-gray-500">Create a training track first, then add scenarios to it.</p>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">{t('manager.tracks.noScenariosYet')}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{t('manager.tracks.createTrackFirst')}</p>
                   </div>
                 ) : (
                   allScenarios.map((scenario) => (
@@ -716,8 +721,8 @@ export default function ManagerDashboard() {
                           <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
                           <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                               scenario.scenario_type === 'recommendations' ? 'Situationships' : 'Service Practice'}
+                              {scenario.scenario_type === 'theory' ? t('manager.feed.theoryQA') :
+                               scenario.scenario_type === 'recommendations' ? t('manager.feed.situationships') : t('manager.feed.servicePractice')}
                             </span>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                               📚 {getTrackName(scenario.track_id)}
@@ -740,14 +745,14 @@ export default function ManagerDashboard() {
 
                           {scenario.scenario_type === 'theory' && (
                             <div className="mt-4">
-                              <span className="text-sm font-medium text-gray-700">Topics:</span>
+                              <span className="text-sm font-medium text-gray-700">{t('manager.tracks.topics')}</span>
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {scenario.topic_ids && scenario.topic_ids.length > 0 ? (
                                   scenario.topic_ids.map((topicId) => (
                                     <TopicTag key={topicId} topicId={topicId} companyId={user?.company_id || ''} />
                                   ))
                                 ) : (
-                                  <span className="text-sm text-gray-500 italic">No topics assigned</span>
+                                  <span className="text-sm text-gray-500 italic">{t('manager.tracks.noTopicsAssigned')}</span>
                                 )}
                               </div>
                             </div>
@@ -756,20 +761,23 @@ export default function ManagerDashboard() {
                           {scenario.scenario_type === 'recommendations' && (
                             <div className="mt-4 space-y-2">
                               <div>
-                                <span className="text-sm font-medium text-gray-700">Questions:</span>
+                                <span className="text-sm font-medium text-gray-700">{t('manager.tracks.questionsLabel')}</span>
                                 <div className="mt-1">
                                   {scenario.recommendation_question_ids && scenario.recommendation_question_ids.length > 0 ? (
                                     <span className="text-sm text-gray-600">
-                                      {scenario.recommendation_question_ids.length} recommendation question{scenario.recommendation_question_ids.length === 1 ? '' : 's'} selected
+                                      {t('manager.tracks.recommendationQuestionsSelected', {
+                                        count: scenario.recommendation_question_ids.length,
+                                        plural: scenario.recommendation_question_ids.length === 1 ? '' : 's'
+                                      })}
                                     </span>
                                   ) : (
-                                    <span className="text-sm text-gray-500 italic">No questions assigned</span>
+                                    <span className="text-sm text-gray-500 italic">{t('manager.tracks.noQuestionsAssigned')}</span>
                                   )}
                                 </div>
                               </div>
                               {scenario.instructions && (
                                 <div>
-                                  <span className="text-sm font-medium text-gray-700">Instructions:</span>
+                                  <span className="text-sm font-medium text-gray-700">{t('manager.tracks.instructions')}</span>
                                   <p className="text-sm text-gray-600 mt-1">{scenario.instructions}</p>
                                 </div>
                               )}
@@ -784,7 +792,7 @@ export default function ManagerDashboard() {
                             <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
-                            Edit
+                            {t('manager.tracks.edit')}
                           </button>
                           <button
                             onClick={() => handleDeleteScenario(scenario.id)}
@@ -793,7 +801,7 @@ export default function ManagerDashboard() {
                             <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
-                            Delete
+                            {t('manager.tracks.delete')}
                           </button>
                         </div>
                       </div>
@@ -815,7 +823,7 @@ export default function ManagerDashboard() {
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {selectedTrack.target_audience.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </span>
-                    <span>{scenarios.length} scenarios</span>
+                    <span>{t('manager.tracks.scenariosCount', { count: scenarios.length })}</span>
                   </div>
                 </div>
               </div>
@@ -828,20 +836,20 @@ export default function ManagerDashboard() {
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
                   </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No scenarios yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">Add existing scenarios to this track or create new ones.</p>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('manager.tracks.noScenariosInTrack')}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t('manager.tracks.addScenariosPrompt')}</p>
                   <div className="mt-4 space-x-2">
                     <button
                       onClick={() => setShowAddScenariosDialog(true)}
                       className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                     >
-                      Add Scenarios
+                      {t('manager.tracks.addScenarios')}
                     </button>
                     <button
                       onClick={() => setShowScenarioForm(true)}
                       className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
                     >
-                      Create New
+                      {t('manager.tracks.createNew')}
                     </button>
                   </div>
                 </div>
@@ -854,8 +862,8 @@ export default function ManagerDashboard() {
                         <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
                         <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {scenario.scenario_type === 'theory' ? 'Theory (Q&A)' :
-                             scenario.scenario_type === 'recommendations' ? 'Situationships' : 'Service Practice'}
+                            {scenario.scenario_type === 'theory' ? t('manager.feed.theoryQA') :
+                             scenario.scenario_type === 'recommendations' ? t('manager.feed.situationships') : t('manager.feed.servicePractice')}
                           </span>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                             📚 {getTrackName(scenario.track_id)}
@@ -880,7 +888,7 @@ export default function ManagerDashboard() {
                           <div className="mt-4 space-y-2">
                             {scenario.milestones && scenario.milestones.length > 0 && (
                               <div>
-                                <span className="text-sm font-medium text-gray-700">Milestones:</span>
+                                <span className="text-sm font-medium text-gray-700">{t('manager.tracks.milestones')}</span>
                                 <div className="mt-1 space-y-1">
                                   {scenario.milestones.map((milestone, index) => (
                                     <div key={index} className="flex items-center text-sm text-gray-600">
@@ -893,17 +901,17 @@ export default function ManagerDashboard() {
                             )}
                           </div>
                         )}
-                        
+
                         {scenario.scenario_type === 'theory' && (
                           <div className="mt-4">
-                            <span className="text-sm font-medium text-gray-700">Topics:</span>
+                            <span className="text-sm font-medium text-gray-700">{t('manager.tracks.topics')}</span>
                             <div className="mt-1 flex flex-wrap gap-2">
                               {scenario.topic_ids && scenario.topic_ids.length > 0 ? (
                                 scenario.topic_ids.map((topicId) => (
                                   <TopicTag key={topicId} topicId={topicId} companyId={user?.company_id || ''} />
                                 ))
                               ) : (
-                                <span className="text-sm text-gray-500 italic">No topics assigned</span>
+                                <span className="text-sm text-gray-500 italic">{t('manager.tracks.noTopicsAssigned')}</span>
                               )}
                             </div>
                           </div>
@@ -912,20 +920,23 @@ export default function ManagerDashboard() {
                         {scenario.scenario_type === 'recommendations' && (
                           <div className="mt-4 space-y-2">
                             <div>
-                              <span className="text-sm font-medium text-gray-700">Questions:</span>
+                              <span className="text-sm font-medium text-gray-700">{t('manager.tracks.questionsLabel')}</span>
                               <div className="mt-1">
                                 {scenario.recommendation_question_ids && scenario.recommendation_question_ids.length > 0 ? (
                                   <span className="text-sm text-gray-600">
-                                    {scenario.recommendation_question_ids.length} recommendation question{scenario.recommendation_question_ids.length === 1 ? '' : 's'} selected
+                                    {t('manager.tracks.recommendationQuestionsSelected', {
+                                      count: scenario.recommendation_question_ids.length,
+                                      plural: scenario.recommendation_question_ids.length === 1 ? '' : 's'
+                                    })}
                                   </span>
                                 ) : (
-                                  <span className="text-sm text-gray-500 italic">No questions assigned</span>
+                                  <span className="text-sm text-gray-500 italic">{t('manager.tracks.noQuestionsAssigned')}</span>
                                 )}
                               </div>
                             </div>
                             {scenario.instructions && (
                               <div>
-                                <span className="text-sm font-medium text-gray-700">Instructions:</span>
+                                <span className="text-sm font-medium text-gray-700">{t('manager.tracks.instructions')}</span>
                                 <p className="text-sm text-gray-600 mt-1">{scenario.instructions}</p>
                               </div>
                             )}
@@ -940,7 +951,7 @@ export default function ManagerDashboard() {
                           <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Remove from Track
+                          {t('manager.tracks.removeFromTrack')}
                         </button>
                       </div>
                     </div>
@@ -981,7 +992,7 @@ export default function ManagerDashboard() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Create New Track</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('manager.tracks.createNewTrack')}</h3>
               </div>
               <TrackForm
                 companyId={companyId}
@@ -997,9 +1008,9 @@ export default function ManagerDashboard() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Create New Scenario</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('manager.tracks.createNewScenario')}</h3>
                 {selectedTrack && (
-                  <p className="text-sm text-gray-600">Adding to: {selectedTrack.name}</p>
+                  <p className="text-sm text-gray-600">{t('manager.tracks.addingTo')} {selectedTrack.name}</p>
                 )}
               </div>
               <ScenarioForm
@@ -1017,8 +1028,8 @@ export default function ManagerDashboard() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Edit Scenario</h3>
-                <p className="text-sm text-gray-600">Editing: {editingScenario.title}</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('manager.tracks.editScenario')}</h3>
+                <p className="text-sm text-gray-600">{t('manager.tracks.editing')} {editingScenario.title}</p>
               </div>
               <EditScenarioForm
                 scenario={editingScenario}
@@ -1050,8 +1061,8 @@ export default function ManagerDashboard() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Edit Track</h3>
-                <p className="text-sm text-gray-600">Editing: {editingTrack.name}</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('manager.tracks.editTrack')}</h3>
+                <p className="text-sm text-gray-600">{t('manager.tracks.editing')} {editingTrack.name}</p>
               </div>
               <TrackForm
                 companyId={companyId}

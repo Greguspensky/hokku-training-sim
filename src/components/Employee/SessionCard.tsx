@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Calendar, Clock, MessageCircle, Brain, Video, Target, Trash2, Trophy, BarChart3 } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 
@@ -45,6 +46,7 @@ export default function SessionCard({
   isDeleting = false,
   isAnalyzing = false
 }: SessionCardProps) {
+  const t = useTranslations('employeeDashboard')
   const router = useRouter()
 
   const handleDeleteClick = async (e: React.MouseEvent) => {
@@ -68,9 +70,9 @@ export default function SessionCard({
     yesterday.setDate(yesterday.getDate() - 1)
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Today'
+      return t('today')
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday'
+      return t('yesterday')
     } else {
       return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -142,10 +144,10 @@ export default function SessionCard({
               }`}
             >
               {session.training_mode === 'theory'
-                ? 'Theory Q&A'
+                ? t('theoryQA')
                 : session.training_mode === 'recommendation_tts'
-                ? 'Situationships'
-                : 'Service Practice'}
+                ? t('situationships')
+                : t('servicePractice')}
             </span>
             {/* Performance Score Badge OR Analyze Button - For Theory Q&A */}
             {session.training_mode === 'theory' && (() => {
@@ -181,12 +183,12 @@ export default function SessionCard({
                     {isAnalyzing ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-                        <span>Analyzing...</span>
+                        <span>{t('analyzing')}</span>
                       </>
                     ) : (
                       <>
                         <BarChart3 className="w-3.5 h-3.5" />
-                        <span>Analyze</span>
+                        <span>{t('analyze')}</span>
                       </>
                     )}
                   </button>
@@ -230,12 +232,12 @@ export default function SessionCard({
                     {isAnalyzing ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-                        <span>Analyzing...</span>
+                        <span>{t('analyzing')}</span>
                       </>
                     ) : (
                       <>
                         <BarChart3 className="w-3.5 h-3.5" />
-                        <span>Analyze</span>
+                        <span>{t('analyze')}</span>
                       </>
                     )}
                   </button>
@@ -274,12 +276,12 @@ export default function SessionCard({
             {session.training_mode === 'recommendation_tts' ? (
               <>
                 <Target className="w-4 h-4 mr-2" />
-                <span>{session.conversation_transcript.length} questions</span>
+                <span>{session.conversation_transcript.length} {t('questions')}</span>
               </>
             ) : (
               <>
                 <MessageCircle className="w-4 h-4 mr-2" />
-                <span>{session.conversation_transcript.length} messages</span>
+                <span>{session.conversation_transcript.length} {t('messages')}</span>
               </>
             )}
           </div>
@@ -293,7 +295,7 @@ export default function SessionCard({
           <div className="mt-3 pt-3 border-t border-gray-100">
             <div className="text-xs text-gray-500 mb-2 flex items-center">
               <Video className="w-3 h-3 mr-1" />
-              Video Recording:
+              {t('videoRecording')}
             </div>
             <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
               <video
@@ -302,7 +304,7 @@ export default function SessionCard({
                 className="w-full h-full object-cover"
                 preload="none"
               >
-                Your browser does not support video playback.
+                {t('browserNoVideoSupport')}
               </video>
             </div>
           </div>

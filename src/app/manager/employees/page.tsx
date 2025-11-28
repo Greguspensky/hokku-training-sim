@@ -1,15 +1,17 @@
 'use client'
 
 import EmployeeManagement from '@/components/Employees/EmployeeManagement'
-import UserHeader from '@/components/UserHeader'
+import UserHeader from '@/components/Shared/UserHeader'
 import { useAuth } from '@/contexts/AuthContext'
 import { employeeService } from '@/lib/employees'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 
 export default function EmployeesPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const t = useTranslations()
   const [roleChecking, setRoleChecking] = useState(true)
   const [isEmployee, setIsEmployee] = useState(false)
   const companyId = user?.company_id
@@ -89,8 +91,8 @@ export default function EmployeesPage() {
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* User Header */}
         <UserHeader
-          title="Employee Management"
-          subtitle="Invite team members and manage their training access"
+          title={t('employees.employeeManagement')}
+          subtitle={t('employees.inviteEmployeesDescription')}
         />
 
         {/* Navigation Tabs */}
@@ -101,31 +103,31 @@ export default function EmployeesPage() {
                 onClick={() => window.location.href = '/manager'}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Feed
+                {t('manager.dashboard.tabFeed')}
               </button>
               <button
                 onClick={() => window.location.href = '/manager?tab=progress'}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Progress
+                {t('manager.dashboard.tabProgress')}
               </button>
               <button
                 onClick={() => window.location.href = '/manager?tab=training'}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Scenarios and Tracks
+                {t('manager.dashboard.tabTracks')}
               </button>
               <button
                 onClick={() => window.location.href = '/manager/knowledge-base'}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Knowledge Base
+                {t('manager.dashboard.tabKnowledge')}
               </button>
               <button
                 onClick={() => {}}
                 className="border-blue-500 text-blue-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Employees
+                {t('manager.dashboard.tabEmployees')}
               </button>
             </nav>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { KnowledgeBaseCategory, KnowledgeBaseDocument } from '@/lib/knowledge-base'
 import CategoryFolder from './CategoryFolder'
 import DocumentForm from './DocumentForm'
@@ -10,7 +11,7 @@ import DocumentViewer from './DocumentViewer'
 import QuestionPoolView from './QuestionPoolView'
 import DocumentSelectionModal from './DocumentSelectionModal'
 import RecommendationQuestionsView from './RecommendationQuestionsView'
-import UserHeader from '@/components/UserHeader'
+import UserHeader from '@/components/Shared/UserHeader'
 
 interface KnowledgeBaseViewProps {
   companyId: string
@@ -18,6 +19,7 @@ interface KnowledgeBaseViewProps {
 
 export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps) {
   const router = useRouter()
+  const t = useTranslations()
   const [categories, setCategories] = useState<KnowledgeBaseCategory[]>([])
   const [documents, setDocuments] = useState<KnowledgeBaseDocument[]>([])
   const [selectedCategory, setSelectedCategory] = useState<KnowledgeBaseCategory | null>(null)
@@ -120,7 +122,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   }
 
   const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm('Are you sure? This will delete all documents in this category.')) return
+    if (!confirm(t('knowledgeBase.confirmDeleteCategory'))) return
     
     try {
       const response = await fetch(`/api/knowledge-base/categories/${categoryId}`, {
@@ -140,7 +142,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   }
 
   const handleDeleteDocument = async (documentId: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return
+    if (!confirm(t('knowledgeBase.confirmDeleteDocument'))) return
     
     try {
       const response = await fetch(`/api/knowledge-base/documents/${documentId}`, {
@@ -195,18 +197,22 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
       const data = await response.json()
 
       if (data.success) {
-        alert(`✅ AI Question Pool Generated & Saved!\n\n📊 Results:\n• ${data.summary.topicsExtracted} topics extracted\n• ${data.summary.questionsSaved} questions saved to database\n• ${selectedDocuments.length} documents analyzed\n\nQuestions are now saved and ready for training sessions!`)
+        alert(t('knowledgeBase.questionsGenerated', {
+          topicsExtracted: data.summary.topicsExtracted,
+          questionsSaved: data.summary.questionsSaved,
+          documentsAnalyzed: selectedDocuments.length
+        }))
 
         // Switch to questions view to show the new questions
         setCurrentView('questions')
         // Force reload by triggering a key change or re-render
         window.location.reload()
       } else {
-        alert('❌ Failed to generate questions: ' + (data.error || 'Unknown error'))
+        alert(t('knowledgeBase.questionsFailedPrefix') + (data.error || 'Unknown error'))
       }
     } catch (error) {
       console.error('Question generation error:', error)
-      alert('❌ Failed to generate questions. Please check console for details.')
+      alert(t('knowledgeBase.questionsFailed'))
     } finally {
       setGeneratingQuestions(false)
     }
@@ -217,7 +223,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading knowledge base...</p>
+          <p className="text-gray-600">{t('knowledgeBase.loading')}</p>
         </div>
       </div>
     )
@@ -228,13 +234,13 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* User Header with user info in top right */}
         <UserHeader
-          title="Knowledge Base"
+          title={t('knowledgeBase.title')}
           subtitle={
             selectedCategory
-              ? `Viewing documents in: ${selectedCategory.name}`
+              ? t('knowledgeBase.viewingCategory', { categoryName: selectedCategory.name })
               : searchQuery
-                ? `Search results for: "${searchQuery}"`
-                : 'Organize and manage your company documentation'
+                ? t('knowledgeBase.searchResults', { query: searchQuery })
+                : t('knowledgeBase.subtitle')
           }
         />
 
@@ -254,10 +260,10 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                 {generatingQuestions ? (
                   <div className="flex items-center space-x-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Generating...</span>
+                    <span>{t('knowledgeBase.generating')}</span>
                   </div>
                 ) : (
-                  '🤖 Generate Questions'
+                  t('knowledgeBase.generateQuestions')
                 )}
               </button>
               {selectedCategory && (
@@ -265,14 +271,14 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                   onClick={() => setShowDocumentForm(true)}
                   className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
-                  Add Document
+                  {t('knowledgeBase.addDocument')}
                 </button>
               )}
               <button
                 onClick={() => setShowCategoryForm(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                Create Category
+                {t('knowledgeBase.createCategory')}
               </button>
             </div>
           </div>
@@ -286,31 +292,31 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                 onClick={() => router.push('/manager')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Feed
+                {t('manager.dashboard.tabFeed')}
               </button>
               <button
                 onClick={() => router.push('/manager?tab=progress')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Progress
+                {t('manager.dashboard.tabProgress')}
               </button>
               <button
                 onClick={() => router.push('/manager?tab=training')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Scenarios and Tracks
+                {t('manager.dashboard.tabTracks')}
               </button>
               <button
                 onClick={() => {}}
                 className="border-blue-500 text-blue-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Knowledge Base
+                {t('manager.dashboard.tabKnowledge')}
               </button>
               <button
                 onClick={() => router.push('/manager/employees')}
                 className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm"
               >
-                Employees
+                {t('manager.dashboard.tabEmployees')}
               </button>
             </nav>
           </div>
@@ -328,7 +334,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                📁 Documents
+                {t('knowledgeBase.tabDocuments')}
               </button>
               <button
                 onClick={() => setCurrentView('questions')}
@@ -338,7 +344,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                🤖 AI Questions
+                {t('knowledgeBase.tabQuestions')}
               </button>
               <button
                 onClick={() => setCurrentView('recommendations')}
@@ -348,7 +354,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                💡 Situationships
+                {t('knowledgeBase.tabRecommendations')}
               </button>
             </nav>
           </div>
@@ -363,7 +369,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search documents..."
+                  placeholder={t('knowledgeBase.searchPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -371,7 +377,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                Search
+                {t('knowledgeBase.searchButton')}
               </button>
               {(searchQuery || selectedCategory) && (
                 <button
@@ -379,7 +385,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                   onClick={clearSearch}
                   className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 >
-                  Clear
+                  {t('knowledgeBase.clearButton')}
                 </button>
               )}
             </form>
@@ -408,13 +414,13 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2v0z" />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No categories yet</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by creating your first category.</p>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">{t('knowledgeBase.noCategoriesTitle')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{t('knowledgeBase.noCategoriesDescription')}</p>
                 <button
                   onClick={() => setShowCategoryForm(true)}
                   className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                 >
-                  Create Category
+                  {t('knowledgeBase.createCategory')}
                 </button>
               </div>
             )}
@@ -428,12 +434,12 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  {selectedCategory ? 'No documents yet' : 'No search results'}
+                  {selectedCategory ? t('knowledgeBase.noDocumentsTitle') : t('knowledgeBase.noSearchResults')}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  {selectedCategory 
-                    ? 'Start by adding your first document to this category.' 
-                    : 'Try adjusting your search terms.'
+                  {selectedCategory
+                    ? t('knowledgeBase.noDocumentsDescription')
+                    : t('knowledgeBase.noSearchDescription')
                   }
                 </p>
                 {selectedCategory && (
@@ -441,7 +447,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                     onClick={() => setShowDocumentForm(true)}
                     className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                   >
-                    Add Document
+                    {t('knowledgeBase.addDocument')}
                   </button>
                 )}
               </div>
@@ -465,8 +471,8 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                         {document.content.substring(0, 200)}...
                       </p>
                       <div className="text-xs text-gray-500">
-                        Created: {new Date(document.created_at).toLocaleDateString()}
-                        {document.file_size && ` • ${Math.round(document.file_size / 1024)} KB`}
+                        {t('knowledgeBase.createdLabel')} {new Date(document.created_at).toLocaleDateString()}
+                        {document.file_size && ` • ${t('knowledgeBase.fileSize', { size: Math.round(document.file_size / 1024) })}`}
                       </div>
                     </div>
                     <div className="ml-4 flex-shrink-0 flex space-x-2">
@@ -478,7 +484,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
-                        View
+                        {t('knowledgeBase.viewButton')}
                       </button>
                       <button
                         onClick={() => handleEditDocument(document)}
@@ -487,7 +493,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                         <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        Edit
+                        {t('knowledgeBase.editButton')}
                       </button>
                       <button
                         onClick={() => handleDeleteDocument(document.id)}
@@ -496,7 +502,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
                         <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        Delete
+                        {t('knowledgeBase.deleteButton')}
                       </button>
                     </div>
                   </div>
@@ -519,7 +525,7 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
             <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {editingCategory ? 'Edit Category' : 'Create New Category'}
+                  {editingCategory ? t('knowledgeBase.editCategory') : t('knowledgeBase.createNewCategory')}
                 </h3>
               </div>
               <CategoryForm
@@ -541,10 +547,10 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
             <div className="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {editingDocument ? 'Edit Document' : 'Add New Document'}
+                  {editingDocument ? t('knowledgeBase.editDocument') : t('knowledgeBase.addNewDocument')}
                 </h3>
                 {selectedCategory && !editingDocument && (
-                  <p className="text-sm text-gray-600">Adding to: {selectedCategory.name}</p>
+                  <p className="text-sm text-gray-600">{t('knowledgeBase.addingTo', { categoryName: selectedCategory.name })}</p>
                 )}
               </div>
               <DocumentForm

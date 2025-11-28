@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Employee } from '@/lib/employees'
 import { Track, Scenario } from '@/lib/scenarios'
 
@@ -19,6 +20,7 @@ export default function ScenarioAssignmentModal({
   companyId,
   onAssignmentCreated
 }: ScenarioAssignmentModalProps) {
+  const t = useTranslations('assignments')
   const [tracks, setTracks] = useState<Track[]>([])
   const [selectedTrackId, setSelectedTrackId] = useState('')
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -64,7 +66,7 @@ export default function ScenarioAssignmentModal({
       const data = await response.json()
 
       if (data.success) {
-        setTracks(data.tracks || [])
+        setTracks(data.data?.tracks || [])
       }
     } catch (error) {
       console.error('Failed to load tracks:', error)
@@ -87,7 +89,7 @@ export default function ScenarioAssignmentModal({
       const data = await response.json()
 
       if (data.success) {
-        const trackScenarios = data.scenarios || []
+        const trackScenarios = data.data?.scenarios || []
         setScenarios(trackScenarios)
         setSelectedScenarioId('')
       } else {
@@ -142,7 +144,7 @@ export default function ScenarioAssignmentModal({
 
     setSubmitting(true)
     try {
-      const response = await fetch('/api/scenario-assignments', {
+      const response = await fetch('/api/scenarios/scenario-assignments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -183,7 +185,7 @@ export default function ScenarioAssignmentModal({
         <div className="mb-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">
-              Assign Training Scenario
+              {t('assignTrainingScenario')}
             </h3>
             <button
               onClick={onClose}
@@ -195,7 +197,7 @@ export default function ScenarioAssignmentModal({
             </button>
           </div>
           <p className="text-sm text-gray-600 mt-1">
-            Assign a specific scenario to <strong>{employee.name}</strong>
+            {t('assignSpecificScenarioTo', { name: employee.name })}
           </p>
         </div>
 
@@ -203,7 +205,7 @@ export default function ScenarioAssignmentModal({
           {/* Track Selection */}
           <div>
             <label htmlFor="track" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Training Track *
+              {t('selectTrainingTrack')}
             </label>
             {loading ? (
               <div className="p-3 border border-gray-300 rounded-md">
@@ -216,7 +218,7 @@ export default function ScenarioAssignmentModal({
               </div>
             ) : tracks.length === 0 ? (
               <div className="p-3 border border-gray-300 rounded-md bg-gray-50">
-                <p className="text-sm text-gray-500">No training tracks available</p>
+                <p className="text-sm text-gray-500">{t('noTracksAvailable')}</p>
               </div>
             ) : (
               <select
@@ -226,10 +228,10 @@ export default function ScenarioAssignmentModal({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
-                <option value="">Choose a track...</option>
+                <option value="">{t('chooseTrack')}</option>
                 {tracks.map((track) => (
                   <option key={track.id} value={track.id}>
-                    {track.name} ({track.target_audience === 'new_hire' ? 'New Hire' : 'Existing Employee'})
+                    {track.name} ({track.target_audience === 'new_hire' ? t('newHire') : t('existingEmployee')})
                   </option>
                 ))}
               </select>
@@ -247,7 +249,7 @@ export default function ScenarioAssignmentModal({
                     <p className="text-sm text-blue-700 mt-1">{selectedTrack.description}</p>
                     <div className="mt-2 flex items-center space-x-4 text-xs text-blue-600">
                       <span className="px-2 py-1 bg-blue-200 rounded">
-                        {selectedTrack.target_audience === 'new_hire' ? 'New Hire' : 'Existing Employee'}
+                        {selectedTrack.target_audience === 'new_hire' ? t('newHire') : t('existingEmployee')}
                       </span>
                     </div>
                   </div>
@@ -260,7 +262,7 @@ export default function ScenarioAssignmentModal({
           {selectedTrackId && (
             <div>
               <label htmlFor="scenario" className="block text-sm font-medium text-gray-700 mb-2">
-                Select Scenario to Assign *
+                {t('selectScenarioToAssign')}
               </label>
               {loadingScenarios ? (
                 <div className="p-3 border border-gray-300 rounded-md">
@@ -273,7 +275,7 @@ export default function ScenarioAssignmentModal({
                 </div>
               ) : scenarios.length === 0 ? (
                 <div className="p-3 border border-gray-300 rounded-md bg-gray-50">
-                  <p className="text-sm text-gray-500">No scenarios available for this track</p>
+                  <p className="text-sm text-gray-500">{t('noScenariosAvailable')}</p>
                 </div>
               ) : (
                 <select
@@ -283,7 +285,7 @@ export default function ScenarioAssignmentModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 >
-                  <option value="">Choose a scenario...</option>
+                  <option value="">{t('chooseScenario')}</option>
                   {scenarios.map((scenario) => (
                     <option key={scenario.id} value={scenario.id}>
                       {scenario.title} [ID: {scenario.id.slice(-8)}] ({getScenarioTypeDisplay(scenario.scenario_type)} • {scenario.estimated_duration_minutes}min)
@@ -319,7 +321,7 @@ export default function ScenarioAssignmentModal({
           {/* Notes */}
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-              Notes (Optional)
+              {t('notesOptional')}
             </label>
             <textarea
               id="notes"
@@ -327,7 +329,7 @@ export default function ScenarioAssignmentModal({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Add any notes about this assignment..."
+              placeholder={t('addNotesPlaceholder')}
             />
           </div>
 
@@ -339,14 +341,14 @@ export default function ScenarioAssignmentModal({
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               disabled={submitting}
             >
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting || !selectedScenarioId}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Assigning...' : 'Assign Scenario'}
+              {submitting ? t('assigning') : t('assignScenario')}
             </button>
           </div>
         </form>

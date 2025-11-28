@@ -5,13 +5,14 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Clock, User, Bot, Calendar, Globe, Brain, Play, Pause, Volume2, Video, CheckCircle, XCircle, AlertCircle, Target } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
-import UserHeader from '@/components/UserHeader'
+import { useTranslations } from 'next-intl'
+import UserHeader from '@/components/Shared/UserHeader'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName } from '@/lib/elevenlabs-voices'
-import PerformanceScoreCard from '@/components/PerformanceScoreCard'
-import MilestoneChecklist from '@/components/MilestoneChecklist'
-import FeedbackSection from '@/components/FeedbackSection'
-import ManagerSummary from '@/components/ManagerSummary'
+import PerformanceScoreCard from '@/components/Analytics/PerformanceScoreCard'
+import MilestoneChecklist from '@/components/Analytics/MilestoneChecklist'
+import FeedbackSection from '@/components/Analytics/FeedbackSection'
+import ManagerSummary from '@/components/Analytics/ManagerSummary'
 
 // Helper function to get training mode display name
 function getTrainingModeDisplay(trainingMode: string): string {
@@ -28,6 +29,7 @@ export default function SessionTranscriptPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
+  const t = useTranslations('sessionHistory')
   const [session, setSession] = useState<TrainingSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +63,7 @@ export default function SessionTranscriptPage() {
       console.log('📖 Loading training session transcript:', sessionId)
 
       // Use API endpoint with admin client to bypass RLS
-      const response = await fetch(`/api/training-session/${sessionId}`)
+      const response = await fetch(`/api/training/training-session/${sessionId}`)
       const data = await response.json()
 
       if (!response.ok || !data.success) {
@@ -282,7 +284,7 @@ export default function SessionTranscriptPage() {
       // Determine which endpoint to call based on training mode
       if (session.training_mode === 'service_practice') {
         // Call Service Practice assessment endpoint
-        const response = await fetch('/api/assess-service-practice-session', {
+        const response = await fetch('/api/assessment/assess-service-practice-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -411,7 +413,7 @@ export default function SessionTranscriptPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading transcript...</p>
+          <p className="text-gray-600">{t('loading')}</p>
         </div>
       </div>
     )
@@ -422,13 +424,13 @@ export default function SessionTranscriptPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Session</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('errorLoading')}</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => router.push('/employee')}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Back to Dashboard
+            {t('backToDashboard')}
           </button>
         </div>
       </div>
@@ -440,13 +442,13 @@ export default function SessionTranscriptPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-gray-400 text-5xl mb-4">📝</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Not Found</h2>
-          <p className="text-gray-600 mb-4">The requested training session could not be found.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('sessionNotFound')}</h2>
+          <p className="text-gray-600 mb-4">{t('sessionNotFoundDescription')}</p>
           <button
             onClick={() => router.push('/employee')}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Back to Dashboard
+            {t('backToDashboard')}
           </button>
         </div>
       </div>
@@ -458,7 +460,7 @@ export default function SessionTranscriptPage() {
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <UserHeader
-          title="Training Session Transcript"
+          title={t('pageTitle')}
           subtitle={session.session_name}
         />
 
@@ -469,24 +471,24 @@ export default function SessionTranscriptPage() {
             className="flex items-center text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            {t('backToDashboard')}
           </button>
         </div>
 
         {/* Session Metadata */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('sessionDetails')}</h2>
 
           {/* Session and Attempt IDs */}
           <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="font-medium text-gray-700">Session ID:</span>
+                <span className="font-medium text-gray-700">{t('sessionId')}:</span>
                 <div className="mt-1 font-mono text-gray-600 break-all">{session.id}</div>
               </div>
               {session.scenario_id && (
                 <div>
-                  <span className="font-medium text-gray-700">Attempt ID:</span>
+                  <span className="font-medium text-gray-700">{t('attemptId')}:</span>
                   <div className="mt-1 font-mono text-gray-600 break-all">{session.scenario_id}</div>
                 </div>
               )}
@@ -519,7 +521,7 @@ export default function SessionTranscriptPage() {
                 <div className="text-sm font-medium text-gray-900">
                   {trainingSessionsService.formatDuration(session.session_duration_seconds)}
                 </div>
-                <div className="text-xs text-gray-500">Duration</div>
+                <div className="text-xs text-gray-500">{t('duration')}</div>
               </div>
             </div>
             <div className="flex items-center">
@@ -528,14 +530,14 @@ export default function SessionTranscriptPage() {
                 <div className="text-sm font-medium text-gray-900">
                   {getTrainingModeDisplay(session.training_mode)}
                 </div>
-                <div className="text-xs text-gray-500">Training Mode</div>
+                <div className="text-xs text-gray-500">{t('trainingMode')}</div>
               </div>
             </div>
             <div className="flex items-center">
               <Globe className="w-5 h-5 text-gray-400 mr-3" />
               <div>
                 <div className="text-sm font-medium text-gray-900">{session.language.toUpperCase()}</div>
-                <div className="text-xs text-gray-500">Language</div>
+                <div className="text-xs text-gray-500">{t('language')}</div>
               </div>
             </div>
           </div>
@@ -792,9 +794,9 @@ export default function SessionTranscriptPage() {
           <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 mb-6">
             <div className="p-6 text-center">
               <div className="text-gray-400 text-3xl mb-2">🚫</div>
-              <h3 className="text-sm font-medium text-gray-900 mb-1">No Recording</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-1">{t('noRecording')}</h3>
               <p className="text-xs text-gray-500">
-                No recording was made for this session as per your privacy preference.
+                {t('noRecordingDescription')}
               </p>
             </div>
           </div>
@@ -936,7 +938,7 @@ export default function SessionTranscriptPage() {
             <div className="mt-6 p-4 bg-gray-50 border-t">
               <div className="text-center">
                 <p className="text-gray-600 mb-4">
-                  Run analysis on this {getTrainingModeDisplay(session.training_mode).toLowerCase()} session to get detailed assessment results.
+                  {t('analysisActions.runAnalysisPrompt', { mode: getTrainingModeDisplay(session.training_mode).toLowerCase() })}
                 </p>
                 <button
                   onClick={() => handleRunAnalysis(false)}
@@ -946,11 +948,11 @@ export default function SessionTranscriptPage() {
                   {isAnalyzingTranscript ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Running Analysis...
+                      {t('analysisActions.runningAnalysis')}
                     </>
                   ) : (
                     <>
-                      🧪 Run Analysis
+                      🧪 {t('analysisActions.runAnalysis')}
                     </>
                   )}
                 </button>
@@ -968,11 +970,11 @@ export default function SessionTranscriptPage() {
                   <>
                     {/* Header with Redo Analysis button */}
                     <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">Service Practice Assessment</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">{t('servicePractice.title')}</h3>
                       <div className="flex items-center gap-3">
                         {session?.service_assessment_status === 'completed' && (
                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                            📋 Cached
+                            📋 {t('servicePractice.cached')}
                           </span>
                         )}
                         <button
@@ -983,11 +985,11 @@ export default function SessionTranscriptPage() {
                           {isAnalyzingTranscript ? (
                             <>
                               <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 mr-2"></div>
-                              Analyzing...
+                              {t('servicePractice.analyzing')}
                             </>
                           ) : (
                             <>
-                              🔄 Redo Analysis
+                              🔄 {t('servicePractice.redoAnalysis')}
                             </>
                           )}
                         </button>
@@ -1028,12 +1030,12 @@ export default function SessionTranscriptPage() {
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center">
                             <Brain className="w-6 h-6 text-blue-600 mr-3" />
-                            <h3 className="text-lg font-semibold text-gray-900">Theory Assessment Results</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{t('theoryAssessment.title')}</h3>
                           </div>
                           <div className="flex items-center gap-3">
                             {transcriptAnalysis.fromCache && (
                               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                📋 Cached
+                                📋 {t('theoryAssessment.cached')}
                               </span>
                             )}
                             <button
@@ -1044,11 +1046,11 @@ export default function SessionTranscriptPage() {
                               {isAnalyzingTranscript ? (
                                 <>
                                   <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600 mr-2"></div>
-                                  Analyzing...
+                                  {t('theoryAssessment.analyzing')}
                                 </>
                               ) : (
                                 <>
-                                  🔄 Redo Analysis
+                                  🔄 {t('theoryAssessment.redoAnalysis')}
                                 </>
                               )}
                             </button>
@@ -1058,15 +1060,15 @@ export default function SessionTranscriptPage() {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                           <div className="text-center">
                             <div className="text-2xl font-bold text-gray-900">{transcriptAnalysis.assessment.summary.totalQuestions}</div>
-                            <div className="text-sm text-gray-600">Questions Assessed</div>
+                            <div className="text-sm text-gray-600">{t('theoryAssessment.questionsAssessed')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-green-600">{transcriptAnalysis.assessment.summary.correctAnswers}</div>
-                            <div className="text-sm text-gray-600">Correct</div>
+                            <div className="text-sm text-gray-600">{t('theoryAssessment.correct')}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-2xl font-bold text-red-600">{transcriptAnalysis.assessment.summary.incorrectAnswers}</div>
-                            <div className="text-sm text-gray-600">Incorrect</div>
+                            <div className="text-sm text-gray-600">{t('theoryAssessment.incorrect')}</div>
                           </div>
                           <div className="text-center">
                             <div className={`text-2xl font-bold ${
@@ -1076,14 +1078,14 @@ export default function SessionTranscriptPage() {
                             }`}>
                               {transcriptAnalysis.assessment.summary.score}%
                             </div>
-                            <div className="text-sm text-gray-600">Overall Score</div>
+                            <div className="text-sm text-gray-600">{t('theoryAssessment.overallScore')}</div>
                           </div>
                         </div>
 
                         {/* Progress Bar */}
                         <div className="mb-4">
                           <div className="flex items-center justify-between text-sm mb-1">
-                            <span className="font-medium">Accuracy</span>
+                            <span className="font-medium">{t('theoryAssessment.accuracy')}</span>
                             <span>{transcriptAnalysis.assessment.summary.accuracy}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1118,16 +1120,16 @@ export default function SessionTranscriptPage() {
                                 transcriptAnalysis.assessment.summary.score >= 60 ? 'text-yellow-600' :
                                 'text-red-600'
                               }`}>
-                                {transcriptAnalysis.assessment.summary.score >= 80 ? 'Excellent Performance' :
-                                 transcriptAnalysis.assessment.summary.score >= 60 ? 'Good Performance' :
-                                 'Needs Improvement'}
+                                {transcriptAnalysis.assessment.summary.score >= 80 ? t('theoryAssessment.excellentPerformance') :
+                                 transcriptAnalysis.assessment.summary.score >= 60 ? t('theoryAssessment.goodPerformance') :
+                                 t('theoryAssessment.needsImprovement')}
                               </div>
                               <div className="text-sm text-gray-600">
                                 {transcriptAnalysis.assessment.summary.score >= 80
-                                  ? 'Great job! You demonstrated strong knowledge.'
+                                  ? t('theoryAssessment.excellentMessage')
                                   : transcriptAnalysis.assessment.summary.score >= 60
-                                  ? 'Good work! Review the incorrect answers for improvement.'
-                                  : 'Consider reviewing the material and practicing more questions.'}
+                                  ? t('theoryAssessment.goodMessage')
+                                  : t('theoryAssessment.needsImprovementMessage')}
                               </div>
                             </div>
                           </div>
@@ -1138,7 +1140,7 @@ export default function SessionTranscriptPage() {
                     {/* Detailed Question Results */}
                     {transcriptAnalysis.assessment?.assessmentResults && transcriptAnalysis.assessment.assessmentResults.length > 0 && (
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Question-by-Question Results</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">{t('theoryAssessment.questionResults')}</h4>
 
                         <div className="space-y-4">
                           {transcriptAnalysis.assessment.assessmentResults.map((result: any, index: number) => (
@@ -1159,7 +1161,7 @@ export default function SessionTranscriptPage() {
                                       <XCircle className="w-5 h-5 text-red-600 mr-2" />
                                     )}
                                     <span className="font-medium text-gray-900">
-                                      Question {index + 1}
+                                      {t('theoryAssessment.question')} {index + 1}
                                     </span>
                                     {result.topicName && (
                                       <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
@@ -1177,31 +1179,31 @@ export default function SessionTranscriptPage() {
                                     {result.difficultyLevel && (
                                       <span className="ml-2 flex items-center text-sm text-gray-600">
                                         <Target className="w-4 h-4 mr-1" />
-                                        Level {result.difficultyLevel}/3
+                                        {t('theoryAssessment.level')} {result.difficultyLevel}/3
                                       </span>
                                     )}
                                   </div>
 
                                   <div className="mb-2">
-                                    <div className="text-sm text-gray-600 mb-1">Question:</div>
+                                    <div className="text-sm text-gray-600 mb-1">{t('theoryAssessment.questionPrompt')}</div>
                                     <div className="text-gray-900">{result.questionAsked}</div>
                                   </div>
 
                                   <div className="mb-2">
-                                    <div className="text-sm text-gray-600 mb-1">Your Answer:</div>
+                                    <div className="text-sm text-gray-600 mb-1">{t('theoryAssessment.yourAnswer')}</div>
                                     <div className={`${result.isCorrect ? 'text-green-700' : 'text-red-700'}`}>
                                       {result.userAnswer}
                                     </div>
                                   </div>
 
                                   <div className="mb-2">
-                                    <div className="text-sm text-gray-600 mb-1">Correct Answer:</div>
+                                    <div className="text-sm text-gray-600 mb-1">{t('theoryAssessment.correctAnswer')}</div>
                                     <div className="text-gray-900">{result.correctAnswer}</div>
                                   </div>
 
                                   {result.feedback && (
                                     <div className="mb-2">
-                                      <div className="text-sm text-gray-600 mb-1">Feedback:</div>
+                                      <div className="text-sm text-gray-600 mb-1">{t('theoryAssessment.feedback')}</div>
                                       <div className="text-gray-700">{result.feedback}</div>
                                     </div>
                                   )}
@@ -1225,35 +1227,35 @@ export default function SessionTranscriptPage() {
 
                     {/* Transcript Stats */}
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Conversation Analysis</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 {t('theoryAssessment.conversationAnalysis')}</h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div className="text-center">
                           <div className="text-2xl font-bold text-blue-600">
                             {transcriptAnalysis.transcriptAnalysis?.totalMessages || 0}
                           </div>
-                          <div className="text-sm text-gray-600">Total Messages</div>
+                          <div className="text-sm text-gray-600">{t('theoryAssessment.totalMessages')}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-green-600">
                             {transcriptAnalysis.transcriptAnalysis?.qaPairsFound || 0}
                           </div>
-                          <div className="text-sm text-gray-600">Q&A Pairs Found</div>
+                          <div className="text-sm text-gray-600">{t('theoryAssessment.qaPairsFound')}</div>
                         </div>
                         <div className="text-center">
                           <div className="text-2xl font-bold text-purple-600">
                             {Math.round(((transcriptAnalysis.transcriptAnalysis?.userMessages || 0) + (transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0)) / 2 * 10) / 10}
                           </div>
-                          <div className="text-sm text-gray-600">Avg Messages/Turn</div>
+                          <div className="text-sm text-gray-600">{t('theoryAssessment.avgMessagesPerTurn')}</div>
                         </div>
                       </div>
 
                       {/* User/Assistant Message Breakdown */}
                       <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-semibold text-gray-900 mb-3">💬 Message Breakdown</h4>
+                        <h4 className="font-semibold text-gray-900 mb-3">💬 {t('theoryAssessment.messageBreakdown')}</h4>
                         <div className="flex justify-between text-sm">
-                          <span>👤 Your messages: <strong>{transcriptAnalysis.transcriptAnalysis?.userMessages || 0}</strong></span>
-                          <span>🤖 AI Trainer messages: <strong>{transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0}</strong></span>
+                          <span>{t('theoryAssessment.yourMessages')} <strong>{transcriptAnalysis.transcriptAnalysis?.userMessages || 0}</strong></span>
+                          <span>{t('theoryAssessment.aiTrainerMessages')} <strong>{transcriptAnalysis.transcriptAnalysis?.assistantMessages || 0}</strong></span>
                         </div>
                       </div>
                     </div>
@@ -1266,9 +1268,9 @@ export default function SessionTranscriptPage() {
           /* Regular Transcript View (no analysis or not Service Practice) */
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Conversation Transcript</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('conversationTranscript')}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                {session.conversation_transcript.length} messages exchanged during this session
+                {t('messagesExchanged', { count: session.conversation_transcript.length })}
               </p>
             </div>
 
@@ -1276,7 +1278,7 @@ export default function SessionTranscriptPage() {
               {session.conversation_transcript.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-400 text-4xl mb-4">💬</div>
-                  <p className="text-gray-500">No conversation was recorded in this session.</p>
+                  <p className="text-gray-500">{t('noConversation')}</p>
                 </div>
               ) : session.conversation_transcript.length === 1 &&
                   session.conversation_transcript[0].content.includes('Get Transcript and Analysis') &&
@@ -1285,7 +1287,7 @@ export default function SessionTranscriptPage() {
                 <div className="text-center py-8">
                   <div className="text-blue-600 text-4xl mb-4">📊</div>
                   <p className="text-gray-600 mb-4">
-                    This session transcript needs to be fetched from ElevenLabs.
+                    {t('analysisActions.fetchPrompt')}
                   </p>
                   <div className="flex flex-col sm:flex-row justify-center gap-4">
                     <button
@@ -1296,11 +1298,11 @@ export default function SessionTranscriptPage() {
                       {isFetchingTranscript ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Fetching Transcript...
+                          {t('analysisActions.fetchingTranscript')}
                         </>
                       ) : (
                         <>
-                          📝 Get Transcript
+                          📝 {t('analysisActions.getTranscript')}
                         </>
                       )}
                     </button>
@@ -1312,18 +1314,18 @@ export default function SessionTranscriptPage() {
                       {isAnalyzingTranscript ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Running Analysis...
+                          {t('analysisActions.runningAnalysis')}
                         </>
                       ) : (
                         <>
-                          🧪 Get Analysis
+                          🧪 {t('analysisActions.getAnalysis')}
                         </>
                       )}
                     </button>
                   </div>
                   {!session.elevenlabs_conversation_id && (
                     <p className="text-red-500 text-sm mt-2">
-                      No ElevenLabs conversation ID found for this session.
+                      {t('analysisActions.noConversationId')}
                     </p>
                   )}
                 </div>
@@ -1397,13 +1399,13 @@ export default function SessionTranscriptPage() {
             onClick={() => router.push('/employee')}
             className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-200"
           >
-            Back to Dashboard
+            {t('backToDashboard')}
           </button>
           <button
             onClick={() => router.push('/employee/history')}
             className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
           >
-            View All Sessions
+            {t('viewAllSessions')}
           </button>
         </div>
       </div>

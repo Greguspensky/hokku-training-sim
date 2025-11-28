@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Employee } from '@/lib/employees'
 import TrackAssignmentModal from '@/components/TrackAssignment/TrackAssignmentModal'
 import ScenarioAssignmentModal from '@/components/TrackAssignment/ScenarioAssignmentModal'
@@ -15,6 +16,7 @@ interface EmployeeListProps {
 }
 
 export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery, companyId }: EmployeeListProps) {
+  const t = useTranslations('employees')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
@@ -25,7 +27,7 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleDeleteEmployee = async (employee: Employee) => {
-    if (!confirm(`Are you sure you want to remove ${employee.name}? This will disable their invite link and revoke access.`)) {
+    if (!confirm(t('confirmRemoveEmployee', { name: employee.name }))) {
       return
     }
 
@@ -117,16 +119,16 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
             <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
-            <p className="text-gray-500">No employees match your search for "{searchQuery}"</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noEmployeesFound')}</h3>
+            <p className="text-gray-500">{t('noEmployeesMatchSearch', { searchQuery })}</p>
           </>
         ) : (
           <>
             <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No employees yet</h3>
-            <p className="text-gray-500">Get started by inviting your first team member</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noEmployeesYet')}</h3>
+            <p className="text-gray-500">{t('getStartedInviting')}</p>
           </>
         )}
       </div>
@@ -137,7 +139,7 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-medium text-gray-900">
-          Team Members ({employees.length})
+          {t('teamMembers', { count: employees.length })}
         </h3>
       </div>
       
@@ -149,11 +151,11 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
                 <div className="flex items-center space-x-3 mb-2">
                   <h4 className="text-lg font-medium text-gray-900">{employee.name}</h4>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    employee.has_joined 
-                      ? 'bg-green-100 text-green-800' 
+                    employee.has_joined
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {employee.has_joined ? 'Joined' : 'Pending'}
+                    {employee.has_joined ? t('joined') : t('pending')}
                   </span>
                 </div>
                 
@@ -161,31 +163,31 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
                   {employee.email ? (
                     <p>📧 {employee.email}</p>
                   ) : (
-                    <p>📧 Not provided yet</p>
+                    <p>📧 {t('notProvidedYet')}</p>
                   )}
-                  <p>📅 Invited {new Date(employee.created_at).toLocaleDateString()}</p>
+                  <p>📅 {t('invited', { date: new Date(employee.created_at).toLocaleDateString() })}</p>
                   {employee.joined_at && (
-                    <p>✅ Joined {new Date(employee.joined_at).toLocaleDateString()}</p>
+                    <p>✅ {t('joinedOn', { date: new Date(employee.joined_at).toLocaleDateString() })}</p>
                   )}
                 </div>
 
                 {!employee.has_joined && (
                   <div className="mt-3 p-3 bg-gray-50 rounded-md">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">Invite Link:</span>
+                      <span className="text-sm text-gray-700">{t('inviteLinkLabel')}</span>
                       <div className="flex space-x-2">
                         <button
                           onClick={() => copyInviteLink(employee)}
                           className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                         >
-                          Copy Link
+                          {t('copyLink')}
                         </button>
                         <button
                           onClick={() => handleRegenerateToken(employee)}
                           disabled={regeneratingId === employee.id}
                           className="text-orange-600 hover:text-orange-700 text-sm font-medium disabled:opacity-50"
                         >
-                          {regeneratingId === employee.id ? 'Regenerating...' : 'New Link'}
+                          {regeneratingId === employee.id ? t('regenerating') : t('newLink')}
                         </button>
                       </div>
                     </div>
@@ -206,7 +208,7 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
                   <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
-                  Assign Track
+                  {t('assignTrack')}
                 </button>
 
                 {/* Assign Scenario Button */}
@@ -218,7 +220,7 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
                   <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
                   </svg>
-                  Assign Scenario
+                  {t('assignScenario')}
                 </button>
 
 
@@ -235,14 +237,14 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Removing...
+                      {t('removing')}
                     </>
                   ) : (
                     <>
                       <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                      Remove
+                      {t('remove')}
                     </>
                   )}
                 </button>
@@ -251,13 +253,13 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
 
             {/* Always Visible Track Assignments */}
             <div className="mt-4 border-t border-gray-200 pt-4">
-              <h5 className="text-sm font-medium text-gray-900 mb-3">Assigned Training Tracks</h5>
+              <h5 className="text-sm font-medium text-gray-900 mb-3">{t('assignedTrainingTracks')}</h5>
               <EmployeeTracksList key={`tracks-${employee.id}-${refreshKey}`} employee={employee} companyId={companyId} />
             </div>
 
             {/* Individual Scenario Assignments */}
             <div className="mt-4 border-t border-gray-200 pt-4">
-              <h5 className="text-sm font-medium text-gray-900 mb-3">Individual Scenarios</h5>
+              <h5 className="text-sm font-medium text-gray-900 mb-3">{t('individualScenarios')}</h5>
               <EmployeeScenariosList key={`scenarios-${employee.id}-${refreshKey}`} employee={employee} />
             </div>
           </div>

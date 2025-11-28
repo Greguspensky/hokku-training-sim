@@ -11,7 +11,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import UserHeader from '@/components/UserHeader'
+import UserHeader from '@/components/Shared/UserHeader'
 import { Plus, Edit2, Trash2, X, Check, Upload, User } from 'lucide-react'
 import { uploadVoiceAvatar, deleteVoiceAvatar, validateImageFile, createPreviewUrl, revokePreviewUrl } from '@/lib/avatar-upload'
 
@@ -76,7 +76,7 @@ export default function VoiceSettingsPage() {
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/voice-settings')
+      const response = await fetch('/api/settings/voice-settings')
       const data = await response.json()
 
       if (!response.ok || !data.success) {
@@ -154,7 +154,7 @@ export default function VoiceSettingsPage() {
         }
       }
 
-      const response = await fetch('/api/voice-settings', {
+      const response = await fetch('/api/settings/voice-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -224,7 +224,7 @@ export default function VoiceSettingsPage() {
         }
       }
 
-      const response = await fetch('/api/voice-settings', {
+      const response = await fetch('/api/settings/voice-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

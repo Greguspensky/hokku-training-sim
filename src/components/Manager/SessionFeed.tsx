@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Calendar, Clock, MessageCircle, Brain, Video, Target, User, Trash2, AlertTriangle, X, Trophy, BarChart3 } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTranslations } from 'next-intl'
 
 interface SessionWithEmployee extends TrainingSession {
   employee_name?: string
@@ -30,6 +31,7 @@ interface SessionWithEmployee extends TrainingSession {
 
 export default function SessionFeed({ companyId }: { companyId: string }) {
   const { user } = useAuth()
+  const t = useTranslations()
   const [sessions, setSessions] = useState<SessionWithEmployee[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +54,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
       console.log('📰 Loading session feed for company:', companyId)
 
       // Load company sessions with employee information
-      const response = await fetch(`/api/company-sessions?company_id=${companyId}`)
+      const response = await fetch(`/api/training/company-sessions?company_id=${companyId}`)
       const data = await response.json()
 
       if (response.ok) {
@@ -76,9 +78,9 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
     yesterday.setDate(yesterday.getDate() - 1)
 
     if (date.toDateString() === today.toDateString()) {
-      return 'Today'
+      return t('manager.feed.today')
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday'
+      return t('manager.feed.yesterday')
     } else {
       return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -157,7 +159,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
 
       // Determine which API endpoint to use based on training mode
       const apiEndpoint = session.training_mode === 'theory'
-        ? '/api/assess-theory-session'
+        ? '/api/assessment/assess-theory-session'
         : '/api/assess-service-practice-session'
 
       const requestBody = session.training_mode === 'theory'
@@ -215,13 +217,13 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="text-center">
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Feed</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('manager.feed.errorLoadingFeed')}</h3>
           <p className="text-gray-500 mb-4">{error}</p>
           <button
             onClick={loadFeed}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Try Again
+            {t('manager.feed.tryAgain')}
           </button>
         </div>
       </div>
@@ -232,9 +234,9 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
         <div className="text-gray-400 text-5xl mb-4">📚</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Training Sessions Yet</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('manager.feed.noSessionsYet')}</h3>
         <p className="text-gray-500">
-          Training sessions from your employees will appear here.
+          {t('manager.feed.noSessionsDescription')}
         </p>
       </div>
     )
@@ -255,24 +257,24 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
               </div>
               <div className="ml-3 flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Delete Training Session?
+                  {t('manager.feed.deleteSession')}
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  This will permanently delete:
+                  {t('manager.feed.deleteWarning')}
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 mb-4 ml-4">
-                  <li>• Session transcript and data</li>
-                  <li>• Video/audio recordings from storage</li>
-                  <li>• ElevenLabs conversation history</li>
+                  <li>• {t('manager.feed.deleteTranscript')}</li>
+                  <li>• {t('manager.feed.deleteVideo')}</li>
+                  <li>• {t('manager.feed.deleteElevenLabs')}</li>
                 </ul>
                 <p className="text-sm font-medium text-gray-900 mb-2">
-                  Session: {sessionToDelete.scenario_name || sessionToDelete.session_name}
+                  {t('manager.feed.sessionLabel')} {sessionToDelete.scenario_name || sessionToDelete.session_name}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Employee: {sessionToDelete.employee_name || 'Unknown'}
+                  {t('manager.feed.employeeLabel')} {sessionToDelete.employee_name || t('manager.feed.unknownEmployee')}
                 </p>
                 <p className="text-sm text-red-600 font-semibold mt-3">
-                  This action cannot be undone.
+                  {t('manager.feed.cannotUndo')}
                 </p>
                 {deleteError && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -294,7 +296,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 disabled={deletingSessionId !== null}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmDelete}
@@ -304,10 +306,10 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 {deletingSessionId ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Deleting...
+                    {t('manager.feed.deleting')}
                   </>
                 ) : (
-                  'Delete Session'
+                  t('manager.feed.deleteButton')
                 )}
               </button>
             </div>
@@ -316,9 +318,9 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">Training Sessions</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t('manager.feed.trainingSessions')}</h2>
         <span className="text-sm text-gray-500">
-          Showing {displayedSessions.length} of {sessions.length}
+          {t('manager.feed.showing')} {displayedSessions.length} {t('manager.feed.of')} {sessions.length}
         </span>
       </div>
 
@@ -334,9 +336,9 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 <div className="flex items-center mb-2">
                   <User className="w-4 h-4 mr-2 text-gray-500" />
                   <span className="font-semibold text-gray-900">
-                    {session.employee_name || 'Unknown Employee'}
+                    {session.employee_name || t('manager.feed.unknownEmployee')}
                   </span>
-                  <span className="text-gray-500 mx-2">completed a</span>
+                  <span className="text-gray-500 mx-2">{t('manager.feed.completedA')}</span>
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
                       session.training_mode === 'theory'
@@ -347,10 +349,10 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                     }`}
                   >
                     {session.training_mode === 'theory'
-                      ? 'Theory Q&A'
+                      ? t('manager.feed.theoryQA')
                       : session.training_mode === 'recommendation_tts'
-                      ? 'Situationships'
-                      : 'Service Practice'}
+                      ? t('manager.feed.situationships')
+                      : t('manager.feed.servicePractice')}
                   </span>
                 </div>
 
@@ -364,15 +366,15 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 </div>
 
                 <div className="text-xs text-gray-400 font-mono mt-1 space-y-0.5">
-                  <div>Attempt ID: {session.id}</div>
+                  <div>{t('manager.feed.attemptId')} {session.id}</div>
                   {session.scenario_id && (
-                    <div>Scenario ID: {session.scenario_id}</div>
+                    <div>{t('manager.feed.scenarioId')} {session.scenario_id}</div>
                   )}
                   {session.elevenlabs_conversation_id && (
-                    <div>ElevenLabs Conv ID: {session.elevenlabs_conversation_id}</div>
+                    <div>{t('manager.feed.conversationId')} {session.elevenlabs_conversation_id}</div>
                   )}
                   {session.video_recording_url && (
-                    <div>Video ID: {session.video_recording_url.split('/').pop()}</div>
+                    <div>{t('manager.feed.videoId')} {session.video_recording_url.split('/').pop()}</div>
                   )}
                 </div>
               </div>
@@ -411,12 +413,12 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                         {analyzingSessionId === session.id ? (
                           <>
                             <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-                            <span>Analyzing...</span>
+                            <span>{t('manager.feed.analyzing')}</span>
                           </>
                         ) : (
                           <>
                             <BarChart3 className="w-3.5 h-3.5" />
-                            <span>Analyze</span>
+                            <span>{t('manager.feed.analyze')}</span>
                           </>
                         )}
                       </button>
@@ -460,12 +462,12 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                         {analyzingSessionId === session.id ? (
                           <>
                             <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-                            <span>Analyzing...</span>
+                            <span>{t('manager.feed.analyzing')}</span>
                           </>
                         ) : (
                           <>
                             <BarChart3 className="w-3.5 h-3.5" />
-                            <span>Analyze</span>
+                            <span>{t('manager.feed.analyze')}</span>
                           </>
                         )}
                       </button>
@@ -502,12 +504,12 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 {session.training_mode === 'recommendation_tts' ? (
                   <>
                     <Target className="w-4 h-4 mr-2" />
-                    <span>{session.conversation_transcript.length} questions</span>
+                    <span>{session.conversation_transcript.length} {t('manager.feed.questions')}</span>
                   </>
                 ) : (
                   <>
                     <MessageCircle className="w-4 h-4 mr-2" />
-                    <span>{session.conversation_transcript.length} messages</span>
+                    <span>{session.conversation_transcript.length} {t('manager.feed.messages')}</span>
                   </>
                 )}
               </div>
@@ -521,7 +523,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <div className="text-xs text-gray-500 mb-2 flex items-center">
                   <Video className="w-3 h-3 mr-1" />
-                  Video Recording:
+                  {t('manager.feed.videoRecording')}
                 </div>
                 <div className="bg-black rounded-lg overflow-hidden flex items-center justify-center">
                   <video
@@ -530,7 +532,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                     className="max-w-full max-h-[600px] object-contain"
                     preload="none"
                   >
-                    Your browser does not support video playback.
+                    {t('manager.feed.browserNotSupported')}
                   </video>
                 </div>
               </div>
@@ -545,7 +547,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
             onClick={() => setDisplayLimit(prev => prev + 10)}
             className="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Load More ({sessions.length - displayLimit} remaining)
+            {t('manager.feed.loadMore')} ({sessions.length - displayLimit} {t('manager.feed.remaining')})
           </button>
         </div>
       )}

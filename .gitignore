@@ -72,6 +72,7 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+*.backup
 
 # Development and test files for deployment
 test-*.js
