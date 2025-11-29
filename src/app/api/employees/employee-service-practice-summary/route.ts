@@ -86,15 +86,15 @@ export async function GET(request: NextRequest) {
 
       // Aggregate metrics
       if (results.metrics) {
-        metricSums.empathy += results.metrics.empathy || 0
-        metricSums.professionalism += results.metrics.professionalism || 0
-        metricSums.problem_resolution += results.metrics.problem_resolution || 0
-        metricSums.clarity += results.metrics.clarity || 0
-        metricSums.product_knowledge_accuracy += results.metrics.product_knowledge_accuracy || 0
-        metricSums.milestone_completion_rate += results.metrics.milestone_completion_rate || 0
+        metricSums.empathy += results.metrics.empathy?.score || 0
+        metricSums.professionalism += results.metrics.professionalism?.score || 0
+        metricSums.problem_resolution += results.metrics.problem_resolution?.score || 0
+        metricSums.clarity += results.metrics.clarity?.score || 0
+        metricSums.product_knowledge_accuracy += results.metrics.product_knowledge_accuracy?.score || 0
+        metricSums.milestone_completion_rate += results.metrics.milestone_completion_rate?.score || 0
 
         if (results.metrics.deescalation !== undefined) {
-          metricSums.deescalation! += results.metrics.deescalation
+          metricSums.deescalation! += results.metrics.deescalation?.score || 0
           deescalationCount++
         }
       }

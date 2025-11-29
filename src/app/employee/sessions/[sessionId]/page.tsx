@@ -5,30 +5,29 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Clock, User, Bot, Calendar, Globe, Brain, Play, Pause, Volume2, Video, CheckCircle, XCircle, AlertCircle, Target } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import UserHeader from '@/components/Shared/UserHeader'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName } from '@/lib/elevenlabs-voices'
 import PerformanceScoreCard from '@/components/Analytics/PerformanceScoreCard'
 import MilestoneChecklist from '@/components/Analytics/MilestoneChecklist'
 import FeedbackSection from '@/components/Analytics/FeedbackSection'
+import UnacceptablePhrases from '@/components/Analytics/UnacceptablePhrases'
 import ManagerSummary from '@/components/Analytics/ManagerSummary'
+import { SUPPORTED_LANGUAGES, type LanguageCode } from '@/lib/languages'
 
-// Helper function to get training mode display name
-function getTrainingModeDisplay(trainingMode: string): string {
-  const modeMap: Record<string, string> = {
-    'theory': 'Theory Q&A',
-    'service_practice': 'Service Practice',
-    'recommendation_tts': 'Recommendation Training',
-    'recommendation': 'Recommendation Training'
-  }
-  return modeMap[trainingMode] || trainingMode
+// Helper function to get training mode display name - now uses translations
+function getTrainingModeDisplay(trainingMode: string, t: any): string {
+  const modeKey = trainingMode === 'recommendation_tts' ? 'recommendationTts' :
+                  trainingMode === 'service_practice' ? 'servicePractice' : trainingMode
+  return t(`trainingModes.${modeKey}`, trainingMode)
 }
 
 export default function SessionTranscriptPage() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuth()
+  const locale = useLocale()
   const t = useTranslations('sessionHistory')
   const [session, setSession] = useState<TrainingSession | null>(null)
   const [loading, setLoading] = useState(true)
@@ -42,6 +41,10 @@ export default function SessionTranscriptPage() {
   const [scenarioDetails, setScenarioDetails] = useState<any>(null)
   const [loadingScenario, setLoadingScenario] = useState(false)
   const [activeTab, setActiveTab] = useState<'transcript' | 'analysis'>('transcript')
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageCode>(() => {
+    // Default to current interface language
+    return locale as LanguageCode
+  })
 
   const sessionId = params.sessionId as string
 
@@ -273,7 +276,10 @@ export default function SessionTranscriptPage() {
   }
 
   const handleRunAnalysis = async (forceReAnalysis = false) => {
+    console.log('🔘 Redo Analysis button clicked!', { forceReAnalysis, sessionId: session?.id, selectedLanguage })
+
     if (!session?.id) {
+      console.error('❌ No session data available')
       alert('No session data available for analysis')
       return
     }
@@ -289,7 +295,8 @@ export default function SessionTranscriptPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sessionId: String(sessionId),
-            forceReAnalysis: Boolean(forceReAnalysis)
+            forceReAnalysis: Boolean(forceReAnalysis),
+            language: selectedLanguage  // Use selected language from dropdown
           })
         })
 
@@ -494,13 +501,13 @@ export default function SessionTranscriptPage() {
               )}
               {session.elevenlabs_conversation_id && (
                 <div>
-                  <span className="font-medium text-gray-700">ElevenLabs Conv ID:</span>
+                  <span className="font-medium text-gray-700">{t('elevenLabsConvId')}:</span>
                   <div className="mt-1 font-mono text-gray-600 break-all">{session.elevenlabs_conversation_id}</div>
                 </div>
               )}
               {session.video_recording_url && (
                 <div>
-                  <span className="font-medium text-gray-700">Video ID:</span>
+                  <span className="font-medium text-gray-700">{t('videoId')}:</span>
                   <div className="mt-1 font-mono text-gray-600 break-all">{session.video_recording_url.split('/').pop()}</div>
                 </div>
               )}
@@ -528,7 +535,7 @@ export default function SessionTranscriptPage() {
               <Brain className="w-5 h-5 text-gray-400 mr-3" />
               <div>
                 <div className="text-sm font-medium text-gray-900">
-                  {getTrainingModeDisplay(session.training_mode)}
+                  {getTrainingModeDisplay(session.training_mode, t)}
                 </div>
                 <div className="text-xs text-gray-500">{t('trainingMode')}</div>
               </div>
@@ -548,9 +555,9 @@ export default function SessionTranscriptPage() {
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow mb-6 border border-purple-200">
             <div className="p-6 border-b border-purple-200 bg-white bg-opacity-60">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                🤖 ElevenLabs AI Agent Settings
+                🤖 {t('elevenLabsSettings')}
               </h2>
-              <p className="text-sm text-gray-600 mt-1">Configuration used for this training session</p>
+              <p className="text-sm text-gray-600 mt-1">{t('configurationUsed')}</p>
             </div>
 
             <div className="p-6 space-y-4">
@@ -558,10 +565,10 @@ export default function SessionTranscriptPage() {
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <div className="flex items-start mb-2">
                   <span className="text-lg mr-2">🎭</span>
-                  <h3 className="font-semibold text-gray-900">Character Role</h3>
+                  <h3 className="font-semibold text-gray-900">{t('characterRole')}</h3>
                 </div>
                 <p className="text-sm text-gray-700">
-                  Customer in Roleplay - Will act according to scenario behavior
+                  {t('customerInRoleplay')}
                 </p>
               </div>
 
@@ -571,10 +578,10 @@ export default function SessionTranscriptPage() {
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex items-start mb-2">
                     <span className="text-lg mr-2">📋</span>
-                    <h3 className="font-semibold text-gray-900">Scenario Context</h3>
+                    <h3 className="font-semibold text-gray-900">{t('scenarioContext')}</h3>
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {scenarioDetails.title || 'No scenario context available'}
+                    {scenarioDetails.title || t('noScenarioContext')}
                   </p>
                 </div>
 
@@ -582,23 +589,23 @@ export default function SessionTranscriptPage() {
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <div className="flex items-start mb-2">
                     <span className="text-lg mr-2">🎤</span>
-                    <h3 className="font-semibold text-gray-900">AI Voice</h3>
+                    <h3 className="font-semibold text-gray-900">{t('aiVoice')}</h3>
                   </div>
                   <div>
                     <p className="text-sm text-gray-700">
                       <span className="font-medium text-blue-700">
-                        {scenarioDetails.voice_id ? getVoiceName(scenarioDetails.voice_id) : 'Unknown Voice'}
+                        {scenarioDetails.voice_id ? getVoiceName(scenarioDetails.voice_id) : t('unknownVoice')}
                       </span>
                       {scenarioDetails.voice_id === 'random' && (
                         <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
-                          Randomly Selected
+                          {t('randomlySelected')}
                         </span>
                       )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {scenarioDetails.voice_id === 'random'
-                        ? `The system has randomly selected ${getVoiceName(scenarioDetails.voice_id)} for this session. Reload the page to try a different voice.`
-                        : `The AI used the ${getVoiceName(scenarioDetails.voice_id)} voice for this session`
+                        ? t('randomVoiceDescription', { voiceName: getVoiceName(scenarioDetails.voice_id) })
+                        : t('voiceDescription', { voiceName: getVoiceName(scenarioDetails.voice_id) })
                       }
                     </p>
                   </div>
@@ -617,7 +624,7 @@ export default function SessionTranscriptPage() {
                     <span className="text-lg mr-2">
                       {getEmotionDisplay(scenarioDetails.customer_emotion_level).icon}
                     </span>
-                    <h3 className="font-semibold text-gray-900">Customer Emotion Level</h3>
+                    <h3 className="font-semibold text-gray-900">{t('customerEmotionLevel')}</h3>
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -632,12 +639,14 @@ export default function SessionTranscriptPage() {
                     </div>
                     <p className="text-sm text-gray-700">
                       {scenarioDetails.customer_emotion_level === 'calm'
-                        ? 'The customer is polite and patient. Maintain professionalism and friendly service.'
+                        ? t('normalDescription')
+                        : scenarioDetails.customer_emotion_level === 'cold'
+                        ? t('coldDescription')
                         : scenarioDetails.customer_emotion_level === 'frustrated'
-                        ? 'The customer is impatient and needs quick resolution. Show efficiency and acknowledge their time pressure.'
+                        ? t('frustratedDescription')
                         : scenarioDetails.customer_emotion_level === 'angry'
-                        ? 'The customer is very upset and demanding. Provide genuine empathy and concrete solutions.'
-                        : 'The customer is furious and confrontational. Requires exceptional empathy and above-and-beyond service.'}
+                        ? t('angryDescription')
+                        : t('extremelyAngryDescription')}
                     </p>
                   </div>
                 </div>
@@ -647,10 +656,10 @@ export default function SessionTranscriptPage() {
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                 <div className="flex items-start mb-2">
                   <span className="text-lg mr-2">✅</span>
-                  <h3 className="font-semibold text-gray-900">Expected Employee Response</h3>
+                  <h3 className="font-semibold text-gray-900">{t('expectedResponse')}</h3>
                 </div>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {scenarioDetails.expected_response || 'No expected response defined'}
+                  {scenarioDetails.expected_response || t('noExpectedResponse')}
                 </p>
               </div>
 
@@ -659,7 +668,7 @@ export default function SessionTranscriptPage() {
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex items-start mb-3">
                     <span className="text-lg mr-2">🎯</span>
-                    <h3 className="font-semibold text-gray-900">Key Milestones</h3>
+                    <h3 className="font-semibold text-gray-900">{t('keyMilestones')}</h3>
                   </div>
                   <ul className="space-y-2">
                     {scenarioDetails.milestones.map((milestone: string, index: number) => (
@@ -681,10 +690,10 @@ export default function SessionTranscriptPage() {
         {(session.audio_recording_url || session.video_recording_url || audioLoading || audioError) && (
           <div className="bg-white rounded-lg shadow mb-6">
             <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Session Recordings</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('sessionRecordings')}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                {session.recording_preference === 'audio' && 'Audio recording of this training session'}
-                {session.recording_preference === 'audio_video' && 'Audio and screen recording of this training session'}
+                {session.recording_preference === 'audio' && t('audioOnly')}
+                {session.recording_preference === 'audio_video' && t('audioVideoRecording')}
               </p>
             </div>
 
@@ -694,14 +703,14 @@ export default function SessionTranscriptPage() {
                 <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
                   <div className="flex items-center mb-3">
                     <Volume2 className="w-5 h-5 text-blue-600 mr-2" />
-                    <h3 className="font-medium text-gray-900">Audio Recording</h3>
+                    <h3 className="font-medium text-gray-900">{t('audioRecording')}</h3>
                     <div className="ml-2 flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      <span className="text-sm text-blue-600 ml-2">Loading audio...</span>
+                      <span className="text-sm text-blue-600 ml-2">{t('loadingAudio')}</span>
                     </div>
                   </div>
                   <p className="text-sm text-blue-700">
-                    Fetching conversation audio from ElevenLabs. This may take a moment.
+                    {t('fetchingAudio')}
                   </p>
                 </div>
               )}
@@ -711,15 +720,15 @@ export default function SessionTranscriptPage() {
                 <div className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
                   <div className="flex items-center mb-3">
                     <Volume2 className="w-5 h-5 text-yellow-600 mr-2" />
-                    <h3 className="font-medium text-gray-900">Audio Recording</h3>
-                    <span className="text-sm text-yellow-600 ml-2">Not available yet</span>
+                    <h3 className="font-medium text-gray-900">{t('audioRecording')}</h3>
+                    <span className="text-sm text-yellow-600 ml-2">{t('audioNotYet')}</span>
                   </div>
                   <p className="text-sm text-yellow-700 mb-2">{audioError}</p>
                   <button
                     onClick={() => tryLoadMissingAudio(session)}
                     className="text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded"
                   >
-                    Try Again
+                    {t('tryAgain')}
                   </button>
                 </div>
               )}
@@ -729,7 +738,7 @@ export default function SessionTranscriptPage() {
                 <div className="border rounded-lg p-4">
                   <div className="flex items-center mb-3">
                     <Volume2 className="w-5 h-5 text-blue-600 mr-2" />
-                    <h3 className="font-medium text-gray-900">Audio Recording</h3>
+                    <h3 className="font-medium text-gray-900">{t('audioRecording')}</h3>
                     {session.audio_file_size && (
                       <span className="text-xs text-gray-500 ml-2">
                         ({Math.round(session.audio_file_size / 1024)} KB)
@@ -753,7 +762,7 @@ export default function SessionTranscriptPage() {
                 <div className="border rounded-lg p-4">
                   <div className="flex items-center mb-3">
                     <Video className="w-5 h-5 text-blue-600 mr-2" />
-                    <h3 className="font-medium text-gray-900">Screen Recording</h3>
+                    <h3 className="font-medium text-gray-900">{t('videoRecording')}</h3>
                     {session.video_file_size && (
                       <span className="text-xs text-gray-500 ml-2">
                         ({Math.round(session.video_file_size / (1024 * 1024))} MB)
@@ -779,10 +788,13 @@ export default function SessionTranscriptPage() {
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="flex items-center text-sm text-gray-600">
                   <Clock className="w-4 h-4 mr-2" />
-                  <span>Recording duration: {trainingSessionsService.formatDuration(session.recording_duration_seconds || 0)}</span>
+                  <span>{t('recordingDuration')}: {trainingSessionsService.formatDuration(session.recording_duration_seconds || 0)}</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Recorded on {formatDate(session.recording_consent_timestamp || session.started_at)} at {formatTime(session.recording_consent_timestamp || session.started_at)}
+                  {t('recordedOn', {
+                    date: formatDate(session.recording_consent_timestamp || session.started_at),
+                    time: formatTime(session.recording_consent_timestamp || session.started_at)
+                  })}
                 </div>
               </div>
             </div>
@@ -818,7 +830,7 @@ export default function SessionTranscriptPage() {
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  📝 Transcript ({session.conversation_transcript.length} messages)
+                  📝 {t('tabTranscript')} ({t('messagesCount', { count: session.conversation_transcript.length })})
                 </button>
                 <button
                   onClick={() => setActiveTab('analysis')}
@@ -828,7 +840,7 @@ export default function SessionTranscriptPage() {
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  📊 {session.training_mode === 'theory' ? 'Theory Assessment Results' : 'Performance Analysis'}
+                  📊 {session.training_mode === 'theory' ? t('tabTheoryAssessment') : t('tabAnalysis')}
                 </button>
               </div>
             </div>
@@ -837,9 +849,9 @@ export default function SessionTranscriptPage() {
             {activeTab === 'transcript' && (
               <div>
                 <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Conversation Transcript</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">{t('conversationTranscript')}</h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    {session.conversation_transcript.length} messages exchanged during this session
+                    {t('messagesExchanged', { count: session.conversation_transcript.length })}
                   </p>
                 </div>
 
@@ -847,7 +859,7 @@ export default function SessionTranscriptPage() {
             {session.conversation_transcript.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-400 text-4xl mb-4">💬</div>
-                <p className="text-gray-500">No conversation was recorded in this session.</p>
+                <p className="text-gray-500">{t('noConversation')}</p>
               </div>
             ) : session.conversation_transcript.length === 1 &&
                 session.conversation_transcript[0].content.includes('Get Transcript and Analysis') &&
@@ -856,7 +868,7 @@ export default function SessionTranscriptPage() {
               <div className="text-center py-8">
                 <div className="text-blue-600 text-4xl mb-4">📊</div>
                 <p className="text-gray-600 mb-4">
-                  This session transcript needs to be fetched from ElevenLabs.
+                  {t('analysisActions.fetchPrompt')}
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
                   <button
@@ -867,11 +879,11 @@ export default function SessionTranscriptPage() {
                     {isFetchingTranscript ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Fetching Transcript...
+                        {t('analysisActions.fetchingTranscript')}
                       </>
                     ) : (
                       <>
-                        📝 Get Transcript
+                        📝 {t('analysisActions.getTranscript')}
                       </>
                     )}
                   </button>
@@ -883,18 +895,18 @@ export default function SessionTranscriptPage() {
                     {isAnalyzingTranscript ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Running Analysis...
+                        {t('analysisActions.runningAnalysis')}
                       </>
                     ) : (
                       <>
-                        🧪 Get Analysis
+                        🧪 {t('analysisActions.getAnalysis')}
                       </>
                     )}
                   </button>
                 </div>
                 {!session.elevenlabs_conversation_id && (
                   <p className="text-red-500 text-sm mt-2">
-                    No ElevenLabs conversation ID found for this session.
+                    {t('analysisActions.noConversationId')}
                   </p>
                 )}
               </div>
@@ -968,7 +980,7 @@ export default function SessionTranscriptPage() {
                 {/* Service Practice Assessment */}
                 {session.training_mode === 'service_practice' && servicePracticeAssessment && (
                   <>
-                    {/* Header with Redo Analysis button */}
+                    {/* Header with Language Selector and Redo Analysis button */}
                     <div className="flex items-center justify-between pb-4 border-b border-gray-200">
                       <h3 className="text-lg font-semibold text-gray-900">{t('servicePractice.title')}</h3>
                       <div className="flex items-center gap-3">
@@ -977,6 +989,18 @@ export default function SessionTranscriptPage() {
                             📋 {t('servicePractice.cached')}
                           </span>
                         )}
+                        {/* Language Selector */}
+                        <select
+                          value={selectedLanguage}
+                          onChange={(e) => setSelectedLanguage(e.target.value as LanguageCode)}
+                          className="text-sm border border-gray-300 rounded-md px-3 py-1.5 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {SUPPORTED_LANGUAGES.map((lang) => (
+                            <option key={lang.code} value={lang.code}>
+                              {lang.flag} {lang.name}
+                            </option>
+                          ))}
+                        </select>
                         <button
                           onClick={() => handleRunAnalysis(true)}
                           disabled={isAnalyzingTranscript}
@@ -1017,6 +1041,10 @@ export default function SessionTranscriptPage() {
                     <FeedbackSection
                       strengths={servicePracticeAssessment.strengths}
                       improvements={servicePracticeAssessment.improvements}
+                    />
+
+                    <UnacceptablePhrases
+                      phrases={servicePracticeAssessment.unacceptable_phrases || []}
                     />
                   </>
                 )}
@@ -1369,7 +1397,7 @@ export default function SessionTranscriptPage() {
               <div className="mt-6 p-4 bg-gray-50 border-t">
                 <div className="text-center">
                   <p className="text-gray-600 mb-4">
-                    Run analysis on this {getTrainingModeDisplay(session.training_mode).toLowerCase()} session to get detailed assessment results.
+                    {t('analysisActions.runAnalysisPrompt', { mode: getTrainingModeDisplay(session.training_mode, t).toLowerCase() })}
                   </p>
                   <button
                     onClick={() => handleRunAnalysis(false)}
@@ -1379,11 +1407,11 @@ export default function SessionTranscriptPage() {
                     {isAnalyzingTranscript ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Running Analysis...
+                        {t('analysisActions.runningAnalysis')}
                       </>
                     ) : (
                       <>
-                        🧪 Run Analysis
+                        🧪 {t('analysisActions.runAnalysis')}
                       </>
                     )}
                   </button>

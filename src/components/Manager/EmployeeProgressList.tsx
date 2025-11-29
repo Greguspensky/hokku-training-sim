@@ -28,13 +28,34 @@ export default function EmployeeProgressList({
   const loadEmployees = async () => {
     try {
       setLoading(true)
+      console.log('🔍 EmployeeProgressList: Loading employees for company:', companyId)
       const response = await fetch(`/api/employees?company_id=${companyId}`)
       const data = await response.json()
 
-      if (data.employees) {
+      console.log('📦 EmployeeProgressList: Received data:', {
+        success: data.success,
+        employeeCount: data.data?.employees?.length || 0,
+        employees: data.data?.employees
+      })
+
+      // Access employees from data.data.employees (API wraps in data property)
+      const employees = data.data?.employees || data.employees
+
+      if (employees) {
         // Filter only employees who have joined
-        const joinedEmployees = data.employees.filter((emp: Employee) => emp.has_joined)
+        const joinedEmployees = employees.filter((emp: Employee) => emp.has_joined)
+        console.log('✅ EmployeeProgressList: Filtered joined employees:', {
+          totalEmployees: employees.length,
+          joinedCount: joinedEmployees.length,
+          joinedEmployees: joinedEmployees.map((e: Employee) => ({
+            name: e.name,
+            has_joined: e.has_joined,
+            email: e.email
+          }))
+        })
         setEmployees(joinedEmployees)
+      } else {
+        console.warn('⚠️ EmployeeProgressList: No employees data in response')
       }
     } catch (error) {
       console.error('Failed to load employees:', error)

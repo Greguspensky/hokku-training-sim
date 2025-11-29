@@ -500,7 +500,7 @@ class TrainingSessionsService {
     console.log('🗑️ Deleting training session:', sessionId, 'by manager:', managerId)
 
     try {
-      const response = await fetch('/api/delete-training-session', {
+      const response = await fetch('/api/training/delete-training-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

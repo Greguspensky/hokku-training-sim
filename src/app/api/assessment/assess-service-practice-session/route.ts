@@ -40,6 +40,12 @@ interface ServicePracticeAssessment {
     current?: string
     better?: string
   }>
+  unacceptable_phrases: Array<{
+    phrase: string                       // Exact phrase employee said
+    severity: 'offensive' | 'unprofessional'  // How serious
+    reason: string                       // Why it's unacceptable (in analysis language)
+    correct_alternative: string          // What they should say instead (in analysis language)
+  }>
   behavioral_metrics: {
     avg_response_time_seconds: number
     session_duration_seconds: number
@@ -50,7 +56,7 @@ interface ServicePracticeAssessment {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { sessionId, forceReAnalysis } = body
+    const { sessionId, forceReAnalysis, language } = body
 
     if (!sessionId) {
       return NextResponse.json(
@@ -68,6 +74,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎯 Assessing Service Practice session ${sessionId}`)
     console.log(`🔍 Force re-analysis: ${Boolean(forceReAnalysis)}`)
+    console.log(`🌐 Analysis language: ${language || 'from session'}`)
 
     // Fetch session data from database
     const { data: session, error: sessionError } = await supabaseAdmin
@@ -84,14 +91,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if already assessed (use cache unless forced re-analysis)
+    // Determine analysis language (interface language overrides session language)
+    const analysisLanguage = language || session.language || 'en'
+    console.log(`🌐 Analysis language requested: ${analysisLanguage}`)
+
+    // Check if already assessed (use cache unless forced re-analysis OR language changed)
     console.log(`🔍 Checking cache status:`)
     console.log(`  - forceReAnalysis: ${Boolean(forceReAnalysis)}`)
     console.log(`  - service_assessment_status: "${session.service_assessment_status}"`)
     console.log(`  - service_practice_assessment_results exists: ${!!session.service_practice_assessment_results}`)
 
-    if (!forceReAnalysis && session.service_practice_assessment_results && session.service_assessment_status === 'completed') {
-      console.log('✅ Returning cached assessment results')
+    // Check if cached analysis exists and get its language
+    const cachedLanguage = session.service_practice_assessment_results?.analysis_language
+    console.log(`  - cached language: "${cachedLanguage}"`)
+    console.log(`  - requested language: "${analysisLanguage}"`)
+
+    // Language matches only if cached language exists AND equals requested language
+    const languageMatches = cachedLanguage && cachedLanguage === analysisLanguage
+
+    if (!forceReAnalysis && session.service_practice_assessment_results && session.service_assessment_status === 'completed' && languageMatches) {
+      console.log('✅ Returning cached assessment results (language matches)')
       return NextResponse.json({
         success: true,
         sessionId,
@@ -103,6 +122,8 @@ export async function POST(request: NextRequest) {
 
     if (forceReAnalysis) {
       console.log('🔄 Forcing re-analysis, bypassing cache')
+    } else if (!languageMatches) {
+      console.log(`🌐 Language changed from "${cachedLanguage}" to "${analysisLanguage}", regenerating analysis`)
     }
 
     // Verify this is a Service Practice session
@@ -368,19 +389,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Build comprehensive GPT-4 analysis prompt
+    console.log(`📝 Using analysis language: ${analysisLanguage}`)
+
     const assessment = await analyzeServicePracticeSession(
       transcript,
       scenario,
       knowledgeDocuments,
       behavioralMetrics,
-      session.language
+      analysisLanguage
     )
+
+    // Add language metadata to assessment for cache validation
+    const assessmentWithLanguage = {
+      ...assessment,
+      analysis_language: analysisLanguage
+    }
 
     // Cache the results in database
     const { error: updateError } = await supabaseAdmin
       .from('training_sessions')
       .update({
-        service_practice_assessment_results: assessment,
+        service_practice_assessment_results: assessmentWithLanguage,
         service_assessment_status: 'completed',
         service_assessment_completed_at: new Date().toISOString()
       })
@@ -393,12 +422,12 @@ export async function POST(request: NextRequest) {
       console.log('✅ Assessment results cached successfully')
     }
 
-    console.log(`📊 Assessment complete | Overall: ${assessment.overall_score}/100`)
+    console.log(`📊 Assessment complete | Overall: ${assessment.overall_score}/100 | Language: ${analysisLanguage}`)
 
     return NextResponse.json({
       success: true,
       sessionId,
-      assessment,
+      assessment: assessmentWithLanguage,
       fromCache: false
     })
 
@@ -471,6 +500,26 @@ function calculateBehavioralMetrics(
 /**
  * Analyze Service Practice session using GPT-4
  */
+// Map language codes to full language names for GPT-4
+function getLanguageName(languageCode: string): string {
+  const languageMap: Record<string, string> = {
+    'en': 'English',
+    'ru': 'Russian',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'cs': 'Czech'
+  }
+  return languageMap[languageCode] || 'English'
+}
+
 async function analyzeServicePracticeSession(
   transcript: ConversationMessage[],
   scenario: any,
@@ -479,6 +528,10 @@ async function analyzeServicePracticeSession(
   language: string
 ): Promise<ServicePracticeAssessment> {
   try {
+    // Convert language code to full language name for GPT-4
+    const languageName = getLanguageName(language)
+    console.log(`🌍 Converting language code "${language}" to name "${languageName}" for GPT-4`)
+
     // Format transcript for GPT-4
     const formattedTranscript = transcript.map((msg, idx) => {
       const role = msg.role === 'assistant' ? 'AI Customer' : 'Employee'
@@ -505,7 +558,7 @@ SCENARIO CONTEXT:
 - Customer Emotion Level: ${scenario.customer_emotion_level}
 - Situation: ${scenario.client_behavior || 'General customer service interaction'}
 - Expected Employee Approach: ${scenario.expected_response}
-- Language: ${language}
+- Analysis Language: ${languageName} (IMPORTANT: All feedback must be in ${languageName})
 
 KEY MILESTONES TO ACHIEVE:
 ${milestonesList}
@@ -554,7 +607,33 @@ ${needsDeescalation ? '6' : '5'}. **Product Knowledge Accuracy Score (0-100)** -
    - If knowledge base is empty/missing: Score as "N/A" and state "Cannot validate product knowledge - no menu provided"
    **Product Knowledge Feedback (2-3 sentences)** - Address the employee about their product knowledge accuracy. If they mentioned fake items, quote them and explain they don't exist on the menu. If accurate, praise their knowledge and cite specific examples.
 
-${needsDeescalation ? '7' : '6'}. **Milestone Completion Rate Score (0-100)** - Calculate percentage of milestones achieved (0-100)
+${needsDeescalation ? '7' : '6'}. **Unacceptable Phrases**
+   Review EVERY message from [Employee] lines and identify:
+
+   A. **Offensive Language** (severity: offensive):
+      - Insults, derogatory terms, profanity, disrespectful words
+      - Examples: "Нищеброд" (lowlife), "idiot", "stupid", cursing, offensive slurs
+      - These are SEVERE violations that are never acceptable
+
+   B. **Unprofessional Phrases** (severity: unprofessional):
+      - Phrases that are not offensive but inappropriate for customer service
+      - Examples:
+        * "No problem" → Should be "My pleasure" or "Happy to help"
+        * "Whatever" → Too casual and dismissive
+        * "I don't know" → Should be "Let me find out for you"
+        * "That's not my job" → Never acceptable
+        * "Yeah", "Yep", "Nope" → Should be "Yes" or "I'd be happy to"
+        * Overly casual language inappropriate for professional service
+
+   For EACH unacceptable phrase found:
+   - Quote the EXACT phrase from [Employee] line
+   - Classify severity (offensive or unprofessional)
+   - Explain why it's unacceptable (in ${languageName})
+   - Provide the correct alternative phrase (in ${languageName})
+
+   If NO unacceptable phrases are found, return an empty array: []
+
+${needsDeescalation ? '8' : '7'}. **Milestone Completion Rate Score (0-100)** - Calculate percentage of milestones achieved (0-100)
    **Milestone Completion Feedback (2-3 sentences)** - Tell the employee which milestones they achieved or missed. Explain why certain milestones weren't met and what they need to do to achieve them next time.
 
 For each milestone, determine if it was achieved (true/false) and provide brief evidence.
@@ -685,6 +764,16 @@ For the "manager_summary" field, you MUST provide a DETAILED CHRONOLOGICAL WALKT
 
 ---
 
+**CRITICAL LANGUAGE INSTRUCTION**:
+You MUST write ALL feedback, summaries, strengths, improvements, and any human-readable text content in ${languageName} language.
+- manager_summary: Write in ${languageName}
+- All feedback fields: Write in ${languageName}
+- All strengths: Write in ${languageName}
+- All improvements: Write in ${languageName}
+- Key takeaways: Write in ${languageName}
+
+Only the JSON structure and field names should remain in English. Everything else MUST be in ${languageName}.
+
 Respond in this exact JSON format:
 {
   "overall_score": <number 0-100>,
@@ -735,6 +824,14 @@ Respond in this exact JSON format:
       "current": "what employee said (optional)",
       "better": "what would be better (optional)"
     }
+  ],
+  "unacceptable_phrases": [
+    {
+      "phrase": "exact phrase employee said",
+      "severity": "offensive or unprofessional",
+      "reason": "Why this is unacceptable (in ${languageName})",
+      "correct_alternative": "What they should have said instead (in ${languageName})"
+    }
   ]
 }`
 
@@ -773,6 +870,7 @@ Respond in this exact JSON format:
       milestones_achieved: analysisResult.milestones_achieved || [],
       strengths: analysisResult.strengths || [],
       improvements: analysisResult.improvements || [],
+      unacceptable_phrases: analysisResult.unacceptable_phrases || [],
       behavioral_metrics: behavioralMetrics
     }
 

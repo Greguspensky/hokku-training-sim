@@ -53,7 +53,17 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
   // Load auth user ID from employee email (with caching)
   useEffect(() => {
     const loadAuthUserId = async () => {
-      if (!employee.email) return
+      // First, check if employee already has user_id populated
+      if (employee.user_id) {
+        console.log('✅ Using employee.user_id:', employee.user_id)
+        setAuthUserId(employee.user_id)
+        return
+      }
+
+      if (!employee.email) {
+        console.warn('⚠️ Employee has no email and no user_id, cannot load training data')
+        return
+      }
 
       // Check cache first
       const cached = employeeCache.get(employee.id)
@@ -63,15 +73,19 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
       }
 
       try {
+        console.log('🔍 Looking up auth user ID for email:', employee.email)
         const response = await fetch(`/api/auth-user-by-email?email=${encodeURIComponent(employee.email)}`)
         const data = await response.json()
 
         if (data.success && data.authUserId) {
+          console.log('✅ Found auth user ID:', data.authUserId)
           setAuthUserId(data.authUserId)
           // Cache the result
           const cache = employeeCache.get(employee.id) || {}
           cache.authUserId = data.authUserId
           employeeCache.set(employee.id, cache)
+        } else {
+          console.warn('⚠️ No auth user found for email:', employee.email)
         }
       } catch (error) {
         console.error('Failed to load auth user ID:', error)
@@ -79,7 +93,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
     }
 
     loadAuthUserId()
-  }, [employee.email, employee.id])
+  }, [employee.email, employee.id, employee.user_id])
 
   // Load assignments when component mounts or employee changes
   useEffect(() => {
@@ -106,7 +120,7 @@ export default function EmployeeDashboardView({ employee }: EmployeeDashboardVie
 
     try {
       setLoading(true)
-      const response = await fetch(`/api/track-assignments-standalone?employee_id=${employee.id}`)
+      const response = await fetch(`/api/tracks/track-assignments-standalone?employee_id=${employee.id}`)
       const data = await response.json()
 
       if (data.success) {
