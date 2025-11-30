@@ -9,6 +9,12 @@ npm run dev  # Start development server on port 3000
 
 ### Latest Features ✅
 - **🇮🇹 Italian UI Language Support (2025-11-30)**: Complete Italian interface translation with AI-assisted GPT-4 translation ✅ **COMPLETE**
+  - 500+ UI strings translated to formal Italian (Lei form)
+  - Cookie-based language switching (not URL-based)
+  - Added to interface language selector in Manager Settings
+  - Fixed middleware routing conflicts with flat app structure
+  - Fixed React hydration errors in training page
+  - **Bug Fixes (2025-11-30)**: Fixed `isLoadingQuestions` → `isLoadingSessionQuestions` variable name error, added missing `conversationService` and `isInitialized` to ElevenLabsAvatarSession destructuring
 - **🎯 Service Practice Analysis System (2025-11-09)**: GPT-4 powered assessment with caching ✅ **CODE COMPLETE** ⚠️ **MIGRATION PENDING**
 - **⚙️ Settings Reorganization (2025-10-28)**: Clean manager dashboard with dedicated settings hub ✅ **COMPLETE**
 - **🎤 Language-Aware Voice System (2025-10-28)**: Multi-language voice configuration with intelligent selection ✅ **CODE COMPLETE** ⚠️ **MIGRATION PENDING**
