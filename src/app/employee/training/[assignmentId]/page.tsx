@@ -1030,7 +1030,7 @@ export default function TrainingSessionPage() {
                           : '🗣️ Service Practice'
                         }
                       </p>
-                      <p><strong>Scenario:</strong> <HiddenContent type="title" customPlaceholder="Mystery Scenario" showIcon={false} className="inline" /></p>
+                      <div className="text-gray-600"><strong>Scenario:</strong> <HiddenContent type="title" customPlaceholder="Mystery Scenario" showIcon={false} className="inline" /></div>
                       {currentScenario.session_time_limit_minutes && (
                         <p><strong>Time Limit:</strong> ⏱️ {currentScenario.session_time_limit_minutes} minutes</p>
                       )}
@@ -1110,9 +1110,9 @@ export default function TrainingSessionPage() {
                             </div>
                           ) : currentScenario.scenario_type === 'recommendations' ? (
                             <div className="space-y-2">
-                              <p className="text-gray-600 text-xs">
+                              <div className="text-gray-600 text-xs">
                                 <strong>Training Focus:</strong> <HiddenContent type="title" customPlaceholder="Situationships Training" showIcon={false} className="inline" />
-                              </p>
+                              </div>
                               {/* Hidden: Instructions for surprise mode */}
                               {recommendationQuestionsLoading ? (
                                 <div className="flex items-center space-x-2">
@@ -1169,9 +1169,9 @@ export default function TrainingSessionPage() {
                               )}
                             </div>
                           ) : (
-                            <p className="text-gray-600 text-xs">
+                            <div className="text-gray-600 text-xs">
                               <HiddenContent type="title" customPlaceholder="Mystery Training Scenario" showIcon={false} className="inline" />
-                            </p>
+                            </div>
                           )}
                         </div>
                       </div>
