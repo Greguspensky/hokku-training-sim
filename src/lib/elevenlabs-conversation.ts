@@ -476,7 +476,7 @@ Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
       console.log('✅ Microphone access granted')
 
       // Get conversation token from our server
-      const tokenResponse = await fetch(`/api/elevenlabs-token?agentId=${this.config.agentId}`)
+      const tokenResponse = await fetch(`/api/elevenlabs/elevenlabs-token?agentId=${this.config.agentId}`)
       if (!tokenResponse.ok) {
         throw new Error(`Failed to get conversation token: ${tokenResponse.statusText}`)
       }
