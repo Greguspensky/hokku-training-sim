@@ -108,7 +108,7 @@ class TrainingSessionsService {
     try {
       // Use API endpoint instead of direct Supabase client (better for mobile)
       // API uses service role which bypasses RLS and is faster
-      console.log('🕐 Calling /api/save-training-session with 30s timeout...')
+      console.log('🕐 Calling /api/training/save-training-session with 30s timeout...')
 
       // Log the JSON string we're about to send to debug any serialization issues
       let jsonString: string
@@ -121,7 +121,7 @@ class TrainingSessionsService {
         throw new Error('Failed to serialize session data: ' + (stringifyError instanceof Error ? stringifyError.message : 'Unknown error'))
       }
 
-      const apiPromise = fetch('/api/save-training-session', {
+      const apiPromise = fetch('/api/training/save-training-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: jsonString

@@ -850,7 +850,7 @@ Ask specific, factual questions based on the company knowledge context provided.
 
       console.log('📤 Saving session via API endpoint...');
 
-      const saveResponse = await fetch('/api/save-training-session', {
+      const saveResponse = await fetch('/api/training/save-training-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
