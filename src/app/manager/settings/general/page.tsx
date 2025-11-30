@@ -273,6 +273,7 @@ export default function GeneralSettingsPage() {
                     >
                       <option value="en">🇬🇧 English</option>
                       <option value="ru">🇷🇺 Русский (Russian)</option>
+                      <option value="it">🇮🇹 Italiano (Italian)</option>
                     </select>
                     {savingUiLanguage && (
                       <div className="absolute right-8 top-2.5">
