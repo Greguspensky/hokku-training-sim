@@ -241,7 +241,7 @@ export function ElevenLabsAvatarSession({
           )}
 
           {/* Loading Questions Display */}
-          {isLoadingQuestions && (
+          {isLoadingSessionQuestions && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-blue-800">📋 Loading structured questions...</p>
             </div>
