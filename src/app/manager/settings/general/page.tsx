@@ -29,6 +29,7 @@ export default function GeneralSettingsPage() {
   const [showSessionNamesToEmployees, setShowSessionNamesToEmployees] = useState(false)
   const [savingVisibility, setSavingVisibility] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [companyName, setCompanyName] = useState('')
 
   // Load settings on mount
   useEffect(() => {
@@ -40,6 +41,8 @@ export default function GeneralSettingsPage() {
   const loadCompanySettings = async () => {
     try {
       setLoading(true)
+
+      // Fetch company settings
       const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
       const data = await response.json()
       if (data.success && data.settings) {
@@ -53,6 +56,15 @@ export default function GeneralSettingsPage() {
 
         // Set cookie for server-side locale detection
         document.cookie = `NEXT_LOCALE=${uiLang}; path=/; max-age=31536000; SameSite=Lax`
+      }
+
+      // Fetch company details (name)
+      if (user?.email) {
+        const companyResponse = await fetch(`/api/company-details?email=${encodeURIComponent(user.email)}`)
+        const companyData = await companyResponse.json()
+        if (companyData.success && companyData.company) {
+          setCompanyName(companyData.company.name || '')
+        }
       }
     } catch (error) {
       console.error('Failed to load company settings:', error)
@@ -226,6 +238,21 @@ export default function GeneralSettingsPage() {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Company Information Section */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('manager.settings.companyInformation')}</h2>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{t('manager.settings.companyName')}</p>
+                    <p className="text-base text-gray-900">{companyName || t('common.loading')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{t('manager.settings.companyId')}</p>
+                    <p className="text-base text-gray-900 font-mono">{companyId}</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Default Language Section */}
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('manager.settings.defaultTrainingLanguage')}</h2>
