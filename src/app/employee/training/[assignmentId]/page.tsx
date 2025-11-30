@@ -319,7 +319,7 @@ export default function TrainingSessionPage() {
 
     try {
       setStatsLoading(true)
-      const response = await fetch(`/api/scenario-stats?scenario_id=${scenarioId}&user_id=${user.id}`)
+      const response = await fetch(`/api/scenarios/scenario-stats?scenario_id=${scenarioId}&user_id=${user.id}`)
       const data = await response.json()
 
       if (data.success) {
@@ -504,7 +504,7 @@ export default function TrainingSessionPage() {
         params.append('employee_id', employeeId)
       }
 
-      const response = await fetch(`/api/scenario-questions?${params}`)
+      const response = await fetch(`/api/scenarios/scenario-questions?${params}`)
       const result = await response.json()
 
       if (result.success) {
