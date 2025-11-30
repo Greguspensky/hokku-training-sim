@@ -318,7 +318,7 @@ export default function SessionTranscriptPage() {
         }
       } else {
         // Call Theory Q&A assessment endpoint (existing)
-        const response = await fetch('/api/session-transcript-analysis', {
+        const response = await fetch('/api/assessment/session-transcript-analysis', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

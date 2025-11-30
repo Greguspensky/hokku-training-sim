@@ -578,7 +578,7 @@ export default function TrainingSessionPage() {
     setIsAnalyzingTranscript(true)
 
     try {
-      const response = await fetch('/api/session-transcript-analysis', {
+      const response = await fetch('/api/assessment/session-transcript-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
