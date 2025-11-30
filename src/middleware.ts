@@ -1,9 +1,12 @@
-import createMiddleware from 'next-intl/middleware';
-import { routing } from './i18n/routing';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export default createMiddleware(routing);
+// Simple passthrough middleware - i18n is handled via cookies in layout.tsx
+export function middleware(request: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
-  // Match only internationalized pathnames
-  matcher: ['/', '/(ru|en)/:path*']
+  // Only match routes that need middleware (none for now, all handled in layout)
+  matcher: []
 };

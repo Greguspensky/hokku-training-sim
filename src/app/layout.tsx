@@ -28,7 +28,10 @@ export default async function RootLayout({
   // Read locale from cookie (set by UI language selector)
   const cookieStore = await cookies();
   const localeCookie = cookieStore.get('NEXT_LOCALE');
-  const locale = localeCookie?.value === 'ru' ? 'ru' : 'en';
+  const validLocales = ['en', 'ru', 'it'];
+  const locale = validLocales.includes(localeCookie?.value || '')
+    ? (localeCookie?.value as 'en' | 'ru' | 'it')
+    : 'en';
 
   // Dynamically load messages for the selected locale
   const messages = (await import(`../i18n/locales/${locale}.json`)).default;
