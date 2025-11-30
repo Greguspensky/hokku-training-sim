@@ -111,7 +111,7 @@ export default function TrainingSessionPage() {
       const companyId = user.company_id
 
       try {
-        const response = await fetch(`/api/company-settings?company_id=${companyId}`)
+        const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
         const data = await response.json()
         if (data.success && data.settings) {
           if (data.settings.default_training_language) {
@@ -236,7 +236,7 @@ export default function TrainingSessionPage() {
       }
 
       // Load assignment details
-      const assignmentResponse = await fetch(`/api/track-assignments-standalone/${assignmentId}`)
+      const assignmentResponse = await fetch(`/api/tracks/track-assignments-standalone/${assignmentId}`)
       const assignmentData = await assignmentResponse.json()
 
       if (assignmentData.success) {
