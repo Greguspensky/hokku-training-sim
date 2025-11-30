@@ -190,8 +190,8 @@ export function useElevenLabsConversation({
       console.log('📋 Loading session questions preview for company:', companyId, 'employee:', user?.id);
 
       const url = user?.id
-        ? `/api/session-questions?companyId=${companyId}&employeeId=${user.id}&limit=10`
-        : `/api/session-questions?companyId=${companyId}&limit=10`;
+        ? `/api/questions/session-questions?companyId=${companyId}&employeeId=${user.id}&limit=10`
+        : `/api/questions/session-questions?companyId=${companyId}&limit=10`;
 
       const response = await fetch(url);
       const data = await response.json();
