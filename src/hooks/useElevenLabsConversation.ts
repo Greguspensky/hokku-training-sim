@@ -161,7 +161,7 @@ export function useElevenLabsConversation({
       setIsLoadingQuestions(true);
       console.log(`📋 Loading structured questions for user: ${user.id}`);
 
-      const response = await fetch(`/api/theory-practice?user_id=${user.id}`);
+      const response = await fetch(`/api/assessment/theory-practice?user_id=${user.id}`);
       if (!response.ok) {
         throw new Error('Failed to load questions');
       }
@@ -955,7 +955,7 @@ Ask specific, factual questions based on the company knowledge context provided.
   useEffect(() => {
     return () => {
       if (conversationService) {
-        conversationService.disconnect();
+        conversationService.stop();
       }
     };
   }, [conversationService]);
