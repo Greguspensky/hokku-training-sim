@@ -1,8 +1,8 @@
 /**
  * Company Details API
- * GET /api/company-details?email=user@example.com
+ * GET /api/company-details?company_id=xxx
  *
- * Fetches company details (name, ID) for a user
+ * Fetches company details (name, ID) by company ID
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -11,26 +11,12 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
+    const companyId = searchParams.get('company_id')
 
-    if (!email) {
+    if (!companyId) {
       return NextResponse.json(
-        { success: false, error: 'Email parameter is required' },
+        { success: false, error: 'company_id parameter is required' },
         { status: 400 }
-      )
-    }
-
-    // Get user's company_id from users table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('company_id')
-      .eq('email', email)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
       )
     }
 
@@ -38,10 +24,18 @@ export async function GET(request: NextRequest) {
     const { data: companyData, error: companyError } = await supabase
       .from('companies')
       .select('id, name')
-      .eq('id', userData.company_id)
+      .eq('id', companyId)
       .single()
 
-    if (companyError || !companyData) {
+    if (companyError) {
+      console.error('Error fetching company:', companyError)
+      return NextResponse.json(
+        { success: false, error: 'Company not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!companyData) {
       return NextResponse.json(
         { success: false, error: 'Company not found' },
         { status: 404 }

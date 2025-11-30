@@ -59,12 +59,12 @@ export default function GeneralSettingsPage() {
       }
 
       // Fetch company details (name)
-      if (user?.email) {
-        const companyResponse = await fetch(`/api/company-details?email=${encodeURIComponent(user.email)}`)
-        const companyData = await companyResponse.json()
-        if (companyData.success && companyData.company) {
-          setCompanyName(companyData.company.name || '')
-        }
+      const companyResponse = await fetch(`/api/company-details?company_id=${companyId}`)
+      const companyData = await companyResponse.json()
+      if (companyData.success && companyData.company) {
+        setCompanyName(companyData.company.name || '')
+      } else {
+        console.error('Failed to load company details:', companyData.error)
       }
     } catch (error) {
       console.error('Failed to load company settings:', error)
