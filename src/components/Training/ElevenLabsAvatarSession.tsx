@@ -78,6 +78,8 @@ export function ElevenLabsAvatarSession({
 
   // Destructure conversation state for easier access
   const {
+    conversationService,
+    isInitialized,
     isSessionActive,
     isConnected,
     isAgentSpeaking,
