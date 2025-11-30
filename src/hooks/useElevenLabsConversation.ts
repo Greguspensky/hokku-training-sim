@@ -234,7 +234,7 @@ export function useElevenLabsConversation({
 
       console.log(`🧠 Loading knowledge context for scenario: ${scenarioId}, company: ${companyId}`);
 
-      const response = await fetch('/api/scenario-knowledge', {
+      const response = await fetch('/api/scenarios/scenario-knowledge', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
