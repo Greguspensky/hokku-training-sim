@@ -44,15 +44,16 @@ export default function GeneralSettingsPage() {
 
       // Fetch company settings
       const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
-      const data = await response.json()
-      if (data.success && data.settings) {
+      const result = await response.json()
+      if (result.success && result.data && result.data.settings) {
+        const settings = result.data.settings
         // Use current locale as fallback if database doesn't have ui_language set
-        const uiLang = data.settings.ui_language || currentLocale
-        setDefaultLanguage(data.settings.default_training_language || 'en')
+        const uiLang = settings.ui_language || currentLocale
+        setDefaultLanguage(settings.default_training_language || 'en')
         setUiLanguage(uiLang)
-        setTheoryRecordingOptions(data.settings.theory_recording_options || ['audio', 'audio_video'])
-        setServicePracticeRecordingOptions(data.settings.service_practice_recording_options || ['audio', 'audio_video'])
-        setShowSessionNamesToEmployees(data.settings.show_session_names_to_employees || false)
+        setTheoryRecordingOptions(settings.theory_recording_options || ['audio', 'audio_video'])
+        setServicePracticeRecordingOptions(settings.service_practice_recording_options || ['audio', 'audio_video'])
+        setShowSessionNamesToEmployees(settings.show_session_names_to_employees || false)
 
         // Set cookie for server-side locale detection
         document.cookie = `NEXT_LOCALE=${uiLang}; path=/; max-age=31536000; SameSite=Lax`
