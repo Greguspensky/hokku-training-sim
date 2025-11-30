@@ -207,7 +207,7 @@ export default function SessionTranscriptPage() {
     setAudioError(null)
 
     try {
-      const response = await fetch('/api/elevenlabs-conversation-audio', {
+      const response = await fetch('/api/elevenlabs/elevenlabs-conversation-audio', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
