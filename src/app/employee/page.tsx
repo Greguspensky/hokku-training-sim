@@ -63,6 +63,41 @@ export default function EmployeeDashboard() {
     loadEmployeeTableId()
   }, [employeeId, user?.company_id, user?.email])
 
+  // Load and apply company UI language setting
+  useEffect(() => {
+    const loadCompanyLanguage = async () => {
+      if (!user?.company_id) return
+
+      try {
+        const response = await fetch(`/api/settings/company-settings?company_id=${user.company_id}`)
+        const result = await response.json()
+
+        if (result.success && result.data && result.data.settings) {
+          const companyUiLanguage = result.data.settings.ui_language
+
+          if (companyUiLanguage) {
+            // Check current cookie
+            const currentLocale = document.cookie
+              .split('; ')
+              .find(row => row.startsWith('NEXT_LOCALE='))
+              ?.split('=')[1]
+
+            // If company language differs from current, update and reload
+            if (currentLocale !== companyUiLanguage) {
+              console.log(`🌐 Applying company UI language: ${companyUiLanguage}`)
+              document.cookie = `NEXT_LOCALE=${companyUiLanguage}; path=/; max-age=31536000; SameSite=Lax`
+              window.location.reload()
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load company UI language:', error)
+      }
+    }
+
+    loadCompanyLanguage()
+  }, [user?.company_id])
+
   const loadAssignments = async () => {
     if (!employeeTableId) {
       setLoading(false)
