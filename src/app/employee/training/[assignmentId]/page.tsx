@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AssignmentWithDetails } from '@/lib/track-assignments'
@@ -19,6 +19,7 @@ import { getVoiceName, resolveVoiceId } from '@/lib/elevenlabs-voices'
 import { resolveVoiceForSession, getVoiceNameById, getVoiceDetailsById } from '@/lib/voice-resolver'
 import { getDefaultVideoAspectRatio } from '@/lib/device-detection'
 import HiddenContent, { HiddenSection } from '@/components/SurpriseMode/HiddenContent'
+import SimpleFlipboardChat from '@/components/Training/SimpleFlipboardChat'
 
 interface TrainingQuestion {
   id: string
@@ -27,6 +28,12 @@ interface TrainingQuestion {
   correctAnswer: string
   explanation: string
   type: 'multiple_choice' | 'open_ended'
+}
+
+interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
 }
 
 export default function TrainingSessionPage() {
@@ -78,6 +85,10 @@ export default function TrainingSessionPage() {
   const [statsLoading, setStatsLoading] = useState(false)
   const [allowedTheoryRecordingOptions, setAllowedTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [allowedServicePracticeRecordingOptions, setAllowedServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
+
+  // Text chat state (for Flipboard pre-training warm-up)
+  const [preChatMessages, setPreChatMessages] = useState<ConversationMessage[]>([])
+  const [showTextChat, setShowTextChat] = useState(false)
 
   // Handle authentication - redirect if not authenticated after timeout
   useEffect(() => {
@@ -560,6 +571,13 @@ export default function TrainingSessionPage() {
   const handleStartSessionWithPreAuth = async () => {
     console.log('🚀 Starting session with cross-platform WebRTC approach')
 
+    // Store pre-chat messages before starting voice session
+    if (preChatMessages.length > 0) {
+      console.log(`💬 Carrying over ${preChatMessages.length} text chat messages to voice session`)
+    }
+
+    // SimpleFlipboardChat doesn't need cleanup (uses REST API, no persistent connection)
+
     // ElevenLabs audio will be captured via WebRTC (cross-platform compatible)
     console.log('💡 ElevenLabs audio will be captured via WebRTC')
     console.log('   ✅ Works on: Desktop (Chrome/Safari) + Mobile (iOS/Android)')
@@ -846,15 +864,22 @@ export default function TrainingSessionPage() {
                       ? `📖 ${t('sessionTypes.theory')}`
                       : currentScenario.scenario_type === 'recommendations'
                       ? `🎯 ${t('sessionTypes.recommendations')}`
+                      : currentScenario.scenario_type === 'flipboard'
+                      ? `👔 ${t('sessionTypes.flipboard')}`
                       : `🗣️ ${t('sessionTypes.servicePractice')}`
                     }
                   </h1>
-                  {currentScenario.scenario_type !== 'service_practice' && (
+                  {currentScenario.scenario_type !== 'service_practice' && currentScenario.scenario_type !== 'flipboard' && (
                     <p className="text-gray-600">
                       {currentScenario.scenario_type === 'theory'
                         ? t('sessionTypes.theoryDescription')
                         : t('sessionTypes.recommendationsDescription')
                       }
+                    </p>
+                  )}
+                  {currentScenario.scenario_type === 'flipboard' && (
+                    <p className="text-gray-600">
+                      {t('sessionTypes.flipboardDescription')}
                     </p>
                   )}
                 </div>
@@ -1027,6 +1052,8 @@ export default function TrainingSessionPage() {
                           ? '📖 Theory Assessment'
                           : currentScenario.scenario_type === 'recommendations'
                           ? '🎯 Situationships'
+                          : currentScenario.scenario_type === 'flipboard'
+                          ? '👔 Flipboard'
                           : '🗣️ Service Practice'
                         }
                       </p>
@@ -1062,6 +1089,10 @@ export default function TrainingSessionPage() {
                                 {currentScenario.recommendation_question_ids?.length > 0 && (
                                   <> Covers {currentScenario.recommendation_question_ids.length} specific recommendation scenarios.</>
                                 )}
+                              </>
+                            ) : currentScenario.scenario_type === 'flipboard' ? (
+                              <>
+                                <strong>Knowledgeable Employee ({currentScenario.employee_role || 'Staff Member'})</strong> - Will answer your questions as a well-trained employee using company knowledge base.
                               </>
                             ) : (
                               'Customer in Roleplay - Will act according to scenario behavior'
@@ -1168,6 +1199,15 @@ export default function TrainingSessionPage() {
                                 </p>
                               )}
                             </div>
+                          ) : currentScenario.scenario_type === 'flipboard' ? (
+                            <div className="text-gray-600 text-xs">
+                              <p className="mb-2">
+                                <strong>Employee Role:</strong> {currentScenario.employee_role || 'General Staff'}
+                              </p>
+                              <p>
+                                The AI will use the company knowledge base to professionally answer your questions about the business.
+                              </p>
+                            </div>
                           ) : (
                             <div className="text-gray-600 text-xs">
                               <HiddenContent type="title" customPlaceholder="Mystery Training Scenario" showIcon={false} className="inline" />
@@ -1266,7 +1306,7 @@ export default function TrainingSessionPage() {
                   )}
 
                   {/* Language Selection - Hide for recommendations and service_practice (shown at top for service_practice) */}
-                  {currentScenario?.scenario_type === 'theory' && (
+                  {(currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'flipboard') && (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">🌍 {t('configuration.languageSelection')}</h3>
                       <p className="text-gray-600 mb-4">
@@ -1307,7 +1347,7 @@ export default function TrainingSessionPage() {
                       <p className="text-gray-600 mb-4">
                         {currentScenario?.scenario_type === 'recommendations'
                           ? t('recording.recommendationsDescription')
-                          : currentScenario?.scenario_type === 'theory'
+                          : (currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'flipboard')
                           ? t('recording.theoryDescription')
                           : t('recording.defaultDescription')
                         }
@@ -1322,7 +1362,7 @@ export default function TrainingSessionPage() {
                         >
                           {currentScenario?.scenario_type === 'recommendations' ? (
                             <option value="audio_video">🎬 {t('recording.options.videoRequired')}</option>
-                          ) : currentScenario?.scenario_type === 'theory' ? (
+                          ) : (currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'flipboard') ? (
                             <>
                               {allowedTheoryRecordingOptions.includes('audio') && (
                                 <option value="audio">🎤 {t('recording.options.audio')}</option>
@@ -1417,6 +1457,49 @@ export default function TrainingSessionPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Text Chat Warm-up - Only for Flipboard scenarios */}
+                  {currentScenario?.scenario_type === 'flipboard' && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">💬 Text Chat Warm-up (Optional)</h3>
+                      <p className="text-gray-600 mb-4">
+                        Practice asking questions in text mode before starting the voice session. Your chat history will be preserved.
+                      </p>
+
+                      {!showTextChat ? (
+                        <button
+                          onClick={() => setShowTextChat(true)}
+                          className="w-full py-3 px-4 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors flex items-center justify-center gap-2 font-medium"
+                        >
+                          💬 Start Text Chat Warm-up
+                          <span className="text-xs text-indigo-600">(Optional)</span>
+                        </button>
+                      ) : (
+                        <div className="space-y-4">
+                          <SimpleFlipboardChat
+                            scenarioId={currentScenario.id}
+                            language={selectedLanguage}
+                            scenarioContext={{
+                              establishment_type: currentScenario.establishment_type,
+                              title: currentScenario.title,
+                              description: currentScenario.description
+                            }}
+                            onMessagesChange={(messages) => {
+                              setPreChatMessages(messages)
+                            }}
+                            initialMessages={preChatMessages}
+                          />
+
+                          <button
+                            onClick={() => setShowTextChat(false)}
+                            className="text-sm text-gray-600 hover:text-gray-800 underline"
+                          >
+                            ← Back to configuration
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Start Session Button - Only show for Theory and Recommendations (Service Practice button is at top) */}
@@ -1498,7 +1581,9 @@ export default function TrainingSessionPage() {
                     expected_response: currentScenario.expected_response,
                     customer_emotion_level: currentScenario.customer_emotion_level,
                     first_message: currentScenario.first_message,
-                    milestones: currentScenario.milestones
+                    milestones: currentScenario.milestones,
+                    employee_role: currentScenario.employee_role,
+                    establishment_type: currentScenario.establishment_type
                   }}
                   scenarioQuestions={scenarioQuestions}
                   language={selectedLanguage}
@@ -1509,6 +1594,7 @@ export default function TrainingSessionPage() {
                   videoAspectRatio={videoAspectRatio}
                   preAuthorizedTabAudio={preAuthorizedTabAudio}
                   sessionTimeLimit={currentScenario.session_time_limit_minutes}
+                  preChatMessages={preChatMessages}
                   onSessionEnd={(completedSessionData) => {
                     console.log('✅ Avatar session completed:', completedSessionData)
                     setSessionData(completedSessionData)
