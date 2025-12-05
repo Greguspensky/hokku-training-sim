@@ -72,6 +72,7 @@ function getTrainingModeDisplay(trainingMode: string): string {
   const modeMap: Record<string, string> = {
     'theory': 'Theory Q&A',
     'service_practice': 'Service Practice',
+    'flipboard': 'Flipboard',
     'recommendation_tts': 'Recommendation',
     'recommendation': 'Recommendation'
   };
@@ -296,7 +297,9 @@ export function useElevenLabsConversation({
       const questionsToUse = scenarioQuestions.length > 0 ? scenarioQuestions : loadedQuestions || sessionQuestions || structuredQuestions;
       console.log('📋 Using structured questions:', questionsToUse.length, 'questions available');
 
-      const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice';
+      const trainingMode = scenarioContext?.type === 'theory' ? 'theory'
+        : scenarioContext?.type === 'flipboard' ? 'flipboard'
+        : 'service_practice';
 
       if (!contextToUse || !contextToUse.formattedContext) {
         console.warn('⚠️ NO KNOWLEDGE CONTEXT LOADED! Training quality will be poor.');
