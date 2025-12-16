@@ -1,7 +1,7 @@
 /**
  * ElevenLabs Knowledge Service
  * Handles scenario-specific knowledge retrieval and formatting for ElevenLabs conversations
- * Supports both Theory Q&A (restricted knowledge) and Service Practice (broader knowledge)
+ * Supports Theory Q&A (restricted), Service Practice (broad), and Flipboard (broad/comprehensive)
  */
 
 import { knowledgeBaseService, KnowledgeBaseDocument } from './knowledge-base'
@@ -9,7 +9,7 @@ import { scenarioService, Scenario } from './scenarios'
 
 export interface ScenarioKnowledgeContext {
   scenarioId: string
-  scenarioType: 'theory' | 'service_practice'
+  scenarioType: 'theory' | 'service_practice' | 'recommendations' | 'flipboard'
   documents: KnowledgeBaseDocument[]
   formattedContext: string
   knowledgeScope: 'restricted' | 'broad'
@@ -56,6 +56,8 @@ class ElevenLabsKnowledgeService {
       }
 
       // Determine knowledge scope based on scenario type
+      // Theory: restricted to assigned docs only
+      // Service Practice, Recommendations, Flipboard: broad company knowledge
       const knowledgeScope = scenario.scenario_type === 'theory' ? 'restricted' : 'broad'
       console.log(`📚 Knowledge scope: ${knowledgeScope} for ${scenario.scenario_type} scenario`)
 
@@ -109,7 +111,7 @@ class ElevenLabsKnowledgeService {
       // Theory Q&A: Load only assigned knowledge categories/documents
       return this.loadRestrictedKnowledge(scenario, companyId)
     } else {
-      // Service Practice: Load broader company knowledge
+      // Service Practice, Recommendations, Flipboard: Load broader company knowledge
       return this.loadBroadKnowledge(companyId, scenario)
     }
   }
@@ -162,13 +164,13 @@ class ElevenLabsKnowledgeService {
   }
 
   /**
-   * Load broader knowledge for Service Practice scenarios
+   * Load broader knowledge for Service Practice, Recommendations, and Flipboard scenarios
    */
   private async loadBroadKnowledge(
     companyId: string,
     scenario: Scenario
   ): Promise<KnowledgeBaseDocument[]> {
-    console.log('🌐 Loading broad company knowledge for service practice')
+    console.log('🌐 Loading broad company knowledge for', scenario.scenario_type)
 
     // Get all company documents
     const allDocuments = await knowledgeBaseService.getDocuments(companyId)
@@ -237,7 +239,7 @@ class ElevenLabsKnowledgeService {
    */
   private formatKnowledgeContext(
     documents: KnowledgeBaseDocument[],
-    scenarioType: 'theory' | 'service_practice',
+    scenarioType: 'theory' | 'service_practice' | 'recommendations' | 'flipboard',
     maxChunks: number
   ): string {
     if (documents.length === 0) {
@@ -248,7 +250,10 @@ class ElevenLabsKnowledgeService {
 
     if (scenarioType === 'theory') {
       return this.formatTheoryContext(chunks)
+    } else if (scenarioType === 'flipboard') {
+      return this.formatFlipboardContext(chunks, documents)
     } else {
+      // service_practice and recommendations use menu-only format
       return this.formatServiceContext(chunks, documents)
     }
   }
@@ -440,12 +445,48 @@ Focus on testing the employee's knowledge of specific facts, procedures, prices,
   }
 
   /**
+   * Format knowledge context for Flipboard scenarios
+   * Provides comprehensive business knowledge for AI employee to answer customer questions
+   */
+  private formatFlipboardContext(chunks: KnowledgeChunk[], documents: KnowledgeBaseDocument[]): string {
+    if (documents.length === 0) {
+      return 'No business knowledge available.'
+    }
+
+    // Group documents by category for organized knowledge presentation
+    const categorizedDocs: { [category: string]: KnowledgeBaseDocument[] } = {}
+
+    for (const doc of documents) {
+      const categoryName = doc.category?.name || 'General Information'
+      if (!categorizedDocs[categoryName]) {
+        categorizedDocs[categoryName] = []
+      }
+      categorizedDocs[categoryName].push(doc)
+    }
+
+    // Build comprehensive knowledge context
+    let formattedKnowledge = ''
+
+    // Add all categories and their documents
+    for (const [category, docs] of Object.entries(categorizedDocs)) {
+      formattedKnowledge += `\n## ${category.toUpperCase()}\n\n`
+
+      for (const doc of docs) {
+        // Include document title and full content
+        formattedKnowledge += `**${doc.title}**\n${doc.content}\n\n`
+      }
+    }
+
+    return formattedKnowledge.trim()
+  }
+
+  /**
    * Search for specific knowledge during conversation
    */
   async searchKnowledgeDuringConversation(
     companyId: string,
     searchQuery: string,
-    scenarioType: 'theory' | 'service_practice',
+    scenarioType: 'theory' | 'service_practice' | 'recommendations' | 'flipboard',
     maxResults: number = 3
   ): Promise<KnowledgeChunk[]> {
     try {

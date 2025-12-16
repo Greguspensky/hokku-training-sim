@@ -5,9 +5,17 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2025-11-09)
+## Current Project State (2025-12-15)
 
 ### Latest Features ✅
+- **🌐 Public Flipboard Demo (2025-12-15)**: Fully public shareable demo for Hotel Mota Reception training ✅ **PRODUCTION READY**
+  - Text chat + Voice conversation flow
+  - No authentication required (DemoContext provider)
+  - Anonymous session tracking with IP-based rate limiting
+  - Clean interface with avatar and "LISTENING" overlay
+  - 14 language support
+  - OpenAI GPT-4o-mini text chat + ElevenLabs voice
+  - **URL**: `/demo/flipboard/hotel-mota`
 - **🇮🇹 Italian UI Language Support (2025-11-30)**: Complete Italian interface translation with AI-assisted GPT-4 translation ✅ **COMPLETE**
   - 500+ UI strings translated to formal Italian (Lei form)
   - Cookie-based language switching (not URL-based)
@@ -41,6 +49,7 @@ npm run dev  # Start development server on port 3000
 - **Progress Tracking**: Automatic mastery calculations per topic
 
 ### Key URLs
+- **Public Demo**: http://localhost:3000/demo/flipboard/hotel-mota 🌐 NEW
 - Training: http://localhost:3000/employee/training/demo-assignment-1758312913428-7qtmmsq
 - Employee Dashboard: http://localhost:3000/employee
 - Manager Dashboard: http://localhost:3000/manager
@@ -51,7 +60,8 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
-- **SERVICE_PRACTICE_ANALYSIS_2025-11-09.md** - Service Practice analysis system + caching + bug fixes ✅ **NEW**
+- **PUBLIC_DEMO_IMPLEMENTATION_2025-12-15.md** - Public Flipboard demo implementation guide ✅ **NEW**
+- **SERVICE_PRACTICE_ANALYSIS_2025-11-09.md** - Service Practice analysis system + caching + bug fixes
 - **OCTOBER_28_2025_UPDATES.md** - Settings reorganization + Voice system implementation ✅ **NEW**
 - **SETTINGS_REORGANIZATION_2025-10-28.md** - Manager settings architecture redesign ✅ **COMPLETE**
 - **VOICE_SYSTEM_IMPLEMENTATION_COMPLETE.md** - Language-aware voice configuration system ✅ **CODE COMPLETE**
@@ -68,8 +78,8 @@ npm run dev  # Start development server on port 3000
 ## ElevenLabs Configuration
 
 ### Agent Details
-- **Current Agent ID**: `agent_5101k5ksv08newj9b4aa2wt282hv` (UPDATED)
-- **Previous Agent**: `agent_9301k5efjt1sf81vhzc3pjmw0fy9` (may still work)
+- **Current Agent ID**: `agent_9301k5efjt1sf81vhzc3pjmw0fy9` ✅ **WORKING** (used in production & demo)
+- **Alternative Agent**: `agent_5101k5ksv08newj9b4aa2wt282hv` (configured but has connection issues)
 - **Dashboard**: Configured with dynamic variable placeholders
 - **API Key**: Has convai_write permissions (confirmed working)
 

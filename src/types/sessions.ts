@@ -6,7 +6,7 @@
 import type { ConversationMessage } from '@/lib/elevenlabs-conversation';
 import type { ScenarioKnowledgeContext } from '@/lib/elevenlabs-knowledge';
 
-export type TrainingMode = 'theory' | 'service_practice' | 'recommendation_tts';
+export type TrainingMode = 'theory' | 'service_practice' | 'recommendation_tts' | 'flipboard';
 
 export type RecordingPreference = 'none' | 'audio' | 'audio_video';
 

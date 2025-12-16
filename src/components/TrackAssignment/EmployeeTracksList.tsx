@@ -214,10 +214,12 @@ export default function EmployeeTracksList({ employee, companyId }: EmployeeTrac
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                               scenario.scenario_type === 'theory' ? 'bg-blue-100 text-blue-800' :
                               scenario.scenario_type === 'service_practice' ? 'bg-green-100 text-green-800' :
+                              scenario.scenario_type === 'flipboard' ? 'bg-indigo-100 text-indigo-800' :
                               'bg-purple-100 text-purple-800'
                             }`}>
                               {scenario.scenario_type === 'theory' ? '📖 Theory' :
                                scenario.scenario_type === 'service_practice' ? '🗣️ Service Practice' :
+                               scenario.scenario_type === 'flipboard' ? '👔 Flipboard' :
                                '🎯 Recommendations'}
                             </span>
                           </div>

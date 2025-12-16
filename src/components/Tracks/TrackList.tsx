@@ -21,10 +21,10 @@ export default function TrackList({
   // Translate target audience labels
   const formatTargetAudience = (audience: string) => {
     const audienceMap: { [key: string]: string } = {
-      'new_hire': t('track.newHire'),
-      'experienced': t('track.experienced'),
-      'manager': t('track.manager'),
-      'all': t('track.all')
+      'new_hire': t('manager.track.newHire'),
+      'experienced': t('manager.track.experienced'),
+      'manager': t('manager.track.manager'),
+      'all': t('manager.track.all')
     }
     return audienceMap[audience] || audience
   }

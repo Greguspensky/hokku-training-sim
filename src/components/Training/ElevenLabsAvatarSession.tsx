@@ -22,6 +22,7 @@ interface ElevenLabsAvatarSessionProps {
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   preAuthorizedTabAudio?: MediaStream | null  // Pre-authorized tab audio for Safari
   sessionTimeLimit?: number  // Time limit in minutes
+  hideStatusSections?: boolean // Hide status sections for cleaner demo UI
   onSessionEnd?: (sessionData: any) => void
   className?: string
 }
@@ -40,6 +41,7 @@ export function ElevenLabsAvatarSession({
   videoAspectRatio = '16:9',
   preAuthorizedTabAudio = null,
   sessionTimeLimit,
+  hideStatusSections = false,
   onSessionEnd,
   className = ''
 }: ElevenLabsAvatarSessionProps) {
@@ -51,7 +53,9 @@ export function ElevenLabsAvatarSession({
     companyId,
     scenarioId,
     userId: user?.id,
-    trainingMode: scenarioContext?.type === 'theory' ? 'theory' : 'service_practice',
+    trainingMode: scenarioContext?.type === 'theory' ? 'theory'
+      : scenarioContext?.type === 'flipboard' ? 'flipboard'
+      : 'service_practice',
     language,
     agentId,
     sessionTimeLimit,
@@ -100,8 +104,11 @@ export function ElevenLabsAvatarSession({
 
 
   // Determine training mode from scenario context
-  const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice'
+  const trainingMode = scenarioContext?.type === 'theory' ? 'theory'
+    : scenarioContext?.type === 'flipboard' ? 'flipboard'
+    : 'service_practice'
   const isTheoryMode = trainingMode === 'theory'
+  const isFlipboardMode = trainingMode === 'flipboard'
 
   return (
     <div className={`w-full max-w-4xl mx-auto ${className} relative`}>
@@ -124,11 +131,15 @@ export function ElevenLabsAvatarSession({
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="space-y-6 md:space-y-6">
           {/* Header - Centered Title */}
-          <div className="text-center mb-8 md:mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {isTheoryMode ? t('session.theoryTitle') : t('session.servicePracticeTitle')}
-            </h2>
-          </div>
+          {!hideStatusSections && (
+            <div className="text-center mb-8 md:mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {isTheoryMode ? t('session.theoryTitle')
+                 : isFlipboardMode ? 'Flipboard Training Session'
+                 : t('session.servicePracticeTitle')}
+              </h2>
+            </div>
+          )}
 
           {/* Avatar - Centered - 2x larger on desktop, normal on mobile */}
           {avatarUrl && (
@@ -319,16 +330,22 @@ export function ElevenLabsAvatarSession({
           )}
 
           {/* Session Status */}
-          {isSessionActive && (
+          {!hideStatusSections && isSessionActive && (
             <div className={`rounded-lg p-4 ${
               isTheoryMode
                 ? 'bg-orange-50 border border-orange-200'
+                : isFlipboardMode
+                ? 'bg-indigo-50 border border-indigo-200'
                 : 'bg-green-50 border border-green-200'
             }`}>
               <h4 className={`font-medium text-sm mb-3 ${
-                isTheoryMode ? 'text-orange-900' : 'text-green-900'
+                isTheoryMode ? 'text-orange-900'
+                : isFlipboardMode ? 'text-indigo-900'
+                : 'text-green-900'
               }`}>
-                {isTheoryMode ? '📊 Assessment Status' : '🎭 Roleplay Status'}
+                {isTheoryMode ? '📊 Assessment Status'
+                 : isFlipboardMode ? '👔 Flipboard Session'
+                 : '🎭 Roleplay Status'}
               </h4>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -436,33 +453,37 @@ export function ElevenLabsAvatarSession({
       </div>
 
       {/* Status Indicators - Below white card */}
-      <div className="mt-4 flex items-center justify-center space-x-3">
-        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-          connectionStatus === 'connected' ? 'bg-green-100 text-green-800' :
-          connectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-red-100 text-red-800'
-        }`}>
-          {typeof connectionStatus === 'string' ? connectionStatus : JSON.stringify(connectionStatus)}
-        </span>
-        {recordingPreference !== 'none' && (
-          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-            isRecording ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
-          }`}>
-            {isRecording ? (
-              <>
-                <span className="w-2 h-2 bg-red-600 rounded-full mr-1.5 animate-pulse"></span>
-                {recordingPreference === 'audio' ? '🎤 Recording' : '🎥 Recording'}
-              </>
-            ) : (
-              <>{recordingPreference === 'audio' ? t('session.audioReady') : t('session.videoReady')}</>
+      {!hideStatusSections && (
+        <>
+          <div className="mt-4 flex items-center justify-center space-x-3">
+            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+              connectionStatus === 'connected' ? 'bg-green-100 text-green-800' :
+              connectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {typeof connectionStatus === 'string' ? connectionStatus : JSON.stringify(connectionStatus)}
+            </span>
+            {recordingPreference !== 'none' && (
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                isRecording ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {isRecording ? (
+                  <>
+                    <span className="w-2 h-2 bg-red-600 rounded-full mr-1.5 animate-pulse"></span>
+                    {recordingPreference === 'audio' ? '🎤 Recording' : '🎥 Recording'}
+                  </>
+                ) : (
+                  <>{recordingPreference === 'audio' ? t('session.audioReady') : t('session.videoReady')}</>
+                )}
+              </span>
             )}
-          </span>
-        )}
-      </div>
-      {recordingPreference !== 'none' && (
-        <div className="mt-2 text-center text-sm text-gray-600">
-          {recordingPreference === 'audio' ? t('session.audioRecordingEnabled') : t('session.screenAudioRecordingEnabled')}
-        </div>
+          </div>
+          {recordingPreference !== 'none' && (
+            <div className="mt-2 text-center text-sm text-gray-600">
+              {recordingPreference === 'audio' ? t('session.audioRecordingEnabled') : t('session.screenAudioRecordingEnabled')}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

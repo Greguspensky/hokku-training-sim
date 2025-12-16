@@ -178,6 +178,14 @@
       "showGenericNames": "I dipendenti vedranno nomi generici (es. \"Sessione di Formazione 1\", \"Sessione di Formazione 2\")",
       "sessionNamesNote": "Nascondere i nomi delle sessioni crea un effetto \"modalità sorpresa\" dove i dipendenti scoprono su cosa si stanno formando quando iniziano la sessione. Questo può aumentare l'engagement e simulare l'imprevedibilità del mondo reale."
     },
+    "scenarios": {
+      "flipboard": {
+        "title": "Formazione Flipboard",
+        "description": "L'utente interpreta il cliente, l'IA interpreta il dipendente con conoscenza completa",
+        "employeeRole": "Ruolo del dipendente",
+        "employeeRoleDescription": "Quale ruolo interpreta l'IA-dipendente (es. 'Receptionist', 'Cameriere', 'Barista')"
+      }
+    },
     "tracks": {
       "trainingTracks": "Percorsi Formativi",
       "trainingTracksDescription": "Crei e gestisca percorsi formativi per il suo team. Ogni percorso contiene più scenari.",
@@ -332,6 +340,7 @@
     "remove": "Rimuovi",
     "cancel": "Annulla",
     "updateScenario": "Aggiorna Scenario",
+    "updateScenarioButton": "Aggiorna Scenario",
     "createScenarioButton": "Crea Scenario",
     "theoryQuestions": "Domande Teoriche",
     "selectTopics": "Seleziona Argomenti",
@@ -690,9 +699,15 @@
       "theory": "Sessione Teoria e Domande",
       "servicePractice": "Sessione Pratica di Servizio",
       "recommendations": "Sessione Raccomandazioni",
+      "flipboard": "Sessione Flipboard",
       "theoryDescription": "Valutazione strutturata della conoscenza - Risponda alle domande in modo accurato e conciso",
       "servicePracticeDescription": "Formazione servizio clienti interattiva con cliente AI",
-      "recommendationsDescription": "Impari a suggerire prodotti e servizi appropriati"
+      "recommendationsDescription": "Impari a suggerire prodotti e servizi appropriati",
+      "flipboardDescription": "Vivi la prospettiva del cliente - fai domande e scopri come un dipendente preparato dovrebbe rispondere"
+    },
+    "modes": {
+      "flipboard": "Flipboard",
+      "flipboardDescription": "Vivi la prospettiva del cliente - fai domande e scopri come un dipendente preparato dovrebbe rispondere"
     },
     "complete": {
       "title": "Formazione Completata!",

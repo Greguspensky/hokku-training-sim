@@ -45,6 +45,24 @@ const SERVICE_PRACTICE_GREETINGS = {
   'zh': "你好。"
 } as const
 
+// Flipboard greetings - AI employee welcoming customer
+const FLIPBOARD_GREETINGS = {
+  'en': "Hi!\nI'm the virtual receptionist at Hotel Mota.\nI can help you with the hotel, ski areas, restaurants, or anything you need during your stay.\n\nAsk me anytime — I'll reply in your language and help with anything related to your stay or Livigno.\n\nWhat can I help you with today?",
+  'ru': "Здравствуйте! Добро пожаловать. Чем могу помочь?",
+  'it': "Buongiorno! Benvenuto. Come posso aiutarLa?",
+  'es': "¡Hola! Bienvenido. ¿En qué puedo ayudarle?",
+  'fr': "Bonjour! Bienvenue. Comment puis-je vous aider?",
+  'de': "Hallo! Willkommen. Wie kann ich Ihnen helfen?",
+  'pt': "Olá! Bem-vindo. Como posso ajudá-lo?",
+  'nl': "Hallo! Welkom. Waarmee kan ik u helpen?",
+  'pl': "Cześć! Witamy. W czym mogę pomóc?",
+  'ka': "გამარჯობა! კეთილი იყოს თქვენი მობრძანება. როგორ შემიძლია დაგეხმაროთ?",
+  'cs': "Dobrý den! Vítejte. Jak vám mohu pomoci?",
+  'ja': "こんにちは！ようこそ。何かお手伝いできることはありますか？",
+  'ko': "안녕하세요! 환영합니다. 무엇을 도와드릴까요?",
+  'zh': "你好！欢迎。我能为您做什么？"
+} as const
+
 export interface ElevenLabsConversationConfig {
   agentId: string
   language: string
@@ -52,6 +70,7 @@ export interface ElevenLabsConversationConfig {
   connectionType: 'webrtc' | 'websocket'
   volume: number
   dynamicVariables?: Record<string, any>
+  textOnly?: boolean  // NEW: Skip microphone access for text-only mode
 }
 
 export interface ConversationMessage {
@@ -110,6 +129,10 @@ export class ElevenLabsConversationService {
       // Simple neutral "Hello" greeting - emotion emerges naturally based on scenario
       greeting = SERVICE_PRACTICE_GREETINGS[language as keyof typeof SERVICE_PRACTICE_GREETINGS] || SERVICE_PRACTICE_GREETINGS['en']
       console.log(`🎭 Customer neutral greeting for ${language}: "${greeting}"`)
+    } else if (trainingMode === 'flipboard') {
+      // AI employee welcoming customer
+      greeting = FLIPBOARD_GREETINGS[language as keyof typeof FLIPBOARD_GREETINGS] || FLIPBOARD_GREETINGS['en']
+      console.log(`👔 Employee greeting for ${language}: "${greeting}"`)
     } else {
       // For theory mode, AI acts as examiner
       greeting = THEORY_GREETINGS[language as keyof typeof THEORY_GREETINGS] || THEORY_GREETINGS['en']
@@ -172,11 +195,58 @@ export class ElevenLabsConversationService {
     voiceId?: string,
     language?: string
   ): string {
-    const trainingMode = dynamicVariables?.training_mode || 'theory'
+    // Check training_mode first, then scenario_type as fallback
+    const trainingMode = dynamicVariables?.training_mode || dynamicVariables?.scenario_type || 'theory'
 
     let basePrompt: string
 
-    if (trainingMode === 'service_practice') {
+    // Check flipboard FIRST before service_practice to avoid mis-routing
+    if (trainingMode === 'flipboard') {
+      // Flipboard Mode: AI acts as knowledgeable employee, user is customer
+      const employeeRole = dynamicVariables?.employee_role || 'employee'
+      const establishmentType = dynamicVariables?.establishment_type || 'our establishment'
+      const voiceName = getVoiceName(voiceId)
+      const employeeName = (voiceName !== 'Random Voice' && voiceName !== 'Unknown Voice')
+        ? voiceName
+        : employeeRole
+
+      basePrompt = `You are ${employeeName}, a knowledgeable and professional ${employeeRole} at ${establishmentType}.
+
+# ROLE: Customer-facing employee helping customers with questions
+
+## YOUR BEHAVIOR:
+- Professional, friendly, and helpful demeanor
+- Answer customer questions accurately using your knowledge about the business
+- If you don't know something, politely say you'll need to check with management
+- Use natural conversational language in ${language || dynamicVariables?.language || 'English'}
+- Be patient and thorough in your responses
+- Stay in your employee role - you work here and help customers
+
+## KNOWLEDGE BASE:
+You have access to comprehensive information about:
+* Menu items, pricing, ingredients
+* Business hours, policies, procedures
+* Services offered, special promotions
+* Location information, contact details
+
+${dynamicVariables?.knowledge_context || 'Use your general knowledge about the business to help customers.'}
+
+## SCENARIO:
+- The user is playing a customer role
+- They will ask you questions about the business
+- Respond as a well-trained employee would
+- Provide accurate, helpful information based on the knowledge above
+- Maintain a professional service-oriented attitude
+
+## RESPONSE GUIDELINES:
+- Always give helpful, complete answers
+- If asked about something not in your knowledge base, admit you need to check
+- Be conversational but professional
+- Don't make up information - only use what's provided in the knowledge base
+- You may suggest related items or services when appropriate
+
+Remember: You are the EMPLOYEE being asked questions by a customer. Answer professionally and accurately based on your knowledge.`
+    } else if (trainingMode === 'service_practice') {
       // Service Practice Mode: AI acts as customer
       // Using ElevenLabs' six building blocks structure for better role consistency
 
@@ -471,9 +541,13 @@ Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
     try {
       console.log('🚀 Initializing ElevenLabs Conversational AI...')
 
-      // Request microphone access
-      await navigator.mediaDevices.getUserMedia({ audio: true })
-      console.log('✅ Microphone access granted')
+      // Request microphone access (skip for text-only mode)
+      if (!this.config.textOnly) {
+        await navigator.mediaDevices.getUserMedia({ audio: true })
+        console.log('✅ Microphone access granted')
+      } else {
+        console.log('📝 Text-only mode - skipping microphone access')
+      }
 
       // Get conversation token from our server
       const tokenResponse = await fetch(`/api/elevenlabs/elevenlabs-token?agentId=${this.config.agentId}`)
@@ -508,7 +582,8 @@ Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
       // Build overrides config (for scenarios that use overrides)
       const overridesConfig = (this.config.dynamicVariables &&
         (this.config.dynamicVariables?.training_mode === 'theory' ||
-         this.config.dynamicVariables?.training_mode === 'service_practice')) ? {
+         this.config.dynamicVariables?.training_mode === 'service_practice' ||
+         this.config.dynamicVariables?.training_mode === 'flipboard')) ? {
         overrides: {
           agent: {
             firstMessage: this.getScenarioSpecificGreeting(
@@ -529,6 +604,12 @@ Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
           ...(this.config.voiceId && {
             tts: {
               voiceId: resolveVoiceId(this.config.voiceId)  // Using double quotes as suggested by ElevenLabs
+            }
+          }),
+          // Text-only mode override (for chat interfaces)
+          ...(this.config.textOnly && {
+            conversation: {
+              text_only: true
             }
           })
         }

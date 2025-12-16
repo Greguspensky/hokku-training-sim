@@ -57,6 +57,7 @@ interface ScenarioFormData {
   customer_emotion_level: CustomerEmotionLevel
   voice_ids: string[] // Multi-select voice support
   first_message: string
+  employee_role: string // For Flipboard scenarios
 }
 
 interface BaseScenarioFormProps {
@@ -96,7 +97,8 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
         instructions: scenario.instructions || '',
         customer_emotion_level: scenario.customer_emotion_level || 'normal',
         voice_ids: scenario.voice_ids || (scenario.voice_id ? [scenario.voice_id] : ['random']),
-        first_message: scenario.first_message || ''
+        first_message: scenario.first_message || '',
+        employee_role: scenario.employee_role || ''
       }
     } else {
       // Create mode: empty defaults
@@ -120,7 +122,8 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
         instructions: '',
         customer_emotion_level: 'normal',
         voice_ids: ['random'],
-        first_message: ''
+        first_message: '',
+        employee_role: ''
       }
     }
   }
@@ -328,6 +331,14 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
       }
     }
 
+    // For flipboard scenarios, validate name
+    if (formData.scenario_type === 'flipboard') {
+      if (!formData.title.trim()) {
+        setError('Name is required for flipboard scenarios')
+        return
+      }
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -442,6 +453,7 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
               <option value="theory">{t('scenario.theory')}</option>
               <option value="service_practice">{t('scenario.serviceRolePlay')}</option>
               <option value="recommendations">{t('scenario.recommendations')}</option>
+              <option value="flipboard">{t('manager.scenarios.flipboard.title')}</option>
             </select>
             {mode === 'edit' && (
               <p className="text-sm text-gray-500 mt-1">
@@ -451,8 +463,8 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
           </div>
 
 
-          {/* Name field - for Theory Q&A and Recommendations */}
-          {(formData.scenario_type === 'theory' || formData.scenario_type === 'recommendations') && (
+          {/* Name field - for Theory Q&A, Recommendations, and Flipboard */}
+          {(formData.scenario_type === 'theory' || formData.scenario_type === 'recommendations' || formData.scenario_type === 'flipboard') && (
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
                 {t('scenario.title')} *
@@ -487,7 +499,86 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
             </div>
           )}
 
+          {/* Employee Role field - only for Flipboard */}
+          {formData.scenario_type === 'flipboard' && (
+            <div>
+              <label htmlFor="employee_role" className="block text-sm font-medium text-gray-700 mb-2">
+                {t('manager.scenarios.flipboard.employeeRole')}
+              </label>
+              <input
+                type="text"
+                id="employee_role"
+                value={formData.employee_role || ''}
+                onChange={(e) => handleInputChange('employee_role', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={t('manager.scenarios.flipboard.employeeRoleDescription')}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                {t('manager.scenarios.flipboard.employeeRoleDescription')}
+              </p>
+            </div>
+          )}
+
         </div>
+
+        {formData.scenario_type === 'flipboard' && (
+          /* Flipboard Configuration */
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">{t('scenario.scenarioContent')}</h3>
+
+            {/* Session Time Limit */}
+            <div>
+              <label htmlFor="session_time_limit_flipboard" className="block text-sm font-medium text-gray-700 mb-2">
+                {t('scenario.sessionTimeLimit')}
+              </label>
+              <input
+                type="number"
+                id="session_time_limit_flipboard"
+                min="1"
+                max="60"
+                value={formData.session_time_limit_minutes}
+                onChange={(e) => handleInputChange('session_time_limit_minutes', parseInt(e.target.value) || 10)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="10"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                {t('scenario.sessionTimeLimitNote')}
+              </p>
+            </div>
+
+            {/* First Message - Optional custom opening */}
+            <div>
+              <label htmlFor="first_message_flipboard" className="block text-sm font-medium text-gray-700 mb-2">
+                {t('scenario.firstMessage')}
+              </label>
+              <textarea
+                id="first_message_flipboard"
+                rows={3}
+                value={formData.first_message}
+                onChange={(e) => handleInputChange('first_message', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={t('scenario.firstMessagePlaceholder')}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                {t('scenario.firstMessageNote')}
+              </p>
+            </div>
+
+            {/* Voice Selection - Multi-select by Language */}
+            <VoiceSelector
+              voicesByLanguage={voicesByLanguage}
+              selectedVoiceIds={formData.voice_ids}
+              onVoiceToggle={toggleVoiceSelection}
+              onRandomToggle={(checked) => {
+                if (checked) {
+                  setFormData(prev => ({ ...prev, voice_ids: ['random'] }))
+                } else {
+                  setFormData(prev => ({ ...prev, voice_ids: [] }))
+                }
+              }}
+            />
+          </div>
+        )}
 
         {formData.scenario_type === 'service_practice' && (
           /* Scenario Content - Only for Service Practice */

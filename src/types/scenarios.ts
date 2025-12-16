@@ -3,7 +3,7 @@
  * Centralized types for training scenarios and tracks
  */
 
-export type ScenarioType = 'theory' | 'service_practice' | 'recommendations';
+export type ScenarioType = 'theory' | 'service_practice' | 'recommendations' | 'flipboard';
 
 export type ScenarioTemplate =
   | 'upset_customer'
@@ -67,6 +67,8 @@ export interface Scenario {
   voice_id?: string | 'random';
   // Custom first message for Service Practice scenarios
   first_message?: string | null;
+  // Employee role for Flipboard scenarios
+  employee_role?: string;
 }
 
 export interface CreateScenarioData {
@@ -92,6 +94,7 @@ export interface CreateScenarioData {
   voice_ids?: string[];
   voice_id?: string | 'random';
   first_message?: string;
+  employee_role?: string;
 }
 
 export interface UpdateScenarioData {
@@ -114,4 +117,5 @@ export interface UpdateScenarioData {
   voice_ids?: string[];
   voice_id?: string | 'random';
   first_message?: string;
+  employee_role?: string;
 }

@@ -178,6 +178,14 @@
       "showGenericNames": "Employees will see generic names (e.g., \"Training Session 1\", \"Training Session 2\")",
       "sessionNamesNote": "Hiding session names creates a \"surprise mode\" effect where employees discover what they're training on when they start the session. This can increase engagement and simulate real-world unpredictability."
     },
+    "scenarios": {
+      "flipboard": {
+        "title": "Flipboard Training",
+        "description": "User plays customer, AI plays employee with full knowledge",
+        "employeeRole": "Employee Role",
+        "employeeRoleDescription": "What role the AI employee plays (e.g., 'Front Desk Staff', 'Server', 'Barista')"
+      }
+    },
     "tracks": {
       "trainingTracks": "Training Tracks",
       "trainingTracksDescription": "Create and manage training tracks for your team. Each track contains multiple scenarios.",
@@ -332,6 +340,7 @@
     "remove": "Remove",
     "cancel": "Cancel",
     "updateScenario": "Update Scenario",
+    "updateScenarioButton": "Update Scenario",
     "createScenarioButton": "Create Scenario",
     "theoryQuestions": "Theory Questions",
     "selectTopics": "Select Topics",
@@ -690,9 +699,15 @@
       "theory": "Theory Q&A Session",
       "servicePractice": "Service Practice Session",
       "recommendations": "Recommendations Session",
+      "flipboard": "Flipboard Session",
       "theoryDescription": "Structured knowledge assessment - Answer questions accurately and concisely",
       "servicePracticeDescription": "Interactive customer service training with AI customer",
-      "recommendationsDescription": "Learn to suggest appropriate products and services"
+      "recommendationsDescription": "Learn to suggest appropriate products and services",
+      "flipboardDescription": "Experience the customer perspective - ask questions and see how a knowledgeable employee should respond"
+    },
+    "modes": {
+      "flipboard": "Flipboard",
+      "flipboardDescription": "Experience the customer perspective - ask questions and see how a knowledgeable employee should respond"
     },
     "complete": {
       "title": "Training Complete!",

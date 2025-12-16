@@ -267,10 +267,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         ? 'bg-purple-100 text-purple-800'
                         : assignment.scenarios.scenario_type === 'recommendations'
                         ? 'bg-orange-100 text-orange-800'
+                        : assignment.scenarios.scenario_type === 'flipboard'
+                        ? 'bg-indigo-100 text-indigo-800'
                         : 'bg-green-100 text-green-800'
                     }`}>
                       {assignment.scenarios.scenario_type === 'theory' ? t('theoryQA') :
                        assignment.scenarios.scenario_type === 'recommendations' ? t('situationships') :
+                       assignment.scenarios.scenario_type === 'flipboard' ? '👔 Flipboard' :
                        t('servicePractice')}
                     </span>
 
@@ -373,10 +376,13 @@ export default function IndividualScenariosCard({ employeeId }: IndividualScenar
                         ? 'bg-purple-100 text-purple-800'
                         : assignment.scenarios.scenario_type === 'recommendations'
                         ? 'bg-orange-100 text-orange-800'
+                        : assignment.scenarios.scenario_type === 'flipboard'
+                        ? 'bg-indigo-100 text-indigo-800'
                         : 'bg-green-100 text-green-800'
                     }`}>
                       {assignment.scenarios.scenario_type === 'theory' ? t('theoryQA') :
                        assignment.scenarios.scenario_type === 'recommendations' ? t('situationships') :
+                       assignment.scenarios.scenario_type === 'flipboard' ? '👔 Flipboard' :
                        t('servicePractice')}
                     </span>
 

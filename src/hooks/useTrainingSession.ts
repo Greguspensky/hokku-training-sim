@@ -33,7 +33,7 @@ export interface UseTrainingSessionOptions {
   /**
    * Training mode type
    */
-  trainingMode: 'theory' | 'service_practice' | 'recommendation_tts'
+  trainingMode: 'theory' | 'service_practice' | 'recommendation_tts' | 'flipboard'
 
   /**
    * Language being used in the session
@@ -193,7 +193,7 @@ export function useTrainingSession(
       if (userId && scenarioId) {
         console.log('📊 useTrainingSession: Recording session start for attempt counting...')
 
-        const response = await fetch('/api/start-training-session', {
+        const response = await fetch('/api/training/start-training-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -35,6 +35,13 @@ export default function SimpleFlipboardChat({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Sync external message changes (for suggestion buttons)
+  useEffect(() => {
+    if (initialMessages && initialMessages.length > messages.length) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -110,16 +117,6 @@ export default function SimpleFlipboardChat({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 h-[500px] md:h-[60vh] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b">
-        <h3 className="text-lg font-semibold text-indigo-900">
-          💬 Text Chat Warm-up
-        </h3>
-        <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">
-          ● Ready
-        </span>
-      </div>
-
       {/* Error Banner */}
       {error && (
         <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3">
