@@ -2,8 +2,13 @@
 
 import { DemoAuthProvider } from '@/contexts/DemoContext';
 import DemoFlipboardSession from '@/components/Demo/DemoFlipboardSession';
+import { useEffect } from 'react';
 
 export default function HotelMotaDemoPage() {
+  useEffect(() => {
+    document.title = 'Hotel receptionist demo';
+  }, []);
+
   return (
     <DemoAuthProvider>
       <style jsx global>{`

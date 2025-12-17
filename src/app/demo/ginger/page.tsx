@@ -2,8 +2,14 @@
 
 import Link from 'next/link';
 import { MessageSquare, Phone, Globe, Clock, Zap, Smartphone } from 'lucide-react';
+import Head from 'next/head';
+import { useEffect } from 'react';
 
 export default function GingerLandingPage() {
+  useEffect(() => {
+    document.title = 'Hotel receptionist demo';
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-orange-50 to-yellow-50">
       {/* Hero Section */}
