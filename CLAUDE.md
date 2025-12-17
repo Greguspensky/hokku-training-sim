@@ -49,7 +49,8 @@ npm run dev  # Start development server on port 3000
 - **Progress Tracking**: Automatic mastery calculations per topic
 
 ### Key URLs
-- **Public Demo**: http://localhost:3000/demo/flipboard/hotel-mota 🌐 NEW
+- **Public Demo (Flipboard)**: http://localhost:3000/demo/flipboard/hotel-mota 🌐 NEW
+- **Public Demo (Ginger Landing)**: http://localhost:3000/demo/ginger 🌐 NEW
 - Training: http://localhost:3000/employee/training/demo-assignment-1758312913428-7qtmmsq
 - Employee Dashboard: http://localhost:3000/employee
 - Manager Dashboard: http://localhost:3000/manager
