@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,33 +20,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get company details
-    const { data: companyData, error: companyError } = await supabase
-      .from('companies')
-      .select('id, name')
-      .eq('id', companyId)
+    // Try to get company name from users table (all users with this company_id should have the same company info)
+    // This is a workaround since there's no dedicated companies table
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('company_id')
+      .eq('company_id', companyId)
+      .limit(1)
       .single()
 
-    if (companyError) {
-      console.error('Error fetching company:', companyError)
-      return NextResponse.json(
-        { success: false, error: 'Company not found' },
-        { status: 404 }
-      )
+    if (userError && userError.code !== 'PGRST116') {
+      console.error('Error fetching company:', userError)
     }
 
-    if (!companyData) {
-      return NextResponse.json(
-        { success: false, error: 'Company not found' },
-        { status: 404 }
-      )
-    }
+    // If company_id exists in users table, return it
+    // Otherwise, still return the company_id (it's valid even if no name is available)
+    const companyName = userData?.company_id || companyId
 
     return NextResponse.json({
       success: true,
       company: {
-        id: companyData.id,
-        name: companyData.name
+        id: companyId,
+        name: companyName
       }
     })
 

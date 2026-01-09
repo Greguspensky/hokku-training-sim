@@ -32,7 +32,7 @@ export default function ManualQuestionInput({ companyId, onQuestionsAdded }: Man
       setLoading(true)
       setResults(null)
 
-      const response = await fetch('/api/add-manual-questions', {
+      const response = await fetch('/api/questions/add-manual-questions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

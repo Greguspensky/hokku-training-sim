@@ -124,18 +124,20 @@ export default function TrainingSessionPage() {
       try {
         const response = await fetch(`/api/settings/company-settings?company_id=${companyId}`)
         const data = await response.json()
-        if (data.success && data.settings) {
-          if (data.settings.default_training_language) {
-            console.log('✅ Loaded default training language:', data.settings.default_training_language)
-            setSelectedLanguage(data.settings.default_training_language as SupportedLanguageCode)
+        // API uses createSuccessResponse which wraps data in { success: true, data: {...} }
+        const settings = data.success && data.data ? data.data.settings : null
+        if (settings) {
+          if (settings.default_training_language) {
+            console.log('✅ Loaded default training language:', settings.default_training_language)
+            setSelectedLanguage(settings.default_training_language as SupportedLanguageCode)
           }
-          if (data.settings.theory_recording_options) {
-            console.log('✅ Loaded theory recording options:', data.settings.theory_recording_options)
-            setAllowedTheoryRecordingOptions(data.settings.theory_recording_options)
+          if (settings.theory_recording_options) {
+            console.log('✅ Loaded theory recording options:', settings.theory_recording_options)
+            setAllowedTheoryRecordingOptions(settings.theory_recording_options)
           }
-          if (data.settings.service_practice_recording_options) {
-            console.log('✅ Loaded service practice recording options:', data.settings.service_practice_recording_options)
-            setAllowedServicePracticeRecordingOptions(data.settings.service_practice_recording_options)
+          if (settings.service_practice_recording_options) {
+            console.log('✅ Loaded service practice recording options:', settings.service_practice_recording_options)
+            setAllowedServicePracticeRecordingOptions(settings.service_practice_recording_options)
           }
         }
       } catch (error) {
