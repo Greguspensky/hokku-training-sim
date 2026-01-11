@@ -101,7 +101,7 @@ export function RecommendationTTSSession({
   // Real-time transcription (NEW - separate audio stream for STT)
   const transcription = useRealtimeTranscription({
     language,
-    enabled: isSessionActive && timerActive && !isLoadingTTS,
+    enabled: true, // Always enabled - starting/stopping controlled by explicit function calls
     onTranscriptUpdate: (text, isFinal) => {
       if (isFinal) {
         console.log('✅ Transcript finalized:', text)
