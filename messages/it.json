@@ -40,5 +40,12 @@
       "title": "Analisi delle Prestazioni",
       "description": "Ricevi feedback dettagliato e punteggi sulle tue prestazioni"
     }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "Ti ascolto...",
+      "transcriptionUnavailable": "Trascrizione temporaneamente non disponibile",
+      "recording": "Registrazione"
+    }
   }
 }

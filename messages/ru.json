@@ -40,5 +40,12 @@
       "title": "Анализ производительности",
       "description": "Получайте детальную обратную связь и оценки вашей работы"
     }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "Слушаю вас...",
+      "transcriptionUnavailable": "Транскрипция временно недоступна",
+      "recording": "Запись"
+    }
   }
 }

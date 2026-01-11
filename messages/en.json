@@ -37,8 +37,15 @@
       "description": "Practice customer interactions with AI-powered scenarios"
     },
     "performance": {
-      "title": "Performance Analysis", 
+      "title": "Performance Analysis",
       "description": "Get detailed feedback and scoring on your performance"
+    }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "Listening to you...",
+      "transcriptionUnavailable": "Transcription temporarily unavailable",
+      "recording": "Recording"
     }
   }
 }

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVideoRecording } from '@/hooks/useVideoRecording'
 import { useTrainingSession } from '@/hooks/useTrainingSession'
+import { useRealtimeTranscription } from '@/hooks/useRealtimeTranscription'
 import { resolveVoiceForQuestion } from '@/lib/voice-resolver'
 import { useTranslations } from 'next-intl'
 
@@ -74,6 +75,9 @@ export function RecommendationTTSSession({
   const [questionStartTime, setQuestionStartTime] = useState<Date | null>(null)
   const [completedQuestions, setCompletedQuestions] = useState<number[]>([])
 
+  // User transcripts state (NEW for real-time transcription)
+  const [userTranscripts, setUserTranscripts] = useState<Array<{role: string, content: string, timestamp: number}>>([])
+
   // Timer state
   const [timeRemaining, setTimeRemaining] = useState(0)
   const [timerActive, setTimerActive] = useState(false)
@@ -92,6 +96,18 @@ export function RecommendationTTSSession({
     aspectRatio: videoAspectRatio,
     enableAudioMixing: true,
     onError: (error) => console.error('Video recording error:', error)
+  })
+
+  // Real-time transcription (NEW - separate audio stream for STT)
+  const transcription = useRealtimeTranscription({
+    language,
+    enabled: isSessionActive && timerActive && !isLoadingTTS,
+    onTranscriptUpdate: (text, isFinal) => {
+      if (isFinal) {
+        console.log('✅ Transcript finalized:', text)
+      }
+    },
+    onError: (error) => console.error('Transcription error:', error)
   })
 
   const [isSavingVideo, setIsSavingVideo] = useState(false)
@@ -290,11 +306,20 @@ export function RecommendationTTSSession({
     }
   }
 
-  const startQuestionTimer = () => {
+  const startQuestionTimer = async () => {
     setTimeRemaining(questionDurationSeconds)
     setTimerActive(true)
     setQuestionStartTime(new Date())
     console.log(`⏱️ Started timer for ${questionDurationSeconds} seconds`)
+
+    // Start real-time transcription when user response period begins
+    try {
+      await transcription.startTranscription()
+      console.log('🎤 Real-time transcription started')
+    } catch (error) {
+      console.error('❌ Failed to start transcription:', error)
+      // Continue session even if transcription fails
+    }
   }
 
   const startVideoRecording = async () => {
@@ -355,7 +380,35 @@ export function RecommendationTTSSession({
     }
   }
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
+    // Stop transcription and capture user response
+    try {
+      await transcription.stopTranscription()
+      const userResponse = transcription.getAllTranscripts()
+
+      if (userResponse.trim()) {
+        const userMessage = {
+          role: 'user',
+          content: userResponse,
+          timestamp: Date.now()
+        }
+        setUserTranscripts(prev => [...prev, userMessage])
+        console.log('💾 User response saved:', userResponse.substring(0, 50) + '...')
+      } else {
+        console.log('⚠️ No user response captured (silence)')
+        // Save empty response for this question
+        setUserTranscripts(prev => [...prev, {
+          role: 'user',
+          content: '',
+          timestamp: Date.now()
+        }])
+      }
+
+      transcription.resetTranscript()
+    } catch (error) {
+      console.error('❌ Error stopping transcription:', error)
+    }
+
     // Stop and clear current audio
     if (audioRef.current) {
       audioRef.current.pause()
@@ -411,12 +464,21 @@ export function RecommendationTTSSession({
 
     const questionsCompleted = completedQuestions.length + (isLastQuestion ? 1 : 0)
 
-    // Create questions data for the transcript (simplified version)
-    const questionTranscript = questions.slice(0, questionsCompleted).map((q, index) => ({
-      role: 'system',
-      message: `Question ${index + 1}: ${q.question_text}`,
-      timestamp: sessionStartTime ? new Date(sessionStartTime.getTime() + (index * 60000)).toISOString() : new Date().toISOString()
-    }))
+    // Build complete conversation transcript interleaving questions and user responses
+    const fullTranscript = questions.slice(0, questionsCompleted).flatMap((q, index) => {
+      const questionMsg = {
+        role: 'assistant',
+        content: stripAudioTags(q.question_text),
+        timestamp: sessionStartTime ? sessionStartTime.getTime() + (index * 60000) : Date.now()
+      }
+
+      const userMsg = userTranscripts[index]
+
+      // Return both question and user response (or just question if no response)
+      return userMsg ? [questionMsg, userMsg] : [questionMsg]
+    })
+
+    console.log('📝 Full conversation transcript:', fullTranscript.length, 'messages')
 
     // Upload video using chunks from service
     let videoUploadResult = null
@@ -514,7 +576,7 @@ export function RecommendationTTSSession({
           totalCharacters: 0,
           processedAt: new Date().toISOString()
         },
-        conversation_transcript: questionTranscript,
+        conversation_transcript: fullTranscript,
         session_duration_seconds: totalSessionTime,
         started_at: sessionStartTime || new Date(),
         ended_at: sessionEndTime,
@@ -747,6 +809,38 @@ export function RecommendationTTSSession({
             </div>
           )}
         </div>
+
+        {/* Live Transcription Display */}
+        {transcription.isTranscribing && transcription.currentTranscript && (
+          <div className="mb-6 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mx-auto" style={{ maxWidth: '800px' }}>
+            <div className="flex items-center mb-2">
+              <div className="w-2 h-2 bg-red-600 rounded-full mr-2 animate-pulse"></div>
+              <span className="text-sm font-semibold text-gray-700">
+                {t('recommendationTTS.listeningToYou')}
+              </span>
+            </div>
+            <p className="text-lg text-gray-900 leading-relaxed">
+              {transcription.currentTranscript}
+            </p>
+          </div>
+        )}
+
+        {/* Transcription Error Display */}
+        {transcription.error && (
+          <div className="mb-6 bg-red-50 border-2 border-red-400 rounded-lg p-4 mx-auto" style={{ maxWidth: '800px' }}>
+            <div className="flex items-center">
+              <span className="text-sm font-semibold text-red-700">
+                {t('recommendationTTS.transcriptionUnavailable')}
+              </span>
+              <button
+                onClick={transcription.clearError}
+                className="ml-auto text-red-600 hover:text-red-800"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="flex justify-center space-x-4">
