@@ -742,7 +742,13 @@
       "selected": "Selected",
       "scenarioGoals": "Scenario Goals & Milestones",
       "goalsHiddenMessage": "Your goals and key milestones will be revealed when you start the training session",
-      "startTraining": "Start Training"
+      "startTraining": "Start Training",
+      "sessionConfiguration": "Session Configuration",
+      "trainingMode": "Training Mode:",
+      "scenario": "Scenario:",
+      "timeLimit": "Time Limit:",
+      "company": "Company:",
+      "minutes": "minutes"
     },
     "recording": {
       "title": "Session Recording",
@@ -814,6 +820,7 @@
       "servicePracticeTitle": "Service Practice Session",
       "connecting": "Connecting...",
       "startSession": "Start Session",
+      "listening": "Listening",
       "audioReady": "🎤 Ready",
       "videoReady": "🎥 Ready",
       "audioRecordingEnabled": "Audio Recording Enabled",

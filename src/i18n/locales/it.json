@@ -742,7 +742,13 @@
       "selected": "Selezionato",
       "scenarioGoals": "Obiettivi e Traguardi dello Scenario",
       "goalsHiddenMessage": "I suoi obiettivi e traguardi chiave verranno rivelati quando inizierà la sessione di formazione",
-      "startTraining": "Inizia Formazione"
+      "startTraining": "Inizia Formazione",
+      "sessionConfiguration": "Configurazione Sessione",
+      "trainingMode": "Modalità Formazione:",
+      "scenario": "Scenario:",
+      "timeLimit": "Limite Tempo:",
+      "company": "Azienda:",
+      "minutes": "minuti"
     },
     "recording": {
       "title": "Registrazione Sessione",
@@ -814,6 +820,7 @@
       "servicePracticeTitle": "Sessione Pratica di Servizio",
       "connecting": "Connessione...",
       "startSession": "Inizia Sessione",
+      "listening": "In Ascolto",
       "audioReady": "🎤 Pronto",
       "videoReady": "🎥 Pronto",
       "audioRecordingEnabled": "Registrazione Audio Attivata",

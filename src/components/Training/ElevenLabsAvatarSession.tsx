@@ -156,7 +156,7 @@ export function ElevenLabsAvatarSession({
                 {isSessionActive && isListening && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <span className="text-white font-semibold text-sm md:text-2xl uppercase tracking-wider drop-shadow-lg">
-                      Listening
+                      {t('session.listening')}
                     </span>
                   </div>
                 )}
