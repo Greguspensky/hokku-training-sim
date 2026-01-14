@@ -61,6 +61,7 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **REAL_TIME_TRANSCRIPTION_FEATURE.md** - Real-time STT for Recommendation training + race condition bug fix ✅ **COMPLETE (2026-01-14)**
 - **PUBLIC_DEMO_IMPLEMENTATION_2025-12-15.md** - Public Flipboard demo implementation guide ✅ **NEW**
 - **SERVICE_PRACTICE_ANALYSIS_2025-11-09.md** - Service Practice analysis system + caching + bug fixes
 - **OCTOBER_28_2025_UPDATES.md** - Settings reorganization + Voice system implementation ✅ **NEW**
