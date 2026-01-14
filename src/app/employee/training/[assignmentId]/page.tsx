@@ -491,7 +491,7 @@ export default function TrainingSessionPage() {
       const correctAnswers = Object.values(scores).filter(score => score).length
       const factualScore = Math.round((correctAnswers / questions.length) * 100)
 
-      await fetch(`/api/track-assignments/${assignmentId}/progress`, {
+      await fetch(`/api/tracks/track-assignments/${assignmentId}/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -542,6 +542,9 @@ export default function TrainingSessionPage() {
   const loadRecommendationQuestions = async (questionIds: string[]) => {
     setRecommendationQuestionsLoading(true)
 
+    console.log(`🎯 Loading recommendation questions for scenario:`)
+    console.log(`   Requested ${questionIds.length} question IDs:`, questionIds)
+
     try {
       const response = await fetch('/api/questions', {
         method: 'POST',
@@ -553,7 +556,16 @@ export default function TrainingSessionPage() {
 
       if (result.success) {
         setRecommendationQuestions(result.questions || [])
-        console.log(`✅ Loaded ${result.questions?.length || 0} recommendation questions`)
+        console.log(`✅ Successfully loaded ${result.questions?.length || 0} recommendation questions:`)
+        result.questions?.forEach((q: any, idx: number) => {
+          console.log(`   ${idx + 1}. [${q.id.slice(-8)}] ${q.question_text?.substring(0, 60)}${q.question_text?.length > 60 ? '...' : ''}`)
+        })
+
+        // Warn if some questions are missing
+        if (result.questions?.length < questionIds.length) {
+          console.warn(`⚠️ Warning: Requested ${questionIds.length} questions but only found ${result.questions?.length}`)
+          console.warn(`   Some question IDs may have been deleted from the database.`)
+        }
       } else {
         console.error('❌ Failed to load recommendation questions:', result.error)
         setRecommendationQuestions([])

@@ -61,6 +61,7 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **ELEVENLABS_SCRIBE_V2_MIGRATION_2026-01-14.md** - ElevenLabs Scribe V2 Realtime migration (150ms latency, WebSocket streaming) ✅ **COMPLETE (2026-01-14)**
 - **REAL_TIME_TRANSCRIPTION_FEATURE.md** - Real-time STT for Recommendation training + race condition bug fix ✅ **COMPLETE (2026-01-14)**
 - **PUBLIC_DEMO_IMPLEMENTATION_2025-12-15.md** - Public Flipboard demo implementation guide ✅ **NEW**
 - **SERVICE_PRACTICE_ANALYSIS_2025-11-09.md** - Service Practice analysis system + caching + bug fixes

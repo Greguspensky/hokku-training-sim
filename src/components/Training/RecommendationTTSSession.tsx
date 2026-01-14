@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useVideoRecording } from '@/hooks/useVideoRecording'
 import { useTrainingSession } from '@/hooks/useTrainingSession'
-import { useRealtimeTranscription } from '@/hooks/useRealtimeTranscription'
+import { useElevenLabsTranscription } from '@/hooks/useElevenLabsTranscription'
 import { resolveVoiceForQuestion } from '@/lib/voice-resolver'
 import { useTranslations } from 'next-intl'
 
@@ -98,16 +98,18 @@ export function RecommendationTTSSession({
     onError: (error) => console.error('Video recording error:', error)
   })
 
-  // Real-time transcription (NEW - separate audio stream for STT)
-  const transcription = useRealtimeTranscription({
+  // Real-time transcription using ElevenLabs Scribe V2 Realtime (WebSocket)
+  const transcription = useElevenLabsTranscription({
     language,
-    enabled: true, // Always enabled - starting/stopping controlled by explicit function calls
-    onTranscriptUpdate: (text, isFinal) => {
-      if (isFinal) {
-        console.log('✅ Transcript finalized:', text)
-      }
+    enabled: true,
+    // previousText: Will add dynamic context per question in future enhancement
+    onPartialTranscript: (text) => {
+      // Live captions - already handled by hook state
     },
-    onError: (error) => console.error('Transcription error:', error)
+    onCommittedTranscript: (text) => {
+      console.log('✅ Transcript committed by VAD:', text)
+    },
+    onError: (error) => console.error('❌ Transcription error:', error)
   })
 
   const [isSavingVideo, setIsSavingVideo] = useState(false)
@@ -314,8 +316,9 @@ export function RecommendationTTSSession({
 
     // Start real-time transcription when user response period begins
     try {
+      console.log(`🎤 Starting transcription for question ${currentQuestionIndex + 1} (language: ${language})`)
       await transcription.startTranscription()
-      console.log('🎤 Real-time transcription started')
+      console.log('✅ Real-time transcription started successfully')
     } catch (error) {
       console.error('❌ Failed to start transcription:', error)
       // Continue session even if transcription fails
@@ -383,8 +386,12 @@ export function RecommendationTTSSession({
   const handleNextQuestion = async () => {
     // Stop transcription and capture user response
     try {
-      await transcription.stopTranscription()
-      const userResponse = transcription.getAllTranscripts()
+      console.log('🛑 Stopping transcription for question', currentQuestionIndex + 1)
+
+      const userResponse = await transcription.stopTranscription()  // ✅ Get transcript from return value
+
+      console.log('📝 Captured transcript:', userResponse.length, 'characters')
+      console.log('📝 Full transcript:', userResponse)
 
       if (userResponse.trim()) {
         const userMessage = {
@@ -392,8 +399,11 @@ export function RecommendationTTSSession({
           content: userResponse,
           timestamp: Date.now()
         }
-        setUserTranscripts(prev => [...prev, userMessage])
-        console.log('💾 User response saved:', userResponse.substring(0, 50) + '...')
+        setUserTranscripts(prev => {
+          console.log('💾 Saving user response to transcript array (current length:', prev.length, ')')
+          return [...prev, userMessage]
+        })
+        console.log('💾 User response saved:', userResponse.substring(0, 100))
       } else {
         console.log('⚠️ No user response captured (silence)')
         // Save empty response for this question
@@ -404,6 +414,7 @@ export function RecommendationTTSSession({
         }])
       }
 
+      console.log('🔄 Resetting transcript for next question')
       transcription.resetTranscript()
     } catch (error) {
       console.error('❌ Error stopping transcription:', error)
@@ -437,6 +448,34 @@ export function RecommendationTTSSession({
   const handleEndSession = async () => {
     console.log('🛑 handleEndSession called, stopping recording...')
 
+    // ✅ IMPORTANT: Capture last question's transcript before ending session
+    let lastQuestionResponse: string | null = null
+    try {
+      console.log('🛑 Stopping transcription for last question', currentQuestionIndex + 1)
+      const lastUserResponse = await transcription.stopTranscription()
+
+      console.log('📝 Captured last question transcript:', lastUserResponse.length, 'characters')
+      console.log('📝 Full transcript:', lastUserResponse)
+
+      if (lastUserResponse.trim()) {
+        lastQuestionResponse = lastUserResponse  // Save for transcript building
+        const userMessage = {
+          role: 'user',
+          content: lastUserResponse,
+          timestamp: Date.now()
+        }
+        setUserTranscripts(prev => {
+          console.log('💾 Saving last user response to transcript array (current length:', prev.length, ')')
+          return [...prev, userMessage]
+        })
+        console.log('💾 Last user response saved:', lastUserResponse.substring(0, 100))
+      } else {
+        console.log('⚠️ No user response captured for last question (silence)')
+      }
+    } catch (error) {
+      console.error('❌ Error capturing last transcript:', error)
+    }
+
     // Stop recording using hook
     const recordingData = await videoRecording.stopRecording()
 
@@ -465,6 +504,7 @@ export function RecommendationTTSSession({
     const questionsCompleted = completedQuestions.length + (isLastQuestion ? 1 : 0)
 
     // Build complete conversation transcript interleaving questions and user responses
+    // ✅ Include lastQuestionResponse for the last question (since state might not be updated yet)
     const fullTranscript = questions.slice(0, questionsCompleted).flatMap((q, index) => {
       const questionMsg = {
         role: 'assistant',
@@ -472,13 +512,22 @@ export function RecommendationTTSSession({
         timestamp: sessionStartTime ? sessionStartTime.getTime() + (index * 60000) : Date.now()
       }
 
-      const userMsg = userTranscripts[index]
+      // For the last question, use the freshly captured response
+      let userMsg = userTranscripts[index]
+      if (index === currentQuestionIndex && lastQuestionResponse) {
+        userMsg = {
+          role: 'user',
+          content: lastQuestionResponse,
+          timestamp: Date.now()
+        }
+      }
 
       // Return both question and user response (or just question if no response)
       return userMsg ? [questionMsg, userMsg] : [questionMsg]
     })
 
     console.log('📝 Full conversation transcript:', fullTranscript.length, 'messages')
+    console.log('📝 Last question response included:', lastQuestionResponse ? 'YES' : 'NO')
 
     // Upload video using chunks from service
     let videoUploadResult = null
@@ -810,8 +859,8 @@ export function RecommendationTTSSession({
           )}
         </div>
 
-        {/* Live Transcription Display */}
-        {transcription.isTranscribing && transcription.currentTranscript && (
+        {/* Live Transcription Display - ElevenLabs Scribe V2 Realtime */}
+        {transcription.isTranscribing && (transcription.currentTranscript || transcription.finalTranscript) && (
           <div className="mb-6 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mx-auto" style={{ maxWidth: '800px' }}>
             <div className="flex items-center mb-2">
               <div className="w-2 h-2 bg-red-600 rounded-full mr-2 animate-pulse"></div>
@@ -820,7 +869,7 @@ export function RecommendationTTSSession({
               </span>
             </div>
             <p className="text-lg text-gray-900 leading-relaxed">
-              {transcription.currentTranscript}
+              {transcription.currentTranscript || transcription.finalTranscript}
             </p>
           </div>
         )}

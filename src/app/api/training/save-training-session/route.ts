@@ -48,7 +48,11 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ API: Session saved/updated successfully:', data.id)
 
-    return createSuccessResponse({ session: data })
+    // Return session directly (not wrapped in data object) to match client expectations
+    return NextResponse.json({
+      success: true,
+      session: data
+    })
 
   } catch (error: any) {
     return apiErrorHandler(error, 'Save training session')
