@@ -187,6 +187,36 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
     }
   }, [voicesData])
 
+  // Clean up stale recommendation question IDs when questions load
+  useEffect(() => {
+    if (recommendationQuestions.length > 0 && formData.recommendation_question_ids.length > 0) {
+      const validQuestionIds = new Set(recommendationQuestions.map(q => q.id))
+      const cleanedQuestionIds = formData.recommendation_question_ids.filter(id => validQuestionIds.has(id))
+
+      // If some question IDs were removed (stale/deleted questions)
+      if (cleanedQuestionIds.length !== formData.recommendation_question_ids.length) {
+        const removedCount = formData.recommendation_question_ids.length - cleanedQuestionIds.length
+        console.warn(`⚠️ Found ${removedCount} deleted/stale question IDs in this scenario`)
+        console.log(`🧹 Auto-cleaning: ${formData.recommendation_question_ids.length} → ${cleanedQuestionIds.length} questions`)
+        console.log(`   ⚠️ IMPORTANT: Click "Update Scenario" to save these changes!`)
+
+        // Also clean up durations for removed questions
+        const cleanedDurations: Record<string, number> = {}
+        Object.keys(formData.recommendation_question_durations).forEach(id => {
+          if (validQuestionIds.has(id)) {
+            cleanedDurations[id] = formData.recommendation_question_durations[id]
+          }
+        })
+
+        setFormData(prev => ({
+          ...prev,
+          recommendation_question_ids: cleanedQuestionIds,
+          recommendation_question_durations: cleanedDurations
+        }))
+      }
+    }
+  }, [recommendationQuestions, formData.recommendation_question_ids, formData.recommendation_question_durations, setFormData])
+
   const addMilestone = () => {
     if (newMilestone.trim() && !formData.milestones.includes(newMilestone.trim())) {
       setFormData(prev => ({

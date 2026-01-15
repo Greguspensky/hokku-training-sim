@@ -824,7 +824,10 @@
       "audioReady": "🎤 Pronto",
       "videoReady": "🎥 Pronto",
       "audioRecordingEnabled": "Registrazione Audio Attivata",
-      "screenAudioRecordingEnabled": "Registrazione Schermo + Audio Attivata"
+      "screenAudioRecordingEnabled": "Registrazione Schermo + Audio Attivata",
+      "theoryDescription": "La modalità teoria testa le Sue conoscenze con domande basate sull'IA relative allo scenario di formazione.",
+      "duration": "Durata",
+      "seconds": "secondi"
     },
     "recommendationTTS": {
       "savingVideo": "Salvataggio registrazione video...",
@@ -839,6 +842,7 @@
       "playQuestionAudio": "Riproduci audio domanda",
       "loadingAudio": "Caricamento audio...",
       "audioPlayingAuto": "Audio in riproduzione automatica",
+      "listeningToYou": "Ti sto ascoltando...",
       "recording": "Registrazione",
       "nextQuestion": "Prossima Domanda",
       "endSession": "Termina Sessione",

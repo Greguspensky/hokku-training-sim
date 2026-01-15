@@ -824,7 +824,10 @@
       "audioReady": "🎤 Ready",
       "videoReady": "🎥 Ready",
       "audioRecordingEnabled": "Audio Recording Enabled",
-      "screenAudioRecordingEnabled": "Screen + Audio Recording Enabled"
+      "screenAudioRecordingEnabled": "Screen + Audio Recording Enabled",
+      "theoryDescription": "Theory mode tests your knowledge with AI-powered questions based on the training scenario.",
+      "duration": "Duration",
+      "seconds": "seconds"
     },
     "recommendationTTS": {
       "savingVideo": "Saving video recording...",
@@ -839,6 +842,7 @@
       "playQuestionAudio": "Play question audio",
       "loadingAudio": "Loading audio...",
       "audioPlayingAuto": "Audio playing automatically",
+      "listeningToYou": "Listening to you...",
       "recording": "Recording",
       "nextQuestion": "Next Question",
       "endSession": "End Session",

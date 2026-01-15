@@ -26,7 +26,7 @@ export interface UseRealtimeTranscriptionResult {
 
   // Actions
   startTranscription: () => Promise<void>
-  stopTranscription: () => Promise<void>
+  stopTranscription: () => Promise<string>  // Returns the final transcript
   resetTranscript: () => void
   getAllTranscripts: () => string
   clearError: () => void
@@ -120,7 +120,10 @@ export function useRealtimeTranscription(
       if (currentTranscript.trim()) {
         console.log('🔇 Silence detected, finalizing transcript:', currentTranscript)
 
-        setFinalTranscripts(prev => [...prev, currentTranscript])
+        setFinalTranscripts(prev => {
+          console.log('📝 Adding to finalTranscripts array (current:', prev.length, 'items)')
+          return [...prev, currentTranscript]
+        })
         options.onTranscriptUpdate?.(currentTranscript, true)
         setCurrentTranscript('')
       }
@@ -156,7 +159,12 @@ export function useRealtimeTranscription(
       })
 
       audioStreamRef.current = stream
+
+      // Log audio device info
+      const audioTrack = stream.getAudioTracks()[0]
       console.log('✅ Audio stream acquired')
+      console.log('🎤 Audio device:', audioTrack.label)
+      console.log('🎤 Audio settings:', audioTrack.getSettings())
 
       // Create MediaRecorder with opus codec for Whisper
       let mediaRecorder: MediaRecorder
@@ -225,17 +233,32 @@ export function useRealtimeTranscription(
 
   /**
    * Stop transcription - finalize and cleanup
+   * Returns the complete transcript text
    */
-  const stopTranscription = useCallback(async () => {
+  const stopTranscription = useCallback(async (): Promise<string> => {
     console.log('🛑 Stopping transcription...')
+
+    // Build complete transcript by combining finalized + current
+    let completeTranscript = finalTranscripts.join(' ').trim()
 
     // Finalize any pending transcript
     if (currentTranscript.trim()) {
       console.log('💾 Finalizing pending transcript:', currentTranscript)
-      setFinalTranscripts(prev => [...prev, currentTranscript])
+      completeTranscript = completeTranscript
+        ? `${completeTranscript} ${currentTranscript}`.trim()
+        : currentTranscript.trim()
+
+      setFinalTranscripts(prev => {
+        console.log('📝 Adding pending transcript to finalTranscripts (current:', prev.length, 'items)')
+        return [...prev, currentTranscript]
+      })
       options.onTranscriptUpdate?.(currentTranscript, true)
       setCurrentTranscript('')
+    } else {
+      console.log('⚠️ No pending transcript to finalize')
     }
+
+    console.log('📝 Complete transcript being returned:', completeTranscript.substring(0, 100))
 
     // Clear silence timer
     if (silenceTimerRef.current) {
@@ -267,14 +290,17 @@ export function useRealtimeTranscription(
 
     setIsTranscribing(false)
     console.log('✅ Transcription stopped')
-  }, [currentTranscript, options])
+
+    return completeTranscript
+  }, [currentTranscript, finalTranscripts, options])
 
   /**
    * Reset current transcript (between questions)
    */
   const resetTranscript = useCallback(() => {
-    console.log('🔄 Resetting current transcript')
+    console.log('🔄 Resetting current transcript and clearing finalized transcripts')
     setCurrentTranscript('')
+    setFinalTranscripts([])  // ✅ FIX: Clear finalized transcripts between questions
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current)
