@@ -847,7 +847,8 @@
       "recording": "Запись",
       "nextQuestion": "Следующий вопрос",
       "endSession": "Завершить сессию",
-      "progress": "Прогресс"
+      "progress": "Прогресс",
+      "audioOnlyMode": "Режим аудиозаписи"
     },
     "theoryPractice": {
       "loadingQuestions": "Загрузка практических вопросов...",

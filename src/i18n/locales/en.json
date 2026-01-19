@@ -847,7 +847,8 @@
       "recording": "Recording",
       "nextQuestion": "Next Question",
       "endSession": "End Session",
-      "progress": "Progress"
+      "progress": "Progress",
+      "audioOnlyMode": "Audio-only mode"
     },
     "theoryPractice": {
       "loadingQuestions": "Loading practice questions...",
