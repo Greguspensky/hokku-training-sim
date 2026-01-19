@@ -85,6 +85,7 @@ export default function TrainingSessionPage() {
   const [statsLoading, setStatsLoading] = useState(false)
   const [allowedTheoryRecordingOptions, setAllowedTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [allowedServicePracticeRecordingOptions, setAllowedServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
+  const [allowedRecommendationRecordingOptions, setAllowedRecommendationRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
 
   // Text chat state (for Flipboard pre-training warm-up)
   const [preChatMessages, setPreChatMessages] = useState<ConversationMessage[]>([])
@@ -135,6 +136,10 @@ export default function TrainingSessionPage() {
             console.log('✅ Loaded theory recording options:', settings.theory_recording_options)
             setAllowedTheoryRecordingOptions(settings.theory_recording_options)
           }
+          if (settings.recommendation_recording_options) {
+            console.log('✅ Loaded recommendation recording options:', settings.recommendation_recording_options)
+            setAllowedRecommendationRecordingOptions(settings.recommendation_recording_options)
+          }
           if (settings.service_practice_recording_options) {
             console.log('✅ Loaded service practice recording options:', settings.service_practice_recording_options)
             setAllowedServicePracticeRecordingOptions(settings.service_practice_recording_options)
@@ -151,7 +156,13 @@ export default function TrainingSessionPage() {
   // Auto-set recording preference for different scenario types
   useEffect(() => {
     if (currentScenario?.scenario_type === 'recommendations') {
-      setRecordingPreference('audio_video')
+      // Set to first available option for recommendations
+      if (allowedRecommendationRecordingOptions.length > 0) {
+        const currentPrefAllowed = allowedRecommendationRecordingOptions.includes(recordingPreference as string)
+        if (!currentPrefAllowed || recordingPreference === 'none') {
+          setRecordingPreference(allowedRecommendationRecordingOptions[0] as RecordingPreference)
+        }
+      }
     } else if (currentScenario?.scenario_type === 'theory') {
       // Set to first available option for theory
       if (allowedTheoryRecordingOptions.length > 0) {
@@ -169,7 +180,7 @@ export default function TrainingSessionPage() {
         }
       }
     }
-  }, [currentScenario, allowedTheoryRecordingOptions, allowedServicePracticeRecordingOptions])
+  }, [currentScenario, allowedTheoryRecordingOptions, allowedRecommendationRecordingOptions, allowedServicePracticeRecordingOptions])
 
   // Resolve voice based on scenario's voice_ids and selected language
   useEffect(() => {
@@ -1119,9 +1130,7 @@ export default function TrainingSessionPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-3">🎥 {t('recording.title')}</h3>
                       <p className="text-gray-600 mb-4">
-                        {currentScenario?.scenario_type === 'recommendations'
-                          ? t('recording.recommendationsDescription')
-                          : (currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'flipboard')
+                        {(currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'flipboard' || currentScenario?.scenario_type === 'recommendations')
                           ? t('recording.theoryDescription')
                           : t('recording.defaultDescription')
                         }
@@ -1132,10 +1141,16 @@ export default function TrainingSessionPage() {
                           value={recordingPreference}
                           onChange={(e) => setRecordingPreference(e.target.value as RecordingPreference)}
                           className="block w-full px-4 py-3 pr-10 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
-                          disabled={currentScenario?.scenario_type === 'recommendations'}
                         >
                           {currentScenario?.scenario_type === 'recommendations' ? (
-                            <option value="audio_video">🎬 {t('recording.options.videoRequired')}</option>
+                            <>
+                              {allowedRecommendationRecordingOptions.includes('audio') && (
+                                <option value="audio">🎤 {t('recording.options.audio')}</option>
+                              )}
+                              {allowedRecommendationRecordingOptions.includes('audio_video') && (
+                                <option value="audio_video">🎬 {t('recording.options.audioVideo')}</option>
+                              )}
+                            </>
                           ) : (currentScenario?.scenario_type === 'theory' || currentScenario?.scenario_type === 'flipboard') ? (
                             <>
                               {allowedTheoryRecordingOptions.includes('audio') && (
@@ -1329,6 +1344,7 @@ export default function TrainingSessionPage() {
                   questions={recommendationQuestions}
                   language={selectedLanguage}
                   assignmentId={assignmentId}
+                  recordingPreference={recordingPreference}
                   videoAspectRatio={videoAspectRatio}
                   voiceIds={currentScenario.voice_ids || (currentScenario.voice_id ? [currentScenario.voice_id] : undefined)}
                   onSessionEnd={(completedSessionData) => {

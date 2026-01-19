@@ -26,6 +26,7 @@ interface RecommendationTTSSessionProps {
   questions: RecommendationQuestion[]
   language?: string
   assignmentId?: string
+  recordingPreference?: 'none' | 'audio' | 'audio_video'
   videoAspectRatio?: '16:9' | '9:16' | '4:3' | '1:1'
   voiceIds?: string[]  // Array of ElevenLabs Voice IDs or ['random']
   voiceId?: string  // Legacy support - deprecated
@@ -48,6 +49,7 @@ export function RecommendationTTSSession({
   questions,
   language = 'en',
   assignmentId,
+  recordingPreference = 'audio_video',
   videoAspectRatio = '16:9',
   voiceIds,
   voiceId,  // Legacy support
@@ -147,9 +149,9 @@ export function RecommendationTTSSession({
     }
   }, [currentQuestionIndex, isSessionActive])
 
-  // Re-attach video preview stream when session becomes active (after re-render)
+  // Re-attach video preview stream when session becomes active (after re-render) - only if video recording
   useEffect(() => {
-    if (isSessionActive && videoRef.current && videoRecording.isRecording) {
+    if (recordingPreference === 'audio_video' && isSessionActive && videoRef.current && videoRecording.isRecording) {
       const previewStream = videoRecording.getPreviewStream()
       if (previewStream && videoRef.current.srcObject !== previewStream) {
         console.log('📹 Re-attaching preview stream after session activation...')
@@ -160,7 +162,7 @@ export function RecommendationTTSSession({
         console.log('✅ Preview stream re-attached')
       }
     }
-  }, [isSessionActive, videoRecording])
+  }, [isSessionActive, videoRecording, recordingPreference])
 
   // Timer effect
   useEffect(() => {
@@ -476,8 +478,10 @@ export function RecommendationTTSSession({
       console.error('❌ Error capturing last transcript:', error)
     }
 
-    // Stop recording using hook
-    const recordingData = await videoRecording.stopRecording()
+    // Stop recording using hook (only if video recording was enabled)
+    const recordingData = recordingPreference === 'audio_video'
+      ? await videoRecording.stopRecording()
+      : { chunks: [], mimeType: '' }
 
     setIsSessionActive(false)
     setTimerActive(false)
@@ -698,9 +702,13 @@ export function RecommendationTTSSession({
       await initializeSession()
     }
 
-    // Start video recording FIRST and wait for it to be ready (required for iOS)
-    console.log('🎬 Starting video recording from user gesture')
-    await startVideoRecording()
+    // Start video recording FIRST if enabled (required for iOS when using video)
+    if (recordingPreference === 'audio_video') {
+      console.log('🎬 Starting video recording from user gesture')
+      await startVideoRecording()
+    } else if (recordingPreference === 'audio') {
+      console.log('🎤 Audio-only mode selected (no video recording)')
+    }
 
     // Now that recording is ready, activate the session
     // This triggers the useEffect which loads and plays the first TTS
@@ -835,29 +843,43 @@ export function RecommendationTTSSession({
           )}
         </div>
 
-        {/* Video Recording Display */}
-        <div
-          className="bg-black rounded-lg mb-8 relative overflow-hidden mx-auto"
-          style={{
-            aspectRatio: videoAspectRatio,
-            maxWidth: videoAspectRatio === '9:16' ? '360px' : '100%',
-            width: '100%'
-          }}
-        >
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="w-full h-full object-contain"
-          />
-          {videoRecording.isRecording && (
-            <div className="absolute top-4 right-4 flex items-center bg-red-600 text-white px-3 py-1 rounded-full text-sm">
-              <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-              {t('recommendationTTS.recording')}
+        {/* Video Recording Display - Only show if video recording is enabled */}
+        {recordingPreference === 'audio_video' && (
+          <div
+            className="bg-black rounded-lg mb-8 relative overflow-hidden mx-auto"
+            style={{
+              aspectRatio: videoAspectRatio,
+              maxWidth: videoAspectRatio === '9:16' ? '360px' : '100%',
+              width: '100%'
+            }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-contain"
+            />
+            {videoRecording.isRecording && (
+              <div className="absolute top-4 right-4 flex items-center bg-red-600 text-white px-3 py-1 rounded-full text-sm">
+                <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
+                {t('recommendationTTS.recording')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Audio-only mode indicator */}
+        {recordingPreference === 'audio' && isSessionActive && (
+          <div className="mb-8 bg-gray-100 rounded-lg p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
             </div>
-          )}
-        </div>
+            <p className="text-gray-600 font-medium">{t('recommendationTTS.audioOnlyMode')}</p>
+          </div>
+        )}
 
         {/* Live Transcription Display - ElevenLabs Scribe V2 Realtime */}
         {transcription.isTranscribing && (transcription.currentTranscript || transcription.finalTranscript) && (

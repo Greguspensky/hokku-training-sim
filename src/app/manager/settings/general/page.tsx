@@ -25,6 +25,7 @@ export default function GeneralSettingsPage() {
   const [savingUiLanguage, setSavingUiLanguage] = useState(false)
   const [theoryRecordingOptions, setTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
+  const [recommendationRecordingOptions, setRecommendationRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
   const [showSessionNamesToEmployees, setShowSessionNamesToEmployees] = useState(false)
   const [savingVisibility, setSavingVisibility] = useState(false)
@@ -53,6 +54,7 @@ export default function GeneralSettingsPage() {
         setUiLanguage(uiLang)
         setTheoryRecordingOptions(settings.theory_recording_options || ['audio', 'audio_video'])
         setServicePracticeRecordingOptions(settings.service_practice_recording_options || ['audio', 'audio_video'])
+        setRecommendationRecordingOptions(settings.recommendation_recording_options || ['audio', 'audio_video'])
         setShowSessionNamesToEmployees(settings.show_session_names_to_employees || false)
 
         // Set cookie for server-side locale detection
@@ -134,10 +136,14 @@ export default function GeneralSettingsPage() {
     }
   }
 
-  const handleRecordingOptionsChange = async (scenarioType: 'theory' | 'service_practice', options: string[]) => {
+  const handleRecordingOptionsChange = async (scenarioType: 'theory' | 'service_practice' | 'recommendations', options: string[]) => {
     setSavingRecordingOptions(true)
     try {
-      const settingKey = scenarioType === 'theory' ? 'theory_recording_options' : 'service_practice_recording_options'
+      const settingKey = scenarioType === 'theory'
+        ? 'theory_recording_options'
+        : scenarioType === 'recommendations'
+        ? 'recommendation_recording_options'
+        : 'service_practice_recording_options'
       const response = await fetch('/api/settings/company-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,6 +157,8 @@ export default function GeneralSettingsPage() {
       if (data.success) {
         if (scenarioType === 'theory') {
           setTheoryRecordingOptions(options)
+        } else if (scenarioType === 'recommendations') {
+          setRecommendationRecordingOptions(options)
         } else {
           setServicePracticeRecordingOptions(options)
         }
@@ -366,7 +374,7 @@ export default function GeneralSettingsPage() {
                   {t('manager.settings.recordingOptionsDescription')}
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Theory Q&A Recording Options */}
                   <div className="border border-gray-200 rounded-lg p-4">
                     <label className="block text-sm font-medium text-gray-900 mb-3">
@@ -400,6 +408,55 @@ export default function GeneralSettingsPage() {
                               : theoryRecordingOptions.filter(opt => opt !== 'audio_video')
                             if (newOptions.length > 0) {
                               handleRecordingOptionsChange('theory', newOptions)
+                            }
+                          }}
+                          disabled={savingRecordingOptions}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">🎥 {t('manager.settings.videoRecording')}</span>
+                      </label>
+                    </div>
+                    {savingRecordingOptions && (
+                      <div className="mt-2 flex items-center text-xs text-gray-500">
+                        <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
+                        {t('common.saving')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recommendations (Situationships) Recording Options */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-900 mb-3">
+                      🎯 {t('scenario.recommendations')}
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={recommendationRecordingOptions.includes('audio')}
+                          onChange={(e) => {
+                            const newOptions = e.target.checked
+                              ? [...recommendationRecordingOptions, 'audio']
+                              : recommendationRecordingOptions.filter(opt => opt !== 'audio')
+                            if (newOptions.length > 0) {
+                              handleRecordingOptionsChange('recommendations', newOptions)
+                            }
+                          }}
+                          disabled={savingRecordingOptions}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">🎤 {t('manager.settings.audioRecording')}</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={recommendationRecordingOptions.includes('audio_video')}
+                          onChange={(e) => {
+                            const newOptions = e.target.checked
+                              ? [...recommendationRecordingOptions, 'audio_video']
+                              : recommendationRecordingOptions.filter(opt => opt !== 'audio_video')
+                            if (newOptions.length > 0) {
+                              handleRecordingOptionsChange('recommendations', newOptions)
                             }
                           }}
                           disabled={savingRecordingOptions}
