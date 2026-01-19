@@ -563,6 +563,7 @@
     "assignedTrainingTracks": "Percorsi Formativi Assegnati",
     "individualScenarios": "Scenari Individuali",
     "confirmRemoveEmployee": "È sicuro di voler rimuovere {name}? Questo disabiliterà il loro link di invito e revocherà l'accesso.",
+    "failedToRemoveEmployee": "Impossibile rimuovere il dipendente. Per favore riprovi.",
     "employeeNameRequired": "Il nome del dipendente è richiesto",
     "failedToCreateInvite": "Impossibile creare invito dipendente",
     "inviteCreatedSuccessfully": "Invito dipendente creato con successo!",

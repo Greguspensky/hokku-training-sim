@@ -563,6 +563,7 @@
     "assignedTrainingTracks": "Assigned Training Tracks",
     "individualScenarios": "Individual Scenarios",
     "confirmRemoveEmployee": "Are you sure you want to remove {name}? This will disable their invite link and revoke access.",
+    "failedToRemoveEmployee": "Failed to remove employee. Please try again.",
     "employeeNameRequired": "Employee name is required",
     "failedToCreateInvite": "Failed to create employee invite",
     "inviteCreatedSuccessfully": "Employee invite created successfully!",

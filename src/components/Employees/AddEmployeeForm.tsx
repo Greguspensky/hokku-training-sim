@@ -49,7 +49,8 @@ export default function AddEmployeeForm({ companyId, onSuccess, onCancel }: AddE
         throw new Error(data.error || t('failedToCreateInvite'))
       }
 
-      setInviteLink(data.invite_link)
+      console.log('✅ Employee created successfully, invite_link:', data.data?.invite_link)
+      setInviteLink(data.data?.invite_link)
     } catch (error) {
       setError(error instanceof Error ? error.message : t('failedToCreateInvite'))
     } finally {

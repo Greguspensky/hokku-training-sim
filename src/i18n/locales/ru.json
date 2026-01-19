@@ -563,6 +563,7 @@
     "assignedTrainingTracks": "Назначенные треки обучения",
     "individualScenarios": "Индивидуальные сценарии",
     "confirmRemoveEmployee": "Вы уверены, что хотите удалить {name}? Это отключит их пригласительную ссылку и отменит доступ.",
+    "failedToRemoveEmployee": "Не удалось удалить сотрудника. Пожалуйста, попробуйте ещё раз.",
     "employeeNameRequired": "Требуется имя сотрудника",
     "failedToCreateInvite": "Не удалось создать приглашение сотрудника",
     "inviteCreatedSuccessfully": "Приглашение сотрудника успешно создано!",

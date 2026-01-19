@@ -384,37 +384,93 @@ class EmployeeService {
 
   // Delete employee (manager action)
   async deleteEmployee(id: string, managerId: string): Promise<void> {
-    const employeeIndex = demoEmployees.findIndex(emp => 
-      emp.id === id && 
-      emp.manager_id === managerId &&
-      emp.is_active
-    )
-    
-    if (employeeIndex !== -1) {
-      // Soft delete by marking inactive
-      demoEmployees[employeeIndex].is_active = false
-      console.log('🚧 Demo mode: Deleted employee:', demoEmployees[employeeIndex].name)
+    console.log('🗑️ deleteEmployee called with:', { id, managerId })
+
+    try {
+      // Use admin client to bypass RLS
+      const client = supabaseAdmin || supabase
+      console.log('🔑 Using client for deletion:', supabaseAdmin ? 'admin (bypasses RLS)' : 'regular (subject to RLS)')
+
+      // Soft delete by marking inactive in database
+      const { error } = await client
+        .from('employees')
+        .update({ is_active: false })
+        .eq('id', id)
+        .eq('manager_id', managerId)
+
+      if (error) {
+        console.error('❌ Error deleting employee from database:', error)
+        throw error
+      }
+
+      console.log('✅ Employee marked as inactive in database:', id)
+    } catch (error) {
+      console.error('💥 Error in deleteEmployee:', error)
+
+      // Fallback to in-memory deletion for demo mode
+      const employeeIndex = demoEmployees.findIndex(emp =>
+        emp.id === id &&
+        emp.manager_id === managerId &&
+        emp.is_active
+      )
+
+      if (employeeIndex !== -1) {
+        demoEmployees[employeeIndex].is_active = false
+        console.log('🚧 Fallback to demo mode: Deleted employee:', demoEmployees[employeeIndex].name)
+      }
+
+      throw error
     }
   }
 
   // Regenerate invite token
   async regenerateInviteToken(id: string, managerId: string): Promise<Employee | null> {
-    const employeeIndex = demoEmployees.findIndex(emp => 
-      emp.id === id && 
-      emp.manager_id === managerId &&
-      emp.is_active
-    )
-    
-    if (employeeIndex === -1) {
-      return null
-    }
+    console.log('🔄 regenerateInviteToken called with:', { id, managerId })
 
-    // Generate new token
-    demoEmployees[employeeIndex].invite_token = this.generateInviteToken()
-    
-    console.log('🚧 Demo mode: Regenerated invite token for:', demoEmployees[employeeIndex].name)
-    
-    return demoEmployees[employeeIndex]
+    try {
+      // Use admin client to bypass RLS
+      const client = supabaseAdmin || supabase
+      console.log('🔑 Using client for token regeneration:', supabaseAdmin ? 'admin (bypasses RLS)' : 'regular (subject to RLS)')
+
+      // Generate new token
+      const newToken = this.generateInviteToken()
+
+      // Update in database
+      const { data: updatedEmployee, error } = await client
+        .from('employees')
+        .update({ invite_token: newToken })
+        .eq('id', id)
+        .eq('manager_id', managerId)
+        .eq('is_active', true)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ Error regenerating token in database:', error)
+        throw error
+      }
+
+      console.log('✅ Token regenerated in database for:', updatedEmployee.name)
+      return updatedEmployee
+    } catch (error) {
+      console.error('💥 Error in regenerateInviteToken:', error)
+
+      // Fallback to in-memory for demo mode
+      const employeeIndex = demoEmployees.findIndex(emp =>
+        emp.id === id &&
+        emp.manager_id === managerId &&
+        emp.is_active
+      )
+
+      if (employeeIndex === -1) {
+        return null
+      }
+
+      demoEmployees[employeeIndex].invite_token = this.generateInviteToken()
+      console.log('🚧 Fallback to demo mode: Regenerated token for:', demoEmployees[employeeIndex].name)
+
+      return demoEmployees[employeeIndex]
+    }
   }
 
   // Get invite link for employee

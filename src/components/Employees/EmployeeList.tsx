@@ -27,24 +27,37 @@ export default function EmployeeList({ employees, onEmployeeDeleted, searchQuery
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleDeleteEmployee = async (employee: Employee) => {
-    if (!confirm(t('confirmRemoveEmployee', { name: employee.name }))) {
+    // Use window.confirm explicitly to avoid React 19 issues
+    const confirmed = window.confirm(t('confirmRemoveEmployee', { name: employee.name }))
+
+    console.log('Delete confirmation result:', confirmed)
+
+    if (!confirmed) {
+      console.log('Delete cancelled by user')
       return
     }
 
+    console.log('Proceeding with delete for employee:', employee.id)
     setDeletingId(employee.id)
-    
+
     try {
       const response = await fetch(`/api/employees/${employee.id}`, {
         method: 'DELETE'
       })
-      
+
+      console.log('Delete API response status:', response.status)
+
       if (response.ok) {
+        console.log('Employee deleted successfully')
         onEmployeeDeleted()
       } else {
-        console.error('Failed to delete employee')
+        const errorData = await response.json()
+        console.error('Failed to delete employee:', errorData)
+        alert(t('failedToRemoveEmployee'))
       }
     } catch (error) {
       console.error('Failed to delete employee:', error)
+      alert(t('failedToRemoveEmployee'))
     } finally {
       setDeletingId(null)
     }

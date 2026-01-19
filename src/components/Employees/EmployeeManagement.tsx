@@ -141,7 +141,16 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
 
       {/* Add Employee Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+          onClick={(e) => {
+            // Close modal if clicking on backdrop (not on content)
+            if (e.target === e.currentTarget) {
+              console.log('🚪 Modal backdrop clicked - closing and refreshing list')
+              handleEmployeeAdded()
+            }
+          }}
+        >
           <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-900">{t('inviteNewEmployee')}</h3>
