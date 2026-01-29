@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import TrackList from '@/components/Tracks/TrackList'
@@ -14,6 +14,7 @@ import EmployeeProgressList from '@/components/Manager/EmployeeProgressList'
 import EmployeeDashboardView from '@/components/Manager/EmployeeDashboardView'
 import ServicePracticeAnalyticsDashboard from '@/components/Manager/ServicePracticeAnalyticsDashboard'
 import EmployeeSkillComparison from '@/components/Analytics/EmployeeSkillComparison'
+import BatchAnalysisBar from '@/components/Manager/BatchAnalysisBar'
 import { useAuth } from '@/contexts/AuthContext'
 import { Track, Scenario, scenarioService } from '@/lib/scenarios'
 import { employeeService, Employee } from '@/lib/employees'
@@ -190,6 +191,9 @@ export default function ManagerDashboard() {
   const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
 
+  // Deduplication ref to prevent reload on tab switch
+  const hasCheckedRoleRef = useRef(false)
+
   // Helper function to get track name from track_id
   const getTrackName = (trackId: string): string => {
     const track = tracks.find(t => t.id === trackId)
@@ -325,6 +329,22 @@ export default function ManagerDashboard() {
 
   // Check user role on mount
   useEffect(() => {
+    console.log('🔄 Manager page useEffect - user ID:', user?.id, 'role:', user?.role)
+
+    if (!user?.id) {
+      console.log('⏸️ Waiting for user...')
+      return
+    }
+
+    // Prevent duplicate checks when tab becomes visible again
+    const userKey = `${user.id}-${user.role}`
+    if (hasCheckedRoleRef.current === userKey) {
+      console.log('⏭️ Role already checked - skipping duplicate check')
+      return
+    }
+
+    hasCheckedRoleRef.current = userKey
+
     const checkUserRole = () => {
       if (user?.role) {
         // Check actual role from database
@@ -339,12 +359,8 @@ export default function ManagerDashboard() {
       setRoleChecking(false)
     }
 
-    if (user) {
-      checkUserRole()
-    } else if (!user) {
-      setRoleChecking(false)
-    }
-  }, [user, router])
+    checkUserRole()
+  }, [user?.id, user?.role, router])
 
   useEffect(() => {
     if (!roleChecking && !isEmployee && companyId) {
@@ -1079,6 +1095,9 @@ export default function ManagerDashboard() {
           </div>
         )}
       </div>
+
+      {/* Batch Analysis Bar */}
+      {companyId && <BatchAnalysisBar companyId={companyId} />}
     </div>
   )
 }

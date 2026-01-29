@@ -5,9 +5,24 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2025-12-15)
+## Current Project State (2026-01-29)
 
 ### Latest Features ✅
+- **📊 Batch Session Analysis Bar (2026-01-29)**: Google Drive-style bottom-right analysis queue ✅ **PRODUCTION READY**
+  - Auto-detects unanalyzed sessions (theory + service practice) across all employees
+  - Sequential processing with real-time progress bar
+  - Status indicators: pending, analyzing, completed, failed
+  - Shows actual scenario names (e.g., "Родитель с ребенком")
+  - Multilingual UI (English, Russian, Italian)
+  - Auto-refresh every 30 seconds
+  - Error tolerance - continues after failures
+  - Compact 420px card positioned bottom-right
+- **🌍 Language-Aware Theory Assessment (2026-01-29)**: Multilingual feedback for Theory Q&A ✅ **PRODUCTION READY**
+  - GPT-4 feedback now matches session language (Russian → Russian, Italian → Italian, etc.)
+  - Automatic ElevenLabs transcript fetching for missing/incomplete transcripts
+  - Fixed empty session handling (no more infinite queue loops)
+  - Supports 16 languages
+  - Consistent with Service Practice assessment
 - **🌐 Public Flipboard Demo (2025-12-15)**: Fully public shareable demo for Hotel Mota Reception training ✅ **PRODUCTION READY**
   - Text chat + Voice conversation flow
   - No authentication required (DemoContext provider)
@@ -61,6 +76,9 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **THEORY_ASSESSMENT_LANGUAGE_FIX_2026-01-29.md** - Language-aware theory assessment + ElevenLabs transcript fetching ✅ **NEW (2026-01-29)**
+- **BATCH_ANALYSIS_IMPLEMENTATION.md** - Google Drive-style batch session analysis bar ✅ **NEW (2026-01-29)**
+- **MANUAL_SESSION_RECOVERY.md** - Guide for manually attaching ElevenLabs conversations to sessions ✅ **NEW (2026-01-27)**
 - **ELEVENLABS_SCRIBE_V2_MIGRATION_2026-01-14.md** - ElevenLabs Scribe V2 Realtime migration (150ms latency, WebSocket streaming) ✅ **COMPLETE (2026-01-14)**
 - **REAL_TIME_TRANSCRIPTION_FEATURE.md** - Real-time STT for Recommendation training + race condition bug fix ✅ **COMPLETE (2026-01-14)**
 - **PUBLIC_DEMO_IMPLEMENTATION_2025-12-15.md** - Public Flipboard demo implementation guide ✅ **NEW**

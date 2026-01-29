@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { sessionId, userId, transcript } = body
+    const { sessionId, userId, transcript: providedTranscript } = body
 
     if (!body || typeof body !== 'object') {
       console.error('❌ Invalid request body:', body)
@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!sessionId || !userId || !transcript) {
+    if (!sessionId || !userId) {
       return NextResponse.json(
-        { error: 'Missing required fields: sessionId, userId, transcript' },
+        { error: 'Missing required fields: sessionId, userId' },
         { status: 400 }
       )
     }
@@ -67,6 +67,115 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`🎯 Assessing theory session ${sessionId} for user ${userId}`)
+
+    // Fetch session from database to get ElevenLabs conversation ID if needed
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('training_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+
+    if (sessionError || !session) {
+      console.error('❌ Error fetching session:', sessionError)
+      return NextResponse.json(
+        { error: 'Session not found' },
+        { status: 404 }
+      )
+    }
+
+    // Determine which transcript to use
+    let transcript = providedTranscript || session.conversation_transcript
+
+    // Check if transcript needs to be fetched from ElevenLabs
+    const needsTranscriptFetch =
+      !transcript ||
+      transcript.length === 0 ||
+      (transcript.length === 1 && transcript[0].content.includes('Get Transcript'))
+
+    if (needsTranscriptFetch && session.elevenlabs_conversation_id) {
+      console.log('📥 Transcript missing or incomplete, fetching from ElevenLabs...')
+      console.log(`🔑 Using ElevenLabs conversation ID: ${session.elevenlabs_conversation_id}`)
+
+      const elevenlabsApiKey = process.env.ELEVENLABS_API_KEY
+      if (!elevenlabsApiKey) {
+        console.error('❌ ElevenLabs API key not configured')
+        return NextResponse.json(
+          { error: 'ElevenLabs API key not configured' },
+          { status: 500 }
+        )
+      }
+
+      try {
+        const transcriptResponse = await fetch(
+          `https://api.elevenlabs.io/v1/convai/conversations/${session.elevenlabs_conversation_id}`,
+          {
+            method: 'GET',
+            headers: {
+              'xi-api-key': elevenlabsApiKey,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          }
+        )
+
+        if (!transcriptResponse.ok) {
+          throw new Error('Failed to fetch transcript from ElevenLabs')
+        }
+
+        const conversationData = await transcriptResponse.json()
+
+        // Extract transcript messages
+        const fetchedTranscript: ConversationMessage[] = []
+
+        if (Array.isArray(conversationData.transcript) && conversationData.transcript.length > 0) {
+          for (const msg of conversationData.transcript) {
+            fetchedTranscript.push({
+              role: msg.role === 'agent' ? 'assistant' : 'user',
+              content: msg.message || '',
+              timestamp: msg.time_in_call_secs ? msg.time_in_call_secs * 1000 : Date.now()
+            })
+          }
+        }
+
+        if (fetchedTranscript.length === 0) {
+          console.error('❌ No messages found in ElevenLabs transcript')
+          return NextResponse.json(
+            { error: 'No messages found in ElevenLabs transcript' },
+            { status: 400 }
+          )
+        }
+
+        console.log(`✅ Successfully fetched ${fetchedTranscript.length} messages from ElevenLabs`)
+
+        // Update database with fetched transcript
+        const { error: updateError } = await supabaseAdmin
+          .from('training_sessions')
+          .update({ conversation_transcript: fetchedTranscript })
+          .eq('id', sessionId)
+
+        if (updateError) {
+          console.error('⚠️ Failed to save transcript to database:', updateError)
+        } else {
+          console.log('✅ Saved transcript to database')
+        }
+
+        transcript = fetchedTranscript
+      } catch (error) {
+        console.error('❌ Error fetching transcript from ElevenLabs:', error)
+        return NextResponse.json(
+          { error: 'Failed to fetch transcript from ElevenLabs' },
+          { status: 500 }
+        )
+      }
+    }
+
+    if (!transcript || transcript.length === 0) {
+      return NextResponse.json(
+        { error: 'No transcript found for this session' },
+        { status: 400 }
+      )
+    }
+
     console.log(`📝 Transcript contains ${transcript.length} messages`)
 
     // Get user's structured questions for context matching
@@ -106,11 +215,36 @@ export async function POST(request: NextRequest) {
     console.log(`💬 Extracted ${qaExchanges.length} Q&A exchanges from transcript`)
 
     if (qaExchanges.length === 0) {
+      // Mark session as completed even if no Q&A exchanges found
+      const emptyAssessment = {
+        summary: { totalQuestions: 0, correctAnswers: 0, score: 0 },
+        assessmentResults: [],
+        processedExchanges: 0,
+        matchedQuestions: 0,
+        analyzedAt: new Date().toISOString()
+      }
+
+      const { error: updateError } = await supabaseAdmin
+        .from('training_sessions')
+        .update({
+          theory_assessment_results: emptyAssessment,
+          assessment_completed_at: new Date().toISOString(),
+          assessment_status: 'completed'
+        })
+        .eq('id', sessionId)
+
+      if (updateError) {
+        console.error('❌ Error marking empty session as completed:', updateError)
+      } else {
+        console.log('✅ Empty session marked as completed (no Q&A exchanges)')
+      }
+
       return NextResponse.json({
         success: true,
         assessmentResults: [],
         summary: { totalQuestions: 0, correctAnswers: 0, score: 0 },
-        message: 'No Q&A exchanges found in transcript'
+        message: 'No Q&A exchanges found in transcript',
+        assessment: emptyAssessment
       })
     }
 
@@ -134,14 +268,15 @@ export async function POST(request: NextRequest) {
       if (matchedQuestion) {
         console.log(`✅ Matched with question: ${matchedQuestion.id}`)
 
-        // Assess the answer using AI
+        // Assess the answer using AI (with session language)
         const assessment = await assessAnswer(
           exchange.question,
           exchange.answer,
           matchedQuestion.correct_answer,
           Array.isArray(matchedQuestion.knowledge_topics)
             ? matchedQuestion.knowledge_topics[0]?.name || 'Unknown Topic'
-            : matchedQuestion.knowledge_topics?.name || 'Unknown Topic'
+            : matchedQuestion.knowledge_topics?.name || 'Unknown Topic',
+          session.language || 'en'
         )
 
         const topic = Array.isArray(matchedQuestion.knowledge_topics)
@@ -309,13 +444,40 @@ Return only the number (1-${availableQuestions.length}) of the best matching que
 /**
  * Assess an answer using AI
  */
+// Map language codes to full language names for GPT-4
+function getLanguageName(languageCode: string): string {
+  const languageMap: Record<string, string> = {
+    'en': 'English',
+    'ru': 'Russian',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
+    'cs': 'Czech',
+    'nl': 'Dutch',
+    'pl': 'Polish',
+    'ka': 'Georgian'
+  }
+  return languageMap[languageCode] || 'English'
+}
+
 async function assessAnswer(
   question: string,
   userAnswer: string,
   correctAnswer: string,
-  topicName: string
+  topicName: string,
+  language: string = 'en'
 ): Promise<{ isCorrect: boolean, score: number, feedback: string }> {
   try {
+    const languageName = getLanguageName(language)
+    console.log(`🌍 Assessing answer in ${languageName} (${language})`)
+
     const prompt = `Assess this Q&A exchange for a ${topicName} training session:
 
 Question: ${question}
@@ -325,7 +487,7 @@ Expected Answer: ${correctAnswer}
 Evaluate the student's answer and provide:
 1. Whether it's correct (true/false)
 2. A score from 0-100
-3. Brief feedback (max 100 words)
+3. Brief feedback (max 100 words) **IMPORTANT: Write feedback in ${languageName} language**
 
 Consider:
 - Factual accuracy
@@ -333,11 +495,15 @@ Consider:
 - Understanding demonstration
 - Allow for reasonable variations in wording
 
+**CRITICAL LANGUAGE INSTRUCTION**:
+You MUST write the "feedback" field in ${languageName} language.
+Only the JSON structure and field names should remain in English.
+
 Respond in this exact JSON format:
 {
   "isCorrect": true/false,
   "score": number,
-  "feedback": "brief explanation"
+  "feedback": "brief explanation in ${languageName}"
 }`
 
     const response = await openai.chat.completions.create({

@@ -90,7 +90,7 @@
       "cannotUndo": "Это действие нельзя отменить.",
       "deleting": "Удаление...",
       "deleteButton": "Удалить сессию",
-      "attemptId": "ID попытки:",
+      "attemptId": "ID сценария:",
       "scenarioId": "ID сценария:",
       "conversationId": "ID разговора ElevenLabs:",
       "videoId": "ID видео:",
@@ -103,6 +103,15 @@
       "analyze": "Анализировать",
       "analyzing": "Анализ...",
       "unknownEmployee": "Неизвестный сотрудник"
+    },
+    "batchAnalysis": {
+      "sessionsToAnalyze": "{count} {count, plural, one {сессия} few {сессии} other {сессий}} для анализа",
+      "hideAnalysisBar": "Скрыть панель анализа",
+      "analyzingProgress": "Анализ {current}/{total}: {name}",
+      "startAnalyzing": "Начать анализ",
+      "failedSessions": "{count} не удалось",
+      "session": "сессия",
+      "sessions": "сессии"
     },
     "progress": {
       "teamMembers": "Члены команды",
@@ -901,7 +910,7 @@
     "backToDashboard": "Назад к дашборду",
     "sessionDetails": "Детали сессии",
     "sessionId": "ID сессии",
-    "attemptId": "ID попытки",
+    "attemptId": "ID сценария",
     "elevenLabsConvId": "ID разговора ElevenLabs",
     "videoId": "ID видео",
     "duration": "Длительность",

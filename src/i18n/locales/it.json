@@ -90,7 +90,7 @@
       "cannotUndo": "Questa azione non può essere annullata.",
       "deleting": "Eliminazione...",
       "deleteButton": "Elimina Sessione",
-      "attemptId": "ID Tentativo:",
+      "attemptId": "ID Scenario:",
       "scenarioId": "ID Scenario:",
       "conversationId": "ID Conv ElevenLabs:",
       "videoId": "ID Video:",
@@ -103,6 +103,15 @@
       "analyze": "Analizza",
       "analyzing": "Analisi...",
       "unknownEmployee": "Dipendente Sconosciuto"
+    },
+    "batchAnalysis": {
+      "sessionsToAnalyze": "{count} {count, plural, one {sessione} other {sessioni}} da analizzare",
+      "hideAnalysisBar": "Nascondi barra di analisi",
+      "analyzingProgress": "Analisi {current}/{total}: {name}",
+      "startAnalyzing": "Inizia Analisi",
+      "failedSessions": "{count} fallite",
+      "session": "sessione",
+      "sessions": "sessioni"
     },
     "progress": {
       "teamMembers": "Membri del Team",
@@ -901,7 +910,7 @@
     "backToDashboard": "Torna alla Dashboard",
     "sessionDetails": "Dettagli Sessione",
     "sessionId": "ID Sessione",
-    "attemptId": "ID Tentativo",
+    "attemptId": "ID Scenario",
     "elevenLabsConvId": "ID Conv ElevenLabs",
     "videoId": "ID Video",
     "duration": "Durata",
