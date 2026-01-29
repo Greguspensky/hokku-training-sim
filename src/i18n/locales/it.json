@@ -43,7 +43,8 @@
       "listening": "In Ascolto",
       "sessionComplete": "Sessione Completata",
       "analyzing": "Analisi in corso...",
-      "savingSession": "Salvataggio Sessione..."
+      "savingSession": "Salvataggio Sessione...",
+      "theoryDescription": "Valutazione strutturata delle conoscenze - Risponda alle domande in modo accurato e conciso"
     }
   },
   "manager": {

@@ -43,7 +43,8 @@
       "listening": "Listening",
       "sessionComplete": "Session Complete",
       "analyzing": "Analyzing...",
-      "savingSession": "Saving Session..."
+      "savingSession": "Saving Session...",
+      "theoryDescription": "Structured knowledge assessment - Answer questions accurately and concisely"
     }
   },
   "manager": {

@@ -43,7 +43,8 @@
       "listening": "Слушаю",
       "sessionComplete": "Сессия завершена",
       "analyzing": "Анализ...",
-      "savingSession": "Сохранение сессии..."
+      "savingSession": "Сохранение сессии...",
+      "theoryDescription": "Структурированная проверка знаний - отвечайте на вопросы точно и кратко"
     }
   },
   "manager": {
