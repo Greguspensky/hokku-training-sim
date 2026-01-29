@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { KnowledgeBaseCategory, KnowledgeBaseDocument } from '@/lib/knowledge-base'
@@ -34,6 +34,9 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   const [generatingQuestions, setGeneratingQuestions] = useState(false)
   const [currentView, setCurrentView] = useState<'documents' | 'questions' | 'recommendations'>('documents')
   const [showDocumentSelection, setShowDocumentSelection] = useState(false)
+
+  // Deduplication ref to prevent reload on tab switch
+  const hasLoadedRef = useRef(false)
 
   const loadCategories = async () => {
     try {
@@ -69,6 +72,21 @@ export default function KnowledgeBaseView({ companyId }: KnowledgeBaseViewProps)
   }
 
   useEffect(() => {
+    console.log('🔄 KnowledgeBase useEffect - companyId:', companyId)
+
+    if (!companyId) {
+      console.log('⏸️ Waiting for companyId...')
+      return
+    }
+
+    // Prevent duplicate loads when tab becomes visible again
+    if (hasLoadedRef.current === companyId) {
+      console.log('⏭️ Knowledge base already loaded - skipping duplicate fetch')
+      return
+    }
+
+    hasLoadedRef.current = companyId
+
     const init = async () => {
       await loadCategories()
       setLoading(false)

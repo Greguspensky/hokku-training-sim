@@ -41,17 +41,25 @@ function getCachedUserData(userId: string): ExtendedUser | null {
   if (typeof window === 'undefined') return null
 
   try {
-    const cached = localStorage.getItem(`user_cache_${userId}`)
+    const cacheKey = `user_cache_${userId}`
+    const cached = localStorage.getItem(cacheKey)
     if (cached) {
       const data = JSON.parse(cached)
+      const age = Date.now() - data.timestamp
+      const maxAge = 5 * 60 * 1000 // 5 minutes
+
       // Only use cache if it's less than 5 minutes old
-      if (Date.now() - data.timestamp < 5 * 60 * 1000) {
-        console.log('📦 Using cached user data')
+      if (age < maxAge) {
+        console.log(`📦 Using cached user data (age: ${Math.round(age/1000)}s)`)
         return data.user
+      } else {
+        console.log(`⏰ Cache expired (age: ${Math.round(age/1000)}s)`)
       }
+    } else {
+      console.log(`❌ No cache found for key: ${cacheKey}`)
     }
   } catch (err) {
-    console.debug('Could not read cached user data:', err)
+    console.error('❌ Error reading cached user data:', err)
   }
   return null
 }
@@ -112,7 +120,7 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     const { data: existingUser, error: fetchError } = await withTimeout(
       fetchPromise,
-      3000,
+      10000,  // Increased from 3s to 10s for better reliability after inactivity
       'Database fetch timeout'
     )
 
@@ -192,7 +200,7 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     const { data: result, error: rpcError } = await withTimeout(
       rpcPromise,
-      3000,
+      10000,  // Increased from 3s to 10s for better reliability
       'User creation timeout'
     )
 
@@ -217,7 +225,7 @@ async function getOrCreateUserData(authUser: User): Promise<ExtendedUser> {
 
     const { data: newUser } = await withTimeout(
       newUserPromise,
-      2000,
+      10000,  // Increased from 2s to 10s for better reliability
       'New user fetch timeout'
     )
 
@@ -328,6 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Track enrichment to prevent duplicates
   const enrichmentInProgress = useRef(false)
   const currentUserId = useRef<string | null>(null)
+  const lastProcessedEvent = useRef<string | null>(null) // Track last processed event to prevent duplicates
 
   useEffect(() => {
     console.log('🔵 AuthProvider: Initializing')
@@ -405,14 +414,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null)
           setLoading(false)
           currentUserId.current = null
+          lastProcessedEvent.current = null
           return
         }
 
         if (session?.user) {
           const userId = session.user.id
+          const hasCompleteData = user?.company_id || user?.role === 'employee'
+
+          // Prevent processing duplicate SIGNED_IN events - check THIS FIRST
+          // Set the flag immediately for ALL events of this type, regardless of other conditions
+          const eventKey = `${event}-${userId}`
+          if (event === 'SIGNED_IN') {
+            if (lastProcessedEvent.current === eventKey) {
+              console.log('⏭️ Skipping duplicate SIGNED_IN event for same user')
+              return
+            }
+            // Set deduplication flag immediately to block ALL subsequent events
+            lastProcessedEvent.current = eventKey
+            // Increase timeout to 30 seconds to handle slow database responses
+            setTimeout(() => {
+              if (lastProcessedEvent.current === eventKey) {
+                lastProcessedEvent.current = null
+              }
+            }, 30000)
+          }
+
+          // CRITICAL: Check enrichment lock to prevent race conditions
+          if (enrichmentInProgress.current) {
+            console.log('ℹ️ Enrichment in progress, skipping', event)
+            return
+          }
+
+          // IMPORTANT: On TOKEN_REFRESHED, if we already have ANY user data, keep it
+          // Don't attempt database fetch which might timeout after long inactivity
+          if (event === 'TOKEN_REFRESHED') {
+            if (userId === currentUserId.current && user) {
+              console.log('🔄 Token refreshed - keeping existing user data to avoid timeout')
+              // Make sure loading is false if we have the user
+              if (!loading && hasCompleteData) {
+                return
+              }
+              // If somehow still loading but we have complete data, stop loading
+              if (hasCompleteData) {
+                setLoading(false)
+                return
+              }
+            }
+          }
 
           // Skip enrichment if same user and already fully enriched with complete data
-          const hasCompleteData = user?.company_id || user?.role === 'employee'
           if (userId === currentUserId.current && user?.role && hasCompleteData) {
             console.log('ℹ️ Same user with complete data, skipping re-enrichment')
             return
@@ -423,12 +474,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('🔄 Same user but missing company_id, attempting re-enrichment...')
           }
 
-          // Prevent duplicate enrichment calls
-          if (enrichmentInProgress.current) {
-            console.log('ℹ️ Enrichment in progress, skipping')
-            return
-          }
-
           enrichmentInProgress.current = true
           currentUserId.current = userId
 
@@ -436,11 +481,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const enrichedUser = await getOrCreateUserData(session.user)
 
             if (mounted) {
+              // CRITICAL: Don't overwrite good user data with incomplete fallback data
+              // If we already have a user with complete data in state, and the new data is incomplete, keep the old data
+              const newDataComplete = enrichedUser.company_id || enrichedUser.role === 'employee'
+              const existingDataComplete = user?.company_id || user?.role === 'employee'
+
+              if (!newDataComplete && existingDataComplete && user?.id === enrichedUser.id) {
+                console.warn('⚠️ Skipping user update - new data incomplete, keeping existing complete data')
+                console.log(`   Existing: company_id=${user.company_id}, role=${user.role}`)
+                console.log(`   New: company_id=${enrichedUser.company_id}, role=${enrichedUser.role}`)
+                setLoading(false) // Stop loading since we have good data already
+                return
+              }
+
               setUser(enrichedUser)
 
               // Only stop loading if we have complete user data
-              const hasCompleteData = enrichedUser.company_id || enrichedUser.role === 'employee'
-              if (hasCompleteData) {
+              if (newDataComplete) {
                 setLoading(false)
               } else {
                 console.warn('⚠️ User enriched but missing company_id, keeping loading state')

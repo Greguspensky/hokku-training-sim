@@ -58,6 +58,47 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // 🔒 BLOCK: Check for unanalyzed previous theory sessions (per-scenario)
+    if (trainingMode === 'theory' && scenarioId) {
+      console.log(`🔍 Checking for unanalyzed theory sessions for scenario: ${scenarioId}`)
+
+      const { data: previousSessions, error: checkError } = await supabaseAdmin
+        .from('training_sessions')
+        .select('id, session_name, started_at, assessment_status')
+        .eq('employee_id', employeeId)
+        .eq('scenario_id', scenarioId)
+        .eq('training_mode', 'theory')
+        .neq('id', sessionId) // Exclude the current session being created
+        .order('started_at', { ascending: false })
+        .limit(1)
+
+      if (checkError) {
+        console.error('❌ Error checking previous sessions:', checkError)
+        // Don't block on error - allow session to proceed
+      } else if (previousSessions && previousSessions.length > 0) {
+        const lastSession = previousSessions[0]
+        const isAnalyzed = lastSession.assessment_status === 'completed'
+
+        console.log(`📊 Last session status: ${lastSession.assessment_status || 'pending'}`)
+
+        if (!isAnalyzed) {
+          console.warn(`🔒 BLOCKED: Employee must analyze previous session before starting new one`)
+          return NextResponse.json({
+            success: false,
+            error: 'ANALYSIS_REQUIRED',
+            message: 'You must analyze your previous theory session before starting a new one',
+            blockingSessionId: lastSession.id,
+            blockingSessionName: lastSession.session_name,
+            requiresAnalysis: true
+          }, { status: 423 }) // 423 Locked
+        } else {
+          console.log(`✅ Previous session analyzed - allowing new session`)
+        }
+      } else {
+        console.log(`✅ No previous sessions found - allowing first session`)
+      }
+    }
+
     // Create minimal session record to count as an attempt
     const now = new Date().toISOString()
     const sessionRecord = {

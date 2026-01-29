@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { apiErrorHandler, createSuccessResponse, createErrorResponse, parseRequestBody } from '@/lib/utils/api';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // ElevenLabs-recommended retry function with exponential backoff
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries: number = 3): Promise<Response> {
@@ -177,6 +178,38 @@ export async function POST(request: NextRequest) {
     // Extract call duration from metadata
     const callDurationSeconds = conversationData.metadata?.call_duration_secs || 0
     console.log(`⏱️ Call duration extracted: ${callDurationSeconds} seconds`)
+
+    // Update the training session with the fetched transcript
+    // Note: sessionId is not provided in the request, so we need to find it by conversation ID
+    const { data: sessions, error: findError } = await supabaseAdmin
+      .from('training_sessions')
+      .select('id')
+      .eq('elevenlabs_conversation_id', conversationId)
+      .limit(1)
+
+    if (findError) {
+      console.error('❌ Error finding session by conversation ID:', findError)
+    } else if (sessions && sessions.length > 0) {
+      const sessionId = sessions[0].id
+      console.log('📝 Updating session with transcript:', sessionId)
+
+      // Update session with transcript and duration
+      const { error: updateError } = await supabaseAdmin
+        .from('training_sessions')
+        .update({
+          conversation_transcript: formattedTranscript,
+          session_duration_seconds: callDurationSeconds || undefined
+        })
+        .eq('id', sessionId)
+
+      if (updateError) {
+        console.error('❌ Failed to update session with transcript:', updateError)
+      } else {
+        console.log('✅ Session updated with', formattedTranscript.length, 'messages')
+      }
+    } else {
+      console.warn('⚠️ No session found with conversation ID:', conversationId)
+    }
 
     return NextResponse.json({
       success: true,

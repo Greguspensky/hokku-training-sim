@@ -134,38 +134,60 @@ export async function GET(request: NextRequest) {
 
         const sessionMetrics = results.metrics
 
-        // Add each metric if it exists
-        if (sessionMetrics.empathy !== undefined && sessionMetrics.empathy !== null) {
-          metrics.empathy.sum += sessionMetrics.empathy
+        // Helper to extract score from either flat number (old) or object (new) structure
+        const getScore = (metric: any): number | null => {
+          if (metric === undefined || metric === null) return null
+          // New structure: {score: 85, feedback: "..."}
+          if (typeof metric === 'object' && metric.score !== undefined) {
+            return metric.score
+          }
+          // Old structure: 85 (flat number)
+          if (typeof metric === 'number') {
+            return metric
+          }
+          return null
+        }
+
+        // Add each metric if it exists (supports both old and new data structures)
+        const empathyScore = getScore(sessionMetrics.empathy)
+        if (empathyScore !== null) {
+          metrics.empathy.sum += empathyScore
           metrics.empathy.count++
         }
-        if (sessionMetrics.professionalism !== undefined && sessionMetrics.professionalism !== null) {
-          metrics.professionalism.sum += sessionMetrics.professionalism
+
+        const professionalismScore = getScore(sessionMetrics.professionalism)
+        if (professionalismScore !== null) {
+          metrics.professionalism.sum += professionalismScore
           metrics.professionalism.count++
         }
-        if (sessionMetrics.problem_resolution !== undefined && sessionMetrics.problem_resolution !== null) {
-          metrics.problem_resolution.sum += sessionMetrics.problem_resolution
+
+        const problemResolutionScore = getScore(sessionMetrics.problem_resolution)
+        if (problemResolutionScore !== null) {
+          metrics.problem_resolution.sum += problemResolutionScore
           metrics.problem_resolution.count++
         }
-        if (sessionMetrics.clarity !== undefined && sessionMetrics.clarity !== null) {
-          metrics.clarity.sum += sessionMetrics.clarity
+
+        const clarityScore = getScore(sessionMetrics.clarity)
+        if (clarityScore !== null) {
+          metrics.clarity.sum += clarityScore
           metrics.clarity.count++
         }
-        if (sessionMetrics.deescalation !== undefined && sessionMetrics.deescalation !== null) {
-          metrics.deescalation.sum += sessionMetrics.deescalation
+
+        const deescalationScore = getScore(sessionMetrics.deescalation)
+        if (deescalationScore !== null) {
+          metrics.deescalation.sum += deescalationScore
           metrics.deescalation.count++
         }
-        if (sessionMetrics.product_knowledge_accuracy !== undefined && sessionMetrics.product_knowledge_accuracy !== null) {
-          metrics.product_knowledge_accuracy.sum += sessionMetrics.product_knowledge_accuracy
+
+        const productKnowledgeScore = getScore(sessionMetrics.product_knowledge_accuracy)
+        if (productKnowledgeScore !== null) {
+          metrics.product_knowledge_accuracy.sum += productKnowledgeScore
           metrics.product_knowledge_accuracy.count++
         }
 
-        // Calculate milestone completion rate from milestones array
-        if (results.milestones && Array.isArray(results.milestones)) {
-          const completed = results.milestones.filter((m: any) => m.achieved).length
-          const total = results.milestones.length
-          const completionRate = total > 0 ? (completed / total) * 100 : 0
-          metrics.milestone_completion_rate.sum += completionRate
+        const milestoneScore = getScore(sessionMetrics.milestone_completion_rate)
+        if (milestoneScore !== null) {
+          metrics.milestone_completion_rate.sum += milestoneScore
           metrics.milestone_completion_rate.count++
         }
       })

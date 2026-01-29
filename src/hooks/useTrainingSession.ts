@@ -209,6 +209,17 @@ export function useTrainingSession(
         })
 
         if (!response.ok) {
+          // Check for blocking error (unanalyzed previous session)
+          if (response.status === 423) {
+            const errorData = await response.json()
+            console.error('🔒 Session blocked - analysis required:', errorData)
+            throw new Error(JSON.stringify({
+              error: 'ANALYSIS_REQUIRED',
+              message: errorData.message,
+              blockingSessionId: errorData.blockingSessionId,
+              blockingSessionName: errorData.blockingSessionName
+            }))
+          }
           console.warn('⚠️ useTrainingSession: Failed to record session start, but continuing anyway')
         } else {
           console.log('✅ useTrainingSession: Session start recorded - attempt counted')

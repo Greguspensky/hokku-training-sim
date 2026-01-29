@@ -227,6 +227,39 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
     }
   }
 
+  const deleteTopic = async (topicId: string) => {
+    const topic = topics.find(t => t.id === topicId)
+    const questionCount = topic?.topic_questions?.length || 0
+
+    const confirmMessage = questionCount > 0
+      ? `Are you sure you want to delete this topic and all ${questionCount} questions in it? This action cannot be undone.`
+      : 'Are you sure you want to delete this topic? This action cannot be undone.'
+
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/knowledge-assessment/topics/${topicId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        // Reload topics to refresh the UI
+        await loadTopics()
+        setEditingTopic(null)
+        setEditTopicName('')
+        alert('Topic deleted successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete topic: ${error.error || error.details || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting topic:', error)
+      alert('Failed to delete topic. Please try again.')
+    }
+  }
+
   const createTopic = async () => {
     if (!newTopicName.trim()) {
       alert('Topic name is required')
@@ -589,24 +622,37 @@ export default function QuestionPoolView({ companyId }: QuestionPoolViewProps) {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-base font-medium"
                             placeholder="Topic name"
                           />
-                          <div className="flex items-center space-x-2 mt-2">
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  saveTopicName(topic.id)
+                                }}
+                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  cancelEditTopic()
+                                }}
+                                className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                saveTopicName(topic.id)
+                                deleteTopic(topic.id)
                               }}
-                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs flex items-center space-x-1"
+                              title="Delete topic and all its questions"
                             >
-                              Save
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                cancelEditTopic()
-                              }}
-                              className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs"
-                            >
-                              Cancel
+                              <span>🗑️</span>
+                              <span>Delete Topic</span>
                             </button>
                           </div>
                         </div>

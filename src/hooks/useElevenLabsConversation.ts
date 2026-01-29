@@ -727,25 +727,56 @@ Ask specific, factual questions based on the company knowledge context provided.
 
     console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs');
 
-    const newSessionId = await session.initializeSession();
-    console.log('✅ Session initialized with ID:', newSessionId);
+    try {
+      const newSessionId = await session.initializeSession();
+      console.log('✅ Session initialized with ID:', newSessionId);
 
-    session.startTimer();
+      session.startTimer();
 
-    if (recordingPreference !== 'none') {
-      console.log('🎬 Pre-initializing recording to get permissions before agent starts speaking...');
-      await startSessionRecording();
-      console.log('✅ Recording ready - now safe to start ElevenLabs agent');
+      if (recordingPreference !== 'none') {
+        console.log('🎬 Pre-initializing recording to get permissions before agent starts speaking...');
+        await startSessionRecording();
+        console.log('✅ Recording ready - now safe to start ElevenLabs agent');
+      }
+
+      const loadedContext = await loadKnowledgeContext();
+      console.log('🔄 Knowledge loaded in startSession:', loadedContext ? `${loadedContext.documents?.length || 0} documents` : 'No context');
+
+      const loadedQuestions = await loadStructuredQuestions();
+      console.log('🔄 Questions loaded in startSession:', loadedQuestions.length, 'questions');
+
+      console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...');
+      await initializeConversation(newSessionId, loadedContext, loadedQuestions);
+    } catch (error) {
+      console.error('❌ Failed to start session:', error);
+      session.setStartingSession(false);
+
+      // Check if this is an ANALYSIS_REQUIRED error
+      if (error instanceof Error && error.message.includes('ANALYSIS_REQUIRED')) {
+        try {
+          const errorData = JSON.parse(error.message);
+          const analysisUrl = `/employee/sessions/${errorData.blockingSessionId}`;
+
+          // Show user-friendly alert with link to analyze
+          const userConfirmed = confirm(
+            `${errorData.message}\n\n` +
+            `Session: ${errorData.blockingSessionName}\n\n` +
+            `Click OK to analyze it now, or Cancel to go back.`
+          );
+
+          if (userConfirmed) {
+            window.location.href = analysisUrl;
+          }
+        } catch (parseError) {
+          alert('Cannot start session: Previous session must be analyzed first.');
+        }
+      } else {
+        // Other errors
+        alert('Failed to start session. Please try again.');
+      }
+
+      throw error;
     }
-
-    const loadedContext = await loadKnowledgeContext();
-    console.log('🔄 Knowledge loaded in startSession:', loadedContext ? `${loadedContext.documents?.length || 0} documents` : 'No context');
-
-    const loadedQuestions = await loadStructuredQuestions();
-    console.log('🔄 Questions loaded in startSession:', loadedQuestions.length, 'questions');
-
-    console.log('🎙️ Recording is ready - initializing ElevenLabs conversation...');
-    await initializeConversation(newSessionId, loadedContext, loadedQuestions);
   }, [session, isInitialized, conversationService, recordingPreference, startSessionRecording, loadKnowledgeContext, loadStructuredQuestions, initializeConversation]);
 
   /**

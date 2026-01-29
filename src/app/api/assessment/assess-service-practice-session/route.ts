@@ -862,11 +862,25 @@ Respond in this exact JSON format:
       throw new Error('Invalid JSON response from GPT-4')
     }
 
+    // Validate and ensure all required metrics exist with defaults
+    const defaultMetric = { score: 0, feedback: "Analysis not available" }
+    const metrics = analysisResult.metrics || {}
+
+    const validatedMetrics = {
+      empathy: metrics.empathy || defaultMetric,
+      professionalism: metrics.professionalism || defaultMetric,
+      problem_resolution: metrics.problem_resolution || defaultMetric,
+      clarity: metrics.clarity || defaultMetric,
+      product_knowledge_accuracy: metrics.product_knowledge_accuracy || defaultMetric,
+      milestone_completion_rate: metrics.milestone_completion_rate || defaultMetric,
+      ...(metrics.deescalation ? { deescalation: metrics.deescalation } : {})
+    }
+
     // Combine with behavioral metrics
     const finalAssessment: ServicePracticeAssessment = {
       overall_score: analysisResult.overall_score || 0,
       manager_summary: analysisResult.manager_summary || "Let's review this session together. I'll walk through what I observed and we'll identify areas for improvement. Please review the detailed analysis below.",
-      metrics: analysisResult.metrics || {},
+      metrics: validatedMetrics,
       milestones_achieved: analysisResult.milestones_achieved || [],
       strengths: analysisResult.strengths || [],
       improvements: analysisResult.improvements || [],

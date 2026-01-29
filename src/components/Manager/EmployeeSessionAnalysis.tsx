@@ -86,6 +86,10 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
 
   const loadCachedAnalysis = async () => {
     try {
+      // TODO: Endpoint not implemented yet - skip for now
+      console.log('ℹ️ AI Analysis feature coming soon')
+      return
+
       // Try to load cached analysis - cache_only mode to avoid generating
       const response = await fetch('/api/generate-employee-analysis', {
         method: 'POST',
@@ -123,6 +127,11 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
     try {
       setGeneratingAi(true)
       setError(null)
+
+      // TODO: Feature not implemented yet
+      setError('AI Analysis feature coming soon! This will generate personalized insights.')
+      setGeneratingAi(false)
+      return
 
       const response = await fetch('/api/generate-employee-analysis', {
         method: 'POST',
@@ -260,12 +269,14 @@ export default function EmployeeSessionAnalysis({ employeeId, employeeName, comp
           {Object.entries(summary.average_metrics).map(([key, value]) => {
             if (key === 'deescalation' && value === undefined) return null
 
-            // Map metric keys to translation keys
+            // Map metric keys to translation keys (snake_case to camelCase)
             const metricTranslationKey = key === 'product_knowledge_accuracy'
               ? 'productKnowledge'
               : key === 'milestone_completion_rate'
               ? 'milestoneCompletion'
-              : key.replace(/_/g, '')
+              : key === 'problem_resolution'
+              ? 'problemResolution'
+              : key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()).replace(/_/g, '')
 
             const label = t(`assessment.metrics.${metricTranslationKey}`)
             const score = value as number

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Clock, User, Bot, Calendar, Globe, Brain, Play, Pause, Volume2, Video, CheckCircle, XCircle, AlertCircle, Target } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
@@ -47,16 +47,25 @@ export default function SessionTranscriptPage() {
   })
 
   const sessionId = params.sessionId as string
+  const hasLoadedRef = useRef(false)
 
   useEffect(() => {
     console.log('🔄 Session page useEffect - sessionId:', sessionId, 'user:', !!user)
-    if (!sessionId || !user) {
+    if (!sessionId || !user?.id) {
       console.log('⏸️ Waiting for sessionId and user...')
       return
     }
 
+    // Prevent duplicate loads when tab becomes visible again
+    const sessionKey = `${sessionId}-${user.id}`
+    if (hasLoadedRef.current === sessionKey) {
+      console.log('⏭️ Session already loaded - skipping duplicate fetch')
+      return
+    }
+
+    hasLoadedRef.current = sessionKey
     loadSession()
-  }, [sessionId, user])
+  }, [sessionId, user?.id])
 
   const loadSession = async () => {
     try {
@@ -249,7 +258,7 @@ export default function SessionTranscriptPage() {
     setIsFetchingTranscript(true)
 
     try {
-      const response = await fetch('/api/elevenlabs-conversation-transcript', {
+      const response = await fetch('/api/elevenlabs/elevenlabs-conversation-transcript', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -415,6 +424,15 @@ export default function SessionTranscriptPage() {
     })
   }
 
+  // Format timestamp as MM:SS for conversation transcript (like ElevenLabs UI)
+  const formatConversationTimestamp = (timestamp: number) => {
+    // Timestamp is in milliseconds, convert to seconds
+    const totalSeconds = Math.floor(timestamp / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -462,13 +480,26 @@ export default function SessionTranscriptPage() {
     )
   }
 
+  // Construct a better subtitle using scenario title if available
+  const constructSubtitle = () => {
+    const trainingModeLabel = getTrainingModeDisplay(session.training_mode, t)
+
+    // If we have scenario details with a title, use it
+    if (scenarioDetails?.title) {
+      return `${trainingModeLabel} - ${scenarioDetails.title}`
+    }
+
+    // Otherwise, just use the training mode
+    return trainingModeLabel
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <UserHeader
           title={t('pageTitle')}
-          subtitle={session.session_name}
+          subtitle={constructSubtitle()}
         />
 
         {/* Back Button */}
@@ -550,8 +581,8 @@ export default function SessionTranscriptPage() {
           </div>
         </div>
 
-        {/* ElevenLabs AI Agent Settings */}
-        {session.training_mode === 'service_practice' && scenarioDetails && (
+        {/* ElevenLabs AI Agent Settings - Hidden as requested */}
+        {false && session.training_mode === 'service_practice' && scenarioDetails && (
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow mb-6 border border-purple-200">
             <div className="p-6 border-b border-purple-200 bg-white bg-opacity-60">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -824,20 +855,20 @@ export default function SessionTranscriptPage() {
               <div className="flex">
                 <button
                   onClick={() => setActiveTab('transcript')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  className={`flex-1 px-6 py-4 text-sm transition-colors ${
                     activeTab === 'transcript'
-                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      ? 'text-gray-900 font-bold border-b-2 border-gray-900 bg-white'
+                      : 'text-gray-500 font-normal bg-gray-50 hover:text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   📝 {t('tabTranscript')} ({t('messagesCount', { count: session.conversation_transcript.length })})
                 </button>
                 <button
                   onClick={() => setActiveTab('analysis')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  className={`flex-1 px-6 py-4 text-sm transition-colors ${
                     activeTab === 'analysis'
-                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      ? 'text-gray-900 font-bold border-b-2 border-gray-900 bg-white'
+                      : 'text-gray-500 font-normal bg-gray-50 hover:text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   📊 {session.training_mode === 'theory' ? t('tabTheoryAssessment') : t('tabAnalysis')}
@@ -917,6 +948,7 @@ export default function SessionTranscriptPage() {
                   const isSystem = message.role === 'system'
                   // Support both 'content' and 'message' field names
                   const messageText = message.content || message.message || ''
+                  const hasTimestamp = message.timestamp !== undefined && message.timestamp !== null
 
                   return (
                     <div
@@ -935,6 +967,11 @@ export default function SessionTranscriptPage() {
                         <p className="text-sm leading-relaxed">
                           {messageText}
                         </p>
+                        {hasTimestamp && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatConversationTimestamp(message.timestamp)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )
@@ -1364,6 +1401,7 @@ export default function SessionTranscriptPage() {
                     const isSystem = message.role === 'system'
                     // Support both 'content' and 'message' field names
                     const messageText = message.content || message.message || ''
+                    const hasTimestamp = message.timestamp !== undefined && message.timestamp !== null
 
                     return (
                       <div
@@ -1382,6 +1420,11 @@ export default function SessionTranscriptPage() {
                           <p className="text-sm leading-relaxed">
                             {messageText}
                           </p>
+                          {hasTimestamp && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatConversationTimestamp(message.timestamp)}
+                            </p>
+                          )}
                         </div>
                       </div>
                     )

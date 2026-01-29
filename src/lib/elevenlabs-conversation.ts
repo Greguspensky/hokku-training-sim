@@ -1169,6 +1169,46 @@ Available questions: ${dynamicVariables?.questions_available || 'multiple'}`
 
     try {
       console.log('🛑 Ending ElevenLabs conversation session')
+
+      // CRITICAL FIX: Make one last attempt to capture conversation ID before stopping
+      // This fixes the issue where quick sessions (2-3 minutes) lose their conversation ID
+      if (!this.conversationId) {
+        console.log('🔍 Conversation ID not yet captured - making final attempt before stopping')
+        this.tryCapturingConversationId('stop() - final attempt')
+      }
+
+      // If still not captured, try getting it directly from the conversation object with all known patterns
+      if (!this.conversationId && this.conversation) {
+        console.log('🔍 DEBUG: Conversation object at stop time:', this.conversation)
+        console.log('🔍 DEBUG: All conversation keys:', Object.keys(this.conversation))
+
+        // Try direct access patterns that might be available in SDK
+        const possibleIds = [
+          this.conversation.conversationId,
+          this.conversation.id,
+          this.conversation._conversationId,
+          this.conversation.sessionId,
+          this.conversation._sessionId,
+          this.conversation.metadata?.conversationId,
+          this.conversation.metadata?.id
+        ]
+
+        for (const possibleId of possibleIds) {
+          if (possibleId && typeof possibleId === 'string' && possibleId.startsWith('conv_')) {
+            this.conversationId = possibleId
+            console.log(`🆔 ✅ ElevenLabs conversation ID captured at stop time: ${this.conversationId}`)
+            break
+          }
+        }
+
+        // If still not found, log warning
+        if (!this.conversationId) {
+          console.warn('⚠️ WARNING: Could not capture conversation ID even at stop time!')
+          console.warn('   This means the audio/transcript will not be retrievable from ElevenLabs')
+          console.warn('   Available conversation properties:', Object.keys(this.conversation))
+        }
+      }
+
       await this.conversation.endSession()
 
       this.state.isConnected = false

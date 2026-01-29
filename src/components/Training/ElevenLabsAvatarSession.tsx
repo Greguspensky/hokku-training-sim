@@ -48,6 +48,9 @@ export function ElevenLabsAvatarSession({
   const { user } = useAuth()
   const t = useTranslations('training')
 
+  // Ref to hold stopSession function (will be set after conversation hook initializes)
+  const stopSessionRef = React.useRef<(() => Promise<void>) | null>(null)
+
   // Training session management hook
   const session = useTrainingSession({
     companyId,
@@ -59,7 +62,19 @@ export function ElevenLabsAvatarSession({
     language,
     agentId,
     sessionTimeLimit,
-    onSessionEnd: onSessionEnd || undefined
+    onSessionEnd: async () => {
+      // When timer expires, call conversation.stopSession() to save conversation ID
+      console.log('⏰ Timer expired - triggering conversation stopSession to save conversation ID')
+      if (stopSessionRef.current) {
+        await stopSessionRef.current()
+      } else {
+        console.error('❌ stopSession not available when timer expired - conversation ID may not be saved!')
+      }
+      // Also call parent's onSessionEnd if provided
+      if (onSessionEnd) {
+        await onSessionEnd({})
+      }
+    }
   })
 
   // ElevenLabs conversation management hook
@@ -102,6 +117,10 @@ export function ElevenLabsAvatarSession({
     loadSessionQuestions
   } = conversation
 
+  // Update stopSession ref whenever stopSession function changes
+  React.useEffect(() => {
+    stopSessionRef.current = stopSession
+  }, [stopSession])
 
   // Determine training mode from scenario context
   const trainingMode = scenarioContext?.type === 'theory' ? 'theory'
