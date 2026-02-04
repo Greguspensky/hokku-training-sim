@@ -11,7 +11,8 @@
     "back": "Indietro",
     "next": "Avanti",
     "finish": "Termina",
-    "signOut": "Disconnetti"
+    "signOut": "Disconnetti",
+    "all": "Tutti"
   },
   "header": {
     "roleManager": "Manager",

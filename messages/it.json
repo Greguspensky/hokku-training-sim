@@ -6,7 +6,8 @@
     "delete": "Elimina",
     "edit": "Modifica",
     "create": "Crea",
-    "welcome": "Benvenuto"
+    "welcome": "Benvenuto",
+    "all": "Tutti"
   },
   "navigation": {
     "signOut": "Esci",

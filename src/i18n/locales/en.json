@@ -11,7 +11,8 @@
     "back": "Back",
     "next": "Next",
     "finish": "Finish",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "all": "All"
   },
   "header": {
     "roleManager": "Manager",

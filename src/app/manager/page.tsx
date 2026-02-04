@@ -190,6 +190,7 @@ export default function ManagerDashboard() {
   const [theoryRecordingOptions, setTheoryRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [servicePracticeRecordingOptions, setServicePracticeRecordingOptions] = useState<string[]>(['audio', 'audio_video'])
   const [savingRecordingOptions, setSavingRecordingOptions] = useState(false)
+  const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>('all')
 
   // Deduplication ref to prevent reload on tab switch
   const hasCheckedRoleRef = useRef(false)
@@ -471,13 +472,12 @@ export default function ManagerDashboard() {
 
     try {
       // Check if this is a scenario-track assignment or a direct track_id relationship
-      const response = await fetch(`/api/scenario-track-assignments?scenario_id=${scenarioId}&track_id=${selectedTrack.id}`)
+      const response = await fetch(`/api/scenarios/scenario-track-assignments?scenario_id=${scenarioId}&track_id=${selectedTrack.id}`)
       const result = await response.json()
 
       if (result.success && result.data.length > 0) {
-        // Assignment exists - delete the assignment
-        const assignmentId = result.data[0].id
-        const deleteResponse = await fetch(`/api/scenario-track-assignments/${assignmentId}`, {
+        // Assignment exists - delete the assignment using query parameters
+        const deleteResponse = await fetch(`/api/scenarios/scenario-track-assignments?scenario_id=${scenarioId}&track_id=${selectedTrack.id}`, {
           method: 'DELETE'
         })
 
@@ -695,41 +695,83 @@ export default function ManagerDashboard() {
           /* Feed View */
           <SessionFeed companyId={companyId} />
         ) : activeTab === 'training' ? (
-          !selectedTrack ? (
-            /* Track Management View */
-            <div>
+          /* Scenarios View with Track Filters */
+          <div>
+            {/* Header */}
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t('manager.tracks.trainingTracks')}</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t('manager.tracks.allScenarios')}</h2>
               <p className="text-gray-600">
-                {t('manager.tracks.trainingTracksDescription')}
-              </p>
-            </div>
-            <TrackList
-              tracks={tracks}
-              onSelectTrack={handleSelectTrack}
-              onEditTrack={handleEditTrack}
-              onDeleteTrack={handleDeleteTrack}
-            />
-
-            {/* All Scenarios Section */}
-            <div className="bg-white rounded-lg shadow p-6 mt-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('manager.tracks.allScenarios')}</h2>
-              <p className="text-gray-600 mb-4">
                 {t('manager.tracks.allScenariosDescription')}
               </p>
+            </div>
 
-              {/* Scenarios List */}
+            {/* Track Filter Tabs */}
+            <div className="bg-white rounded-lg shadow mb-6">
+              <div className="border-b border-gray-200">
+                <nav className="flex space-x-2 px-6 overflow-x-auto" aria-label="Track filters">
+                  {/* All Tab */}
+                  <button
+                    onClick={() => setSelectedTrackFilter('all')}
+                    className={`
+                      whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm transition-colors
+                      ${selectedTrackFilter === 'all'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }
+                    `}
+                  >
+                    {t('common.all')} ({allScenarios.length})
+                  </button>
+
+                  {/* Track Tabs */}
+                  {tracks.map((track) => {
+                    const trackScenarioCount = allScenarios.filter(s => s.track_id === track.id).length
+                    return (
+                      <button
+                        key={track.id}
+                        onClick={() => setSelectedTrackFilter(track.id)}
+                        className={`
+                          whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm transition-colors
+                          ${selectedTrackFilter === track.id
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }
+                        `}
+                      >
+                        📚 {track.name} ({trackScenarioCount})
+                      </button>
+                    )
+                  })}
+                </nav>
+              </div>
+            </div>
+
+            {/* Scenarios List */}
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="space-y-4">
-                {allScenarios.length === 0 ? (
-                  <div className="text-center py-8">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">{t('manager.tracks.noScenariosYet')}</h3>
-                    <p className="mt-1 text-sm text-gray-500">{t('manager.tracks.createTrackFirst')}</p>
-                  </div>
-                ) : (
-                  allScenarios.map((scenario) => (
+                {(() => {
+                  // Filter scenarios based on selected track
+                  const filteredScenarios = selectedTrackFilter === 'all'
+                    ? allScenarios
+                    : allScenarios.filter(s => s.track_id === selectedTrackFilter)
+
+                  if (filteredScenarios.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
+                        </svg>
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">{t('manager.tracks.noScenariosYet')}</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {selectedTrackFilter === 'all'
+                            ? t('manager.tracks.createTrackFirst')
+                            : t('manager.tracks.noScenariosInTrack')}
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  return filteredScenarios.map((scenario) => (
                     <div key={scenario.id} className="bg-gray-50 rounded-lg shadow-sm p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -824,161 +866,10 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
                   ))
-                )}
+                })()}
               </div>
             </div>
-            </div>
-          ) : (
-            /* Scenario Management View */
-            <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">{selectedTrack.name}</h2>
-                  <p className="text-gray-600 mb-4">{selectedTrack.description}</p>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {selectedTrack.target_audience.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </span>
-                    <span>{t('manager.tracks.scenariosCount', { count: scenarios.length })}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scenarios List */}
-            <div className="space-y-4">
-              {scenarios.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg shadow">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('manager.tracks.noScenariosInTrack')}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{t('manager.tracks.addScenariosPrompt')}</p>
-                  <div className="mt-4 space-x-2">
-                    <button
-                      onClick={() => setShowAddScenariosDialog(true)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                    >
-                      {t('manager.tracks.addScenarios')}
-                    </button>
-                    <button
-                      onClick={() => setShowScenarioForm(true)}
-                      className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-                    >
-                      {t('manager.tracks.createNew')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                scenarios.map((scenario) => (
-                  <div key={scenario.id} className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-medium text-gray-900">{scenario.title}</h3>
-                        <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
-                        <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            {scenario.scenario_type === 'theory' ? t('manager.feed.theoryQA') :
-                             scenario.scenario_type === 'recommendations' ? t('manager.feed.situationships') :
-                             scenario.scenario_type === 'flipboard' ? 'Flipboard' : t('manager.feed.servicePractice')}
-                          </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                            📚 {getTrackName(scenario.track_id)}
-                          </span>
-                          {scenario.scenario_type === 'service_practice' && scenario.customer_emotion_level && (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              scenario.customer_emotion_level === 'calm' ? 'bg-green-100 text-green-800' :
-                              scenario.customer_emotion_level === 'frustrated' ? 'bg-yellow-100 text-yellow-800' :
-                              scenario.customer_emotion_level === 'angry' ? 'bg-orange-100 text-orange-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {getEmotionDisplay(scenario.customer_emotion_level).icon} {getEmotionDisplay(scenario.customer_emotion_level).label}
-                            </span>
-                          )}
-                          {(scenario.scenario_type === 'service_practice' || scenario.scenario_type === 'theory') && scenario.session_time_limit_minutes && (
-                            <span>{scenario.session_time_limit_minutes} min</span>
-                          )}
-                          <VoiceBadge voiceIds={scenario.voice_ids} />
-                        </div>
-
-                        {scenario.scenario_type === 'service_practice' && (
-                          <div className="mt-4 space-y-2">
-                            {scenario.milestones && scenario.milestones.length > 0 && (
-                              <div>
-                                <span className="text-sm font-medium text-gray-700">{t('manager.tracks.milestones')}</span>
-                                <div className="mt-1 space-y-1">
-                                  {scenario.milestones.map((milestone, index) => (
-                                    <div key={index} className="flex items-center text-sm text-gray-600">
-                                      <span className="w-2 h-2 bg-green-400 rounded-full mr-2 flex-shrink-0"></span>
-                                      <span>{milestone}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {scenario.scenario_type === 'theory' && (
-                          <div className="mt-4">
-                            <span className="text-sm font-medium text-gray-700">{t('manager.tracks.topics')}</span>
-                            <div className="mt-1 flex flex-wrap gap-2">
-                              {scenario.topic_ids && scenario.topic_ids.length > 0 ? (
-                                scenario.topic_ids.map((topicId) => (
-                                  <TopicTag key={topicId} topicId={topicId} companyId={user?.company_id || ''} />
-                                ))
-                              ) : (
-                                <span className="text-sm text-gray-500 italic">{t('manager.tracks.noTopicsAssigned')}</span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {scenario.scenario_type === 'recommendations' && (
-                          <div className="mt-4 space-y-2">
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">{t('manager.tracks.questionsLabel')}</span>
-                              <div className="mt-1">
-                                {scenario.recommendation_question_ids && scenario.recommendation_question_ids.length > 0 ? (
-                                  <span className="text-sm text-gray-600">
-                                    {t('manager.tracks.recommendationQuestionsSelected', {
-                                      count: scenario.recommendation_question_ids.length,
-                                      plural: scenario.recommendation_question_ids.length === 1 ? '' : 's'
-                                    })}
-                                  </span>
-                                ) : (
-                                  <span className="text-sm text-gray-500 italic">{t('manager.tracks.noQuestionsAssigned')}</span>
-                                )}
-                              </div>
-                            </div>
-                            {scenario.instructions && (
-                              <div>
-                                <span className="text-sm font-medium text-gray-700">{t('manager.tracks.instructions')}</span>
-                                <p className="text-sm text-gray-600 mt-1">{scenario.instructions}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="ml-4 flex-shrink-0 flex space-x-2">
-                        <button
-                          onClick={() => handleRemoveFromTrack(scenario.id)}
-                          className="inline-flex items-center px-3 py-2 border border-orange-300 shadow-sm text-sm leading-4 font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                        >
-                          <svg className="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          {t('manager.tracks.removeFromTrack')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            </div>
-          )
+          </div>
         ) : activeTab === 'progress' ? (
           /* Progress View - Employee Training Progress */
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

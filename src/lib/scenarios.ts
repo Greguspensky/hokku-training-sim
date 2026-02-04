@@ -330,7 +330,8 @@ class ScenarioService {
       .select('*')
       .eq('company_id', companyId)
       .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .order('track_id', { ascending: true })
+      .order('display_order', { ascending: true });
 
     if (error) {
       throw error;

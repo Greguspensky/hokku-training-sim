@@ -11,7 +11,8 @@
     "back": "Назад",
     "next": "Далее",
     "finish": "Завершить",
-    "signOut": "Выйти"
+    "signOut": "Выйти",
+    "all": "Все"
   },
   "header": {
     "roleManager": "Менеджер",

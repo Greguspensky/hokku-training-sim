@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     ui_language,
     theory_recording_options,
     service_practice_recording_options,
+    recommendation_recording_options,
     show_session_names_to_employees
   } = body
 
@@ -69,6 +70,9 @@ export async function POST(request: NextRequest) {
     }
     if (service_practice_recording_options !== undefined) {
       updateData.service_practice_recording_options = service_practice_recording_options
+    }
+    if (recommendation_recording_options !== undefined) {
+      updateData.recommendation_recording_options = recommendation_recording_options
     }
     if (show_session_names_to_employees !== undefined) {
       updateData.show_session_names_to_employees = show_session_names_to_employees

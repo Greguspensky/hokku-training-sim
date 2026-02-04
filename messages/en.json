@@ -6,7 +6,8 @@
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",
-    "welcome": "Welcome"
+    "welcome": "Welcome",
+    "all": "All"
   },
   "navigation": {
     "signOut": "Sign Out",
