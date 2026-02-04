@@ -178,7 +178,7 @@ export async function GET(
       .select('*')
       .eq('track_id', assignment.track_id)
       .eq('is_active', true)
-      .order('created_at')
+      .order('display_order', { ascending: true })
 
     if (scenariosError) {
       console.log('❌ Scenarios query error:', scenariosError.message)

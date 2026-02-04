@@ -325,7 +325,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                         <span className="text-lg">{getScenarioTypeIcon(scenario.scenario_type)}</span>
                         <div>
                           <h5 className="font-medium text-gray-900 text-sm">
-                            {(managerView || showSessionNames) ? scenario.title : <HiddenContent type="title" customPlaceholder={`Training Session ${scenarios.indexOf(scenario) + 1}`} />}
+                            {(managerView || showSessionNames) ? scenario.title : <HiddenContent type="title" customPlaceholder={t('trainingSession', { number: scenarios.indexOf(scenario) + 1 })} />}
                           </h5>
                           <p className="text-xs text-gray-400 font-mono">ID: {scenario.id}</p>
                           <div className="flex items-center space-x-3 mt-1">
@@ -398,7 +398,7 @@ export default function TrainingTrackCard({ assignment, managerView = false, emp
                         <span className="text-lg flex-shrink-0">{getScenarioTypeIcon(scenario.scenario_type)}</span>
                         <div className="flex-1 min-w-0">
                           <h5 className="font-medium text-gray-900 text-sm">
-                            {(managerView || showSessionNames) ? scenario.title : <HiddenContent type="title" customPlaceholder={`Training Session ${scenarios.indexOf(scenario) + 1}`} />}
+                            {(managerView || showSessionNames) ? scenario.title : <HiddenContent type="title" customPlaceholder={t('trainingSession', { number: scenarios.indexOf(scenario) + 1 })} />}
                           </h5>
                           <p className="text-xs text-gray-400 font-mono truncate">ID: {scenario.id}</p>
                           <div className="flex flex-wrap gap-2 mt-2">

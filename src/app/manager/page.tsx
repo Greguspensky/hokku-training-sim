@@ -8,6 +8,7 @@ import TrackForm from '@/components/Tracks/TrackForm'
 import ScenarioForm from '@/components/Scenarios/ScenarioForm'
 import EditScenarioForm from '@/components/Scenarios/EditScenarioForm'
 import AddScenariosDialog from '@/components/Scenarios/AddScenariosDialog'
+import { SortableScenarioCard } from '@/components/Scenarios/SortableScenarioCard'
 import UserHeader from '@/components/Shared/UserHeader'
 import SessionFeed from '@/components/Manager/SessionFeed'
 import EmployeeProgressList from '@/components/Manager/EmployeeProgressList'
@@ -21,6 +22,23 @@ import { employeeService, Employee } from '@/lib/employees'
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages'
 import { getEmotionDisplay } from '@/lib/customer-emotions'
 import { getVoiceName } from '@/lib/elevenlabs-voices'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 // Voice Badge Component - displays voice names from voice_ids array
 function VoiceBadge({ voiceIds }: { voiceIds?: string[] | null }) {
@@ -167,7 +185,7 @@ function TopicTag({ topicId, companyId }: TopicTagProps) {
 
 export default function ManagerDashboard() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, clearAuthCache } = useAuth()
   const t = useTranslations()
   const [tracks, setTracks] = useState<Track[]>([])
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -194,6 +212,14 @@ export default function ManagerDashboard() {
 
   // Deduplication ref to prevent reload on tab switch
   const hasCheckedRoleRef = useRef(false)
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Helper function to get track name from track_id
   const getTrackName = (trackId: string): string => {
@@ -407,6 +433,70 @@ export default function ManagerDashboard() {
     }
   }
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    // Get the filtered scenarios for the current track
+    const filteredScenarios = selectedTrackFilter === 'all'
+      ? allScenarios
+      : allScenarios.filter(s => s.track_id === selectedTrackFilter)
+
+    const oldIndex = filteredScenarios.findIndex(s => s.id === active.id)
+    const newIndex = filteredScenarios.findIndex(s => s.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return
+    }
+
+    // Reorder locally for instant feedback
+    const reorderedScenarios = arrayMove(filteredScenarios, oldIndex, newIndex)
+
+    // Update display_order for reordered scenarios
+    const reorderedWithOrder = reorderedScenarios.map((scenario, index) => ({
+      ...scenario,
+      display_order: index
+    }))
+
+    // Merge with scenarios from other tracks
+    const otherScenarios = allScenarios.filter(s => s.track_id !== selectedTrackFilter)
+    const updatedAllScenarios = [...otherScenarios, ...reorderedWithOrder].sort((a, b) => {
+      // Sort by track_id first, then by display_order
+      if (a.track_id === b.track_id) {
+        return (a.display_order || 0) - (b.display_order || 0)
+      }
+      return a.track_id.localeCompare(b.track_id)
+    })
+
+    setAllScenarios(updatedAllScenarios)
+
+    // Save to backend
+    try {
+      const response = await fetch('/api/scenarios/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackId: selectedTrackFilter,
+          scenarioIds: reorderedScenarios.map(s => s.id)
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder scenarios')
+      }
+
+      console.log('✅ Scenarios reordered successfully')
+    } catch (error) {
+      console.error('Failed to reorder scenarios:', error)
+      // Revert on error
+      loadAllScenarios()
+      alert(t('manager.tracks.reorderFailed'))
+    }
+  }
+
   const handleEditTrack = (track: Track) => {
     setEditingTrack(track)
     setShowEditTrackForm(true)
@@ -589,7 +679,16 @@ export default function ManagerDashboard() {
           <div className="px-4 py-6 sm:px-0">
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-red-800 mb-2">Company ID Missing</h2>
-              <p className="text-red-700">Your account is not associated with a company. Please contact your administrator.</p>
+              <p className="text-red-700 mb-4">Your account is not associated with a company. Please contact your administrator.</p>
+              <button
+                onClick={() => {
+                  clearAuthCache()
+                  window.location.reload()
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Clear Cache and Retry
+              </button>
             </div>
           </div>
         </div>
@@ -771,10 +870,29 @@ export default function ManagerDashboard() {
                     )
                   }
 
-                  return filteredScenarios.map((scenario) => (
-                    <div key={scenario.id} className="bg-gray-50 rounded-lg shadow-sm p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                  // Check if drag-and-drop should be enabled (only when viewing a specific track)
+                  const isDraggable = selectedTrackFilter !== 'all'
+                  const scenarioIds = filteredScenarios.map(s => s.id)
+
+                  return (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={scenarioIds}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {filteredScenarios.map((scenario) => (
+                          <SortableScenarioCard
+                            key={scenario.id}
+                            scenario={scenario}
+                            isDraggable={isDraggable}
+                          >
+                            <div className="p-6">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
                           <h3 className="text-lg font-medium text-gray-900">{scenario.title}</h3>
                           <p className="text-xs text-gray-400 font-mono mb-1">ID: {scenario.id}</p>
                           <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
@@ -862,10 +980,14 @@ export default function ManagerDashboard() {
                             </svg>
                             {t('manager.tracks.delete')}
                           </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                                </div>
+                              </div>
+                            </div>
+                          </SortableScenarioCard>
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )
                 })()}
               </div>
             </div>

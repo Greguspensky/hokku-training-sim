@@ -76,6 +76,8 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **AUTH_CACHE_IMPROVEMENTS_2026-02-04.md** - Auth cache improvements (30-min TTL, auto-clear stale, clear button) ✅ **NEW (2026-02-04)**
+- **SCENARIO_ORDERING_FIX_2026-02-04.md** - Fixed scenario ordering consistency across all views ✅ **NEW (2026-02-04)**
 - **THEORY_ASSESSMENT_LANGUAGE_FIX_2026-01-29.md** - Language-aware theory assessment + ElevenLabs transcript fetching ✅ **NEW (2026-01-29)**
 - **BATCH_ANALYSIS_IMPLEMENTATION.md** - Google Drive-style batch session analysis bar ✅ **NEW (2026-01-29)**
 - **MANUAL_SESSION_RECOVERY.md** - Guide for manually attaching ElevenLabs conversations to sessions ✅ **NEW (2026-01-27)**
@@ -158,10 +160,10 @@ ELEVENLABS_API_KEY=[CONFIGURED with convai_write permissions]
 ## Known Issues Status ⚠️
 - **Database Schema**: Missing `avatar_mode` column in `tracks` table (minor, not affecting functionality)
 - **Demo UUID Warnings**: Demo scenarios use string IDs (expected, but generates warnings)
-- **Stale Auth Cache (2025-10-15)**: If user data is updated in database (e.g., company_id assigned), localStorage cache can become stale, causing "Company ID Missing" errors. **Workaround**: Clear cache via console: `Object.keys(localStorage).filter(k => k.startsWith('user_cache_')).forEach(k => localStorage.removeItem(k)); location.reload()`
-  - **Potential fixes**: Auto-clear cache when incomplete, add "Clear Cache" button to error UI, allow managers to proceed without company_id in fallback mode
 
 **All Major Issues FIXED** ✅:
+- ✅ **Stale Auth Cache (2026-02-04)**: Increased cache TTL to 30 min, auto-clear incomplete cache, added "Clear Cache and Retry" button
+- ✅ **Scenario Ordering Inconsistency (2026-02-04)**: Fixed all API endpoints and services to use display_order instead of created_at
 - ✅ **Video Upload Size Limit (2025-10-15 PM)**: Increased Supabase storage limit to 200 MB - supports 10+ minute sessions
 - ✅ **Customer Emotion System Redesign (2025-10-15 PM)**: Renamed emotions + NEW "Cold" customer type
 - ✅ **Manager Question Status Update (2025-10-15 AM)**: Schema mismatch fixed - now uses `user_id`, `user_answer`, `user_topic_progress`

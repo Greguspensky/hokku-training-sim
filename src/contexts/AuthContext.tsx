@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean
   signOut: () => Promise<void>
   setUser: (user: ExtendedUser | null) => void
+  clearAuthCache: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -46,14 +47,26 @@ function getCachedUserData(userId: string): ExtendedUser | null {
     if (cached) {
       const data = JSON.parse(cached)
       const age = Date.now() - data.timestamp
-      const maxAge = 5 * 60 * 1000 // 5 minutes
+      const maxAge = 30 * 60 * 1000 // 30 minutes (increased from 5 minutes)
 
-      // Only use cache if it's less than 5 minutes old
+      // Only use cache if it's less than 30 minutes old
       if (age < maxAge) {
+        // Auto-clear cache if data is incomplete (missing critical fields for managers)
+        const user = data.user
+        const isManager = user.role === 'manager' || user.email?.includes('admin') || !user.email?.includes('emp')
+        const isIncomplete = isManager && !user.company_id
+
+        if (isIncomplete) {
+          console.warn('⚠️ Cache contains incomplete data (missing company_id), clearing cache')
+          localStorage.removeItem(cacheKey)
+          return null
+        }
+
         console.log(`📦 Using cached user data (age: ${Math.round(age/1000)}s)`)
-        return data.user
+        return user
       } else {
         console.log(`⏰ Cache expired (age: ${Math.round(age/1000)}s)`)
+        localStorage.removeItem(cacheKey) // Clear expired cache
       }
     } else {
       console.log(`❌ No cache found for key: ${cacheKey}`)
@@ -551,8 +564,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const clearAuthCache = () => {
+    try {
+      console.log('🧹 Clearing auth cache...')
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('user_cache_'))
+      keys.forEach(k => localStorage.removeItem(k))
+      console.log(`✅ Cleared ${keys.length} cache entries`)
+    } catch (err) {
+      console.error('❌ Error clearing cache:', err)
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, setUser }}>
+    <AuthContext.Provider value={{ user, loading, signOut, setUser, clearAuthCache }}>
       {children}
     </AuthContext.Provider>
   )

@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
               .select('*')
               .eq('track_id', track.id)
               .eq('is_active', true)
-              .order('created_at', { ascending: true })
+              .order('display_order', { ascending: true })
 
             if (!scenariosError && scenarios) {
               track.scenarios = scenarios
