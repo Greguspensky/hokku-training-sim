@@ -76,6 +76,11 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **VIDEO_RECORDING_FAILURE_THEORY_SERVICEPRACTICE_2026-02-08.md** - Videos not saved for Theory/Service Practice on Safari iOS 🔴 **CRITICAL (2026-02-08)**
+- **SAFARI_IOS_MP4_DURATION_BUG_2026-02-08.md** - Critical Safari iOS video duration metadata corruption (1988:34:41 bug) 🔴 **CRITICAL (2026-02-08)**
+- **DEVICE_CHECK_IMPLEMENTATION_2026-02-08.md** - Device permission system (translations, explicit buttons, NotFoundError fix) ✅ **NEW (2026-02-08)**
+- **TRANSCRIPTION_TROUBLESHOOTING_2026-02-07.md** - Recommendation TTS transcription failures (empty user responses) ✅ **NEW (2026-02-07)**
+- **SESSION_DURATION_FIX_2026-02-07.md** - Session duration bug fix (0s → accurate ElevenLabs duration) ✅ **NEW (2026-02-07)**
 - **AUTH_CACHE_IMPROVEMENTS_2026-02-04.md** - Auth cache improvements (30-min TTL, auto-clear stale, clear button) ✅ **NEW (2026-02-04)**
 - **SCENARIO_ORDERING_FIX_2026-02-04.md** - Fixed scenario ordering consistency across all views ✅ **NEW (2026-02-04)**
 - **THEORY_ASSESSMENT_LANGUAGE_FIX_2026-01-29.md** - Language-aware theory assessment + ElevenLabs transcript fetching ✅ **NEW (2026-01-29)**
@@ -151,6 +156,7 @@ ELEVENLABS_API_KEY=[CONFIGURED with convai_write permissions]
 ### Core Systems
 - **`src/components/ElevenLabsAvatarSession.tsx`** - Theory Q&A component
 - **`src/components/RecommendationTTSSession.tsx`** - TTS session with video recording
+- **`src/hooks/useElevenLabsConversation.ts`** - ElevenLabs session management with accurate duration tracking (FIXED 2026-02-07)
 - **`src/lib/elevenlabs-conversation.ts`** - Conversation service with emotion-aware prompts
 - **`src/lib/elevenlabs-knowledge.ts`** - Knowledge service
 - **`src/services/VideoRecordingService.ts`** - Video recording with audio mixing
@@ -162,6 +168,7 @@ ELEVENLABS_API_KEY=[CONFIGURED with convai_write permissions]
 - **Demo UUID Warnings**: Demo scenarios use string IDs (expected, but generates warnings)
 
 **All Major Issues FIXED** ✅:
+- ✅ **Session Duration Bug (2026-02-07)**: Fixed 0s duration bug - now captures accurate start time and uses ElevenLabs `call_duration_secs` for precision
 - ✅ **Stale Auth Cache (2026-02-04)**: Increased cache TTL to 30 min, auto-clear incomplete cache, added "Clear Cache and Retry" button
 - ✅ **Scenario Ordering Inconsistency (2026-02-04)**: Fixed all API endpoints and services to use display_order instead of created_at
 - ✅ **Video Upload Size Limit (2025-10-15 PM)**: Increased Supabase storage limit to 200 MB - supports 10+ minute sessions

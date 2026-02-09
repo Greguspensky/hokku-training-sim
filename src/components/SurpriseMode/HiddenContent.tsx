@@ -28,10 +28,10 @@ export default function HiddenContent({
   const displayText = customPlaceholder || placeholder.text
 
   return (
-    <div className={`flex items-center gap-2 text-gray-500 italic ${className}`}>
+    <span className={`inline-flex items-center gap-2 text-gray-500 italic ${className}`}>
       {showIcon && <span className="text-lg">{placeholder.icon}</span>}
       <span>{displayText}</span>
-    </div>
+    </span>
   )
 }
 

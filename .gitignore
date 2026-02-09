@@ -96,3 +96,7 @@ SESSION_LOG.md
 # Development scripts and temporary files
 /scripts/setup-demo-users.js
 /scripts/create-initial-users.sql
+
+# SSL certificates (local development)
+.ssl/
+*.pem

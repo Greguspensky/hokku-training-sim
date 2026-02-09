@@ -302,19 +302,46 @@ export class VideoRecordingService {
     if (isMobile) {
       // iOS workaround: Request video and audio separately
       console.log('📱 Mobile: Requesting video and audio separately')
+      console.log('🔍 User Agent:', navigator.userAgent)
+      console.log('🔍 Is Safari iOS:', /iPhone|iPad|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent))
 
-      const videoStream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints
-      })
+      try {
+        console.log('📹 Step 1/2: Requesting video stream...')
+        const videoStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints
+        })
+        console.log('✅ Video stream obtained:', videoStream.getVideoTracks()[0].getSettings())
 
-      const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: true
-      })
+        console.log('🎤 Step 2/2: Requesting audio stream...')
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: true
+        })
+        console.log('✅ Audio stream obtained:', audioStream.getAudioTracks()[0].getSettings())
 
-      const videoTrack = videoStream.getVideoTracks()[0]
-      const audioTrack = audioStream.getAudioTracks()[0]
+        const videoTrack = videoStream.getVideoTracks()[0]
+        const audioTrack = audioStream.getAudioTracks()[0]
 
-      return new MediaStream([videoTrack, audioTrack])
+        console.log('✅ Both streams combined successfully')
+        return new MediaStream([videoTrack, audioTrack])
+      } catch (err) {
+        console.error('❌ Safari iOS getUserMedia failed:', err)
+        console.error('❌ Error name:', (err as Error).name)
+        console.error('❌ Error message:', (err as Error).message)
+
+        // Check permission status if available
+        if (navigator.permissions && navigator.permissions.query) {
+          try {
+            const cameraStatus = await navigator.permissions.query({ name: 'camera' as PermissionName })
+            const micStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+            console.error('🔍 Camera permission:', cameraStatus.state)
+            console.error('🔍 Microphone permission:', micStatus.state)
+          } catch (permErr) {
+            console.error('⚠️ Could not query permissions (Safari limitation)')
+          }
+        }
+
+        throw err
+      }
     } else {
       // Desktop: Request both together
       return navigator.mediaDevices.getUserMedia({

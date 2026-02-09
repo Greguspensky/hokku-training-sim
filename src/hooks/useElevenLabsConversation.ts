@@ -574,7 +574,10 @@ Ask specific, factual questions based on the company knowledge context provided.
       if (recordingPreference === 'audio') {
         console.log('🎵 Audio-only session - ElevenLabs audio will be captured in conversation');
         setIsRecording(true);
-        sessionStartTimeRef.current = Date.now();
+        // Only set start time if not already set (preserve accurate start from startSession)
+        if (!sessionStartTimeRef.current) {
+          sessionStartTimeRef.current = Date.now();
+        }
         return;
       }
 
@@ -587,7 +590,10 @@ Ask specific, factual questions based on the company knowledge context provided.
       });
 
       setIsRecording(true);
-      sessionStartTimeRef.current = Date.now();
+      // Only set start time if not already set (preserve accurate start from startSession)
+      if (!sessionStartTimeRef.current) {
+        sessionStartTimeRef.current = Date.now();
+      }
 
       console.log('✅ Video recording started successfully');
 
@@ -604,6 +610,21 @@ Ask specific, factual questions based on the company knowledge context provided.
     } catch (error) {
       console.error(`❌ Failed to start ${recordingPreference} recording:`, error);
       setIsRecording(false);
+      setError(`Recording failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      // Alert user and RE-THROW to prevent session from starting
+      alert(
+        '⚠️ Video recording failed to start.\n\n' +
+        'Possible causes:\n' +
+        '• Camera/microphone permissions denied\n' +
+        '• No camera/microphone detected\n' +
+        '• Browser compatibility issue\n\n' +
+        'Please check Safari Settings → ' + (typeof window !== 'undefined' ? window.location.hostname : 'this site') + ' → Camera & Microphone\n\n' +
+        'The session will NOT start until recording is fixed.'
+      );
+
+      // Re-throw to prevent session from starting without recording
+      throw error;
     }
   }, [recordingPreference, videoAspectRatio]);
 
@@ -701,7 +722,8 @@ Ask specific, factual questions based on the company knowledge context provided.
 
           console.log('✅ Session updated with video recording URL');
         } else {
-          console.log('⚠️ No video chunks to upload');
+          console.warn('⚠️ No video chunks to upload - recording may have failed to start');
+          console.warn('⚠️ Session will be saved WITHOUT video recording');
         }
 
         if (currentConversationId) {
@@ -724,6 +746,10 @@ Ask specific, factual questions based on the company knowledge context provided.
     }
 
     session.setStartingSession(true);
+
+    // CRITICAL: Capture session start time IMMEDIATELY to ensure accurate duration tracking
+    sessionStartTimeRef.current = Date.now();
+    console.log('⏱️ Session start time captured:', new Date(sessionStartTimeRef.current).toISOString());
 
     console.log('🚀 Starting session - will initialize recording BEFORE ElevenLabs');
 
@@ -838,6 +864,12 @@ Ask specific, factual questions based on the company knowledge context provided.
       const trainingMode = scenarioContext?.type === 'theory' ? 'theory' : 'service_practice';
       const endTime = new Date();
       const startTime = new Date(sessionStartTimeRef.current || Date.now());
+
+      // Warn if start time wasn't captured (shouldn't happen anymore after fix)
+      if (!sessionStartTimeRef.current) {
+        console.error('⚠️ WARNING: Session start time was not captured! Using current time as fallback - duration will be incorrect!');
+      }
+
       const employeeId = user.id;
 
       if (!session.sessionId) {

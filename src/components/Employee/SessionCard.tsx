@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Calendar, Clock, MessageCircle, Brain, Video, Target, Trash2, Trophy, BarChart3 } from 'lucide-react'
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
+import { VideoPlayerWithDuration } from '@/components/VideoPlayerWithDuration'
 
 interface SessionCardProps {
   session: TrainingSession & {
@@ -298,14 +299,11 @@ export default function SessionCard({
               {t('videoRecording')}
             </div>
             <div className="bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
-              <video
-                src={session.video_recording_url}
-                controls
+              <VideoPlayerWithDuration
+                videoUrl={session.video_recording_url}
+                durationSeconds={session.recording_duration_seconds || session.session_duration_seconds || 0}
                 className="w-full h-full object-cover"
-                preload="none"
-              >
-                {t('browserNoVideoSupport')}
-              </video>
+              />
             </div>
           </div>
         )}

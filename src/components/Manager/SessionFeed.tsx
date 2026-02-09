@@ -5,6 +5,7 @@ import { Calendar, Clock, MessageCircle, Brain, Video, Target, User, Trash2, Ale
 import { trainingSessionsService, type TrainingSession } from '@/lib/training-sessions'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTranslations } from 'next-intl'
+import { VideoPlayerWithDuration } from '@/components/VideoPlayerWithDuration'
 
 interface SessionWithEmployee extends TrainingSession {
   employee_name?: string
@@ -526,14 +527,11 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                   {t('manager.feed.videoRecording')}
                 </div>
                 <div className="bg-black rounded-lg overflow-hidden flex items-center justify-center">
-                  <video
-                    src={session.video_recording_url}
-                    controls
+                  <VideoPlayerWithDuration
+                    videoUrl={session.video_recording_url}
+                    durationSeconds={session.recording_duration_seconds || session.session_duration_seconds || 0}
                     className="max-w-full max-h-[600px] object-contain"
-                    preload="none"
-                  >
-                    {t('manager.feed.browserNotSupported')}
-                  </video>
+                  />
                 </div>
               </div>
             )}

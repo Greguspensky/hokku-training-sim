@@ -40,5 +40,18 @@
       "title": "Leistungsanalyse",
       "description": "Erhalten Sie detailliertes Feedback und Bewertungen Ihrer Leistung"
     }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "Höre Ihnen zu...",
+      "transcriptionUnavailable": "Transkription vorübergehend nicht verfügbar",
+      "recording": "Aufnahme"
+    }
+  },
+  "employee": {
+    "training": {
+      "duration": "Dauer",
+      "seconds": "Sekunden"
+    }
   }
 }

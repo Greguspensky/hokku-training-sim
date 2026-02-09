@@ -40,5 +40,18 @@
       "title": "Analyse de Performance",
       "description": "Obtenez des commentaires détaillés et des scores sur votre performance"
     }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "Je vous écoute...",
+      "transcriptionUnavailable": "Transcription temporairement indisponible",
+      "recording": "Enregistrement"
+    }
+  },
+  "employee": {
+    "training": {
+      "duration": "Durée",
+      "seconds": "secondes"
+    }
   }
 }

@@ -40,5 +40,18 @@
       "title": "Análisis de Rendimiento",
       "description": "Obtenga comentarios detallados y puntuación de su rendimiento"
     }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "Escuchándole...",
+      "transcriptionUnavailable": "Transcripción temporalmente no disponible",
+      "recording": "Grabación"
+    }
+  },
+  "employee": {
+    "training": {
+      "duration": "Duración",
+      "seconds": "segundos"
+    }
   }
 }

@@ -47,6 +47,54 @@
       "listeningToYou": "Ti ascolto...",
       "transcriptionUnavailable": "Trascrizione temporaneamente non disponibile",
       "recording": "Registrazione"
+    },
+    "deviceCheck": {
+      "title": "Configurazione Dispositivi",
+      "subtitle": "Assicuriamoci che tutto funzioni",
+      "step": "Passo {current} di {total}",
+      "camera": {
+        "title": "Anteprima Fotocamera",
+        "selectDevice": "Seleziona Fotocamera",
+        "granted": "Accesso Fotocamera Consentito",
+        "denied": "Accesso Fotocamera Negato",
+        "helpDenied": "Per consentire l'accesso alla fotocamera, fai clic sull'icona della fotocamera nella barra degli indirizzi del browser"
+      },
+      "microphone": {
+        "title": "Verifica Microfono",
+        "selectDevice": "Seleziona Microfono",
+        "granted": "Accesso Microfono Consentito",
+        "denied": "Accesso Microfono Negato",
+        "testRecording": "Registrazione di Prova",
+        "recording": "Registrazione",
+        "playTest": "Riproduci Test",
+        "audioLevel": "Livello Audio",
+        "speakNow": "Parla nel microfono per testarlo",
+        "levelQuiet": "Troppo basso - parla più forte",
+        "levelGood": "Buon volume",
+        "levelLoud": "Molto alto"
+      },
+      "permissions": {
+        "checkingPermissions": "Controllo permessi..."
+      },
+      "preFlight": {
+        "title": "Controllo Sistema",
+        "checking": "Controllo...",
+        "websocket": "Connessione Servizio Vocale",
+        "token": "Autenticazione",
+        "browser": "Compatibilità Browser",
+        "success": "Tutti i sistemi pronti!",
+        "failed": "Controllo sistema fallito"
+      },
+      "buttons": {
+        "back": "Indietro",
+        "continue": "Continua all'Allenamento"
+      }
+    }
+  },
+  "employee": {
+    "training": {
+      "duration": "Durata",
+      "seconds": "secondi"
     }
   }
 }

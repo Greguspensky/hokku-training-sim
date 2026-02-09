@@ -125,7 +125,7 @@
       "viewAnalytics": "View Service Practice analytics across all team members",
       "joined": "Joined",
       "errorLoadingAnalytics": "Error Loading Analytics",
-      "noServicePracticeData": "No Service Practice Data Yet",
+      "noServicePracticeData": "No Service Practice data available yet",
       "servicePracticeAnalytics": "Service Practice Analytics",
       "companyWidePerformance": "Company-wide performance across all scenarios",
       "openInNewWindow": "Open in New Window",
@@ -146,7 +146,6 @@
       "bestPerformer": "Best Performer",
       "distribution": "Distribution",
       "needsWork": "Needs Work",
-      "noServicePracticeData": "No Service Practice data available yet",
       "skillComparisonDescription": "Skill comparison will appear once employees complete Service Practice sessions",
       "selectMetricToCompare": "Select Metric to Compare",
       "overallAverage": "Overall Average",
@@ -903,6 +902,50 @@
       "correct": "Correct",
       "incorrect": "Incorrect",
       "remaining": "Remaining"
+    },
+    "deviceCheck": {
+      "title": "Device Setup",
+      "subtitle": "Let's make sure everything is working",
+      "step": "Step {current} of {total}",
+      "camera": {
+        "title": "Camera Preview",
+        "selectDevice": "Select Camera",
+        "granted": "Camera Access Granted",
+        "denied": "Camera Access Denied",
+        "helpDenied": "To allow camera access, click the camera icon in your browser's address bar",
+        "requestPermission": "Request Camera Access"
+      },
+      "microphone": {
+        "title": "Microphone Check",
+        "selectDevice": "Select Microphone",
+        "granted": "Microphone Access Granted",
+        "denied": "Microphone Access Denied",
+        "testRecording": "Test Recording",
+        "recording": "Recording",
+        "playTest": "Play Test Recording",
+        "audioLevel": "Audio Level",
+        "speakNow": "Speak into your microphone to test",
+        "levelQuiet": "Too quiet - speak louder",
+        "levelGood": "Good volume",
+        "levelLoud": "Very loud",
+        "requestPermission": "Request Microphone Access"
+      },
+      "permissions": {
+        "checkingPermissions": "Checking permissions..."
+      },
+      "preFlight": {
+        "title": "System Check",
+        "checking": "Checking...",
+        "websocket": "Speech Service Connection",
+        "token": "Authentication",
+        "browser": "Browser Compatibility",
+        "success": "All systems ready!",
+        "failed": "System check failed"
+      },
+      "buttons": {
+        "back": "Back",
+        "continue": "Continue to Training"
+      }
     }
   },
   "sessionHistory": {

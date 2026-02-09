@@ -40,5 +40,18 @@
       "title": "შესრულების ანალიზი",
       "description": "მიიღეთ დეტალური უკუგრისი ლი და შეფასება თქვენ შესრულებაზე"
     }
+  },
+  "training": {
+    "recommendationTTS": {
+      "listeningToYou": "მსმენი თქვენ...",
+      "transcriptionUnavailable": "ტრანსკრიფცია დროებით მიუწვდომელია",
+      "recording": "ჩაწერა"
+    }
+  },
+  "employee": {
+    "training": {
+      "duration": "ხანგრძლივობა",
+      "seconds": "წამი"
+    }
   }
 }

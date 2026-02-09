@@ -47,6 +47,54 @@
       "listeningToYou": "Listening to you...",
       "transcriptionUnavailable": "Transcription temporarily unavailable",
       "recording": "Recording"
+    },
+    "deviceCheck": {
+      "title": "Device Setup",
+      "subtitle": "Let's make sure everything is working",
+      "step": "Step {current} of {total}",
+      "camera": {
+        "title": "Camera Preview",
+        "selectDevice": "Select Camera",
+        "granted": "Camera Access Granted",
+        "denied": "Camera Access Denied",
+        "helpDenied": "To allow camera access, click the camera icon in your browser's address bar"
+      },
+      "microphone": {
+        "title": "Microphone Check",
+        "selectDevice": "Select Microphone",
+        "granted": "Microphone Access Granted",
+        "denied": "Microphone Access Denied",
+        "testRecording": "Test Recording",
+        "recording": "Recording",
+        "playTest": "Play Test Recording",
+        "audioLevel": "Audio Level",
+        "speakNow": "Speak into your microphone to test",
+        "levelQuiet": "Too quiet - speak louder",
+        "levelGood": "Good volume",
+        "levelLoud": "Very loud"
+      },
+      "permissions": {
+        "checkingPermissions": "Checking permissions..."
+      },
+      "preFlight": {
+        "title": "System Check",
+        "checking": "Checking...",
+        "websocket": "Speech Service Connection",
+        "token": "Authentication",
+        "browser": "Browser Compatibility",
+        "success": "All systems ready!",
+        "failed": "System check failed"
+      },
+      "buttons": {
+        "back": "Back",
+        "continue": "Continue to Training"
+      }
+    }
+  },
+  "employee": {
+    "training": {
+      "duration": "Duration",
+      "seconds": "seconds"
     }
   }
 }

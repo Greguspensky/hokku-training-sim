@@ -15,6 +15,7 @@ import FeedbackSection from '@/components/Analytics/FeedbackSection'
 import UnacceptablePhrases from '@/components/Analytics/UnacceptablePhrases'
 import ManagerSummary from '@/components/Analytics/ManagerSummary'
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '@/lib/languages'
+import { VideoPlayerWithDuration } from '@/components/VideoPlayerWithDuration'
 
 // Helper function to get training mode display name - now uses translations
 function getTrainingModeDisplay(trainingMode: string, t: any): string {
@@ -801,16 +802,11 @@ export default function SessionTranscriptPage() {
                     )}
                   </div>
                   <div className="flex justify-center">
-                    <video
-                      controls
+                    <VideoPlayerWithDuration
+                      videoUrl={session.video_recording_url}
+                      durationSeconds={session.recording_duration_seconds || session.session_duration_seconds || 0}
                       className="rounded max-h-[600px]"
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                      preload="metadata"
-                    >
-                      <source src={session.video_recording_url} type="video/webm" />
-                      <source src={session.video_recording_url} type="video/mp4" />
-                      Your browser does not support the video element.
-                    </video>
+                    />
                   </div>
                 </div>
               )}

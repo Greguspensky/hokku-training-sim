@@ -125,7 +125,7 @@
       "viewAnalytics": "Visualizza le analisi della Pratica di Servizio di tutti i membri del team",
       "joined": "Iscritto",
       "errorLoadingAnalytics": "Errore nel Caricamento delle Analisi",
-      "noServicePracticeData": "Nessun Dato sulla Pratica di Servizio Ancora",
+      "noServicePracticeData": "Nessun dato sulla Pratica di Servizio disponibile ancora",
       "servicePracticeAnalytics": "Analisi Pratica di Servizio",
       "companyWidePerformance": "Prestazioni aziendali su tutti gli scenari",
       "openInNewWindow": "Apri in Nuova Finestra",
@@ -146,7 +146,6 @@
       "bestPerformer": "Migliore Prestazione",
       "distribution": "Distribuzione",
       "needsWork": "Necessita Lavoro",
-      "noServicePracticeData": "Nessun dato sulla Pratica di Servizio disponibile ancora",
       "skillComparisonDescription": "Il confronto delle competenze apparirà una volta che i dipendenti completano le sessioni di Pratica di Servizio",
       "selectMetricToCompare": "Seleziona Metrica da Confrontare",
       "overallAverage": "Media Complessiva",
@@ -903,6 +902,50 @@
       "correct": "Corrette",
       "incorrect": "Errate",
       "remaining": "Rimanenti"
+    },
+    "deviceCheck": {
+      "title": "Configurazione Dispositivi",
+      "subtitle": "Assicuriamoci che tutto funzioni",
+      "step": "Passo {current} di {total}",
+      "camera": {
+        "title": "Anteprima Fotocamera",
+        "selectDevice": "Seleziona Fotocamera",
+        "granted": "Accesso Fotocamera Consentito",
+        "denied": "Accesso Fotocamera Negato",
+        "helpDenied": "Per consentire l'accesso alla fotocamera, fai clic sull'icona della fotocamera nella barra degli indirizzi del browser",
+        "requestPermission": "Richiedi Accesso Fotocamera"
+      },
+      "microphone": {
+        "title": "Verifica Microfono",
+        "selectDevice": "Seleziona Microfono",
+        "granted": "Accesso Microfono Consentito",
+        "denied": "Accesso Microfono Negato",
+        "testRecording": "Registrazione di Prova",
+        "recording": "Registrazione",
+        "playTest": "Riproduci Test",
+        "audioLevel": "Livello Audio",
+        "speakNow": "Parla nel microfono per testarlo",
+        "levelQuiet": "Troppo basso - parla più forte",
+        "levelGood": "Buon volume",
+        "levelLoud": "Molto alto",
+        "requestPermission": "Richiedi Accesso Microfono"
+      },
+      "permissions": {
+        "checkingPermissions": "Controllo permessi..."
+      },
+      "preFlight": {
+        "title": "Controllo Sistema",
+        "checking": "Controllo...",
+        "websocket": "Connessione Servizio Vocale",
+        "token": "Autenticazione",
+        "browser": "Compatibilità Browser",
+        "success": "Tutti i sistemi pronti!",
+        "failed": "Controllo sistema fallito"
+      },
+      "buttons": {
+        "back": "Indietro",
+        "continue": "Continua all'Allenamento"
+      }
     }
   },
   "sessionHistory": {

@@ -421,7 +421,7 @@ class TrainingSessionsService {
     console.log('🔄 Updating session with recording data:', sessionId)
 
     try {
-      const response = await fetch('/api/update-recording', {
+      const response = await fetch('/api/media/update-recording', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -10,6 +10,7 @@ import UserHeader from '@/components/Shared/UserHeader'
 import { ElevenLabsAvatarSession } from '@/components/Training/ElevenLabsAvatarSession'
 import { RecommendationTTSSession } from '@/components/Training/RecommendationTTSSession'
 import TheoryPracticeSession from '@/components/Training/TheoryPracticeSession'
+import { DeviceCheckPage } from '@/components/Training/DeviceCheckPage'
 import { SUPPORTED_LANGUAGES, SupportedLanguageCode } from '@/lib/avatar-types'
 import { RecordingConsent } from '@/components/Training/RecordingConsent'
 import type { RecordingPreference } from '@/lib/training-sessions'
@@ -61,7 +62,12 @@ export default function TrainingSessionPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguageCode>('en')
   const [recordingPreference, setRecordingPreference] = useState<RecordingPreference>('none')
   const [showRecordingConsent, setShowRecordingConsent] = useState(true)
+  const [showDeviceCheck, setShowDeviceCheck] = useState(false)
   const [showAvatarSession, setShowAvatarSession] = useState(false)
+  const [selectedDevices, setSelectedDevices] = useState<{
+    cameraId: string | null
+    microphoneId: string | null
+  }>({ cameraId: null, microphoneId: null })
   const [sessionData, setSessionData] = useState<any>(null)
   const [isAnalyzingTranscript, setIsAnalyzingTranscript] = useState(false)
   const [transcriptAnalysis, setTranscriptAnalysis] = useState<any>(null)
@@ -594,22 +600,37 @@ export default function TrainingSessionPage() {
    * ElevenLabs audio is captured via WebRTC (works on all platforms)
    */
   const handleStartSessionWithPreAuth = async () => {
-    console.log('🚀 Starting session with cross-platform WebRTC approach')
+    console.log('🚀 Proceeding to device check page')
 
     // Store pre-chat messages before starting voice session
     if (preChatMessages.length > 0) {
       console.log(`💬 Carrying over ${preChatMessages.length} text chat messages to voice session`)
     }
 
-    // SimpleFlipboardChat doesn't need cleanup (uses REST API, no persistent connection)
-
-    // ElevenLabs audio will be captured via WebRTC (cross-platform compatible)
-    console.log('💡 ElevenLabs audio will be captured via WebRTC')
-    console.log('   ✅ Works on: Desktop (Chrome/Safari) + Mobile (iOS/Android)')
-
-    // Start the session
+    // Go to device check page instead of starting session directly
     setShowRecordingConsent(false)
+    setShowDeviceCheck(true)
+  }
+
+  /**
+   * Handle device check complete - start training session
+   */
+  const handleDeviceCheckComplete = (devices: { cameraId: string | null, microphoneId: string | null }) => {
+    console.log('✅ Device check passed, starting session', devices)
+
+    setSelectedDevices(devices)
+    setShowDeviceCheck(false)
     setShowAvatarSession(true)
+  }
+
+  /**
+   * Handle back from device check - return to recording consent
+   */
+  const handleDeviceCheckBack = () => {
+    console.log('⬅️ Returning to recording consent')
+
+    setShowDeviceCheck(false)
+    setShowRecordingConsent(true)
   }
 
   const handleGetTranscriptAnalysis = async () => {
@@ -1332,6 +1353,16 @@ export default function TrainingSessionPage() {
                   )
                 })()}
               </div>
+            )}
+
+            {/* Device Check - Between Recording Consent and Training Session */}
+            {showDeviceCheck && (
+              <DeviceCheckPage
+                recordingPreference={recordingPreference}
+                videoAspectRatio={videoAspectRatio}
+                onComplete={handleDeviceCheckComplete}
+                onBack={handleDeviceCheckBack}
+              />
             )}
 
             {/* Training Sessions - Conditional Rendering */}
