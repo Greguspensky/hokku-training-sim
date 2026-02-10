@@ -617,6 +617,7 @@ export function RecommendationTTSSession({
 
       // Save session to database WITH video URL if available
       const savedSession = await trainingSessionsService.saveSession({
+        id: session.sessionId, // Use existing session ID to update instead of creating new
         employee_id: user?.id || 'unknown',
         assignment_id: assignmentId || 'unknown',
         company_id: companyId,

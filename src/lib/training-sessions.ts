@@ -42,6 +42,7 @@ export interface TrainingSession {
 }
 
 export interface CreateSessionData {
+  id?: string // Optional session ID for updating existing sessions
   employee_id: string
   assignment_id: string
   company_id: string
@@ -79,6 +80,7 @@ class TrainingSessionsService {
     )
 
     const sessionRecord = {
+      ...(sessionData.id && { id: sessionData.id }), // Include ID if provided (for upsert)
       employee_id: sessionData.employee_id,
       assignment_id: sessionData.assignment_id,
       company_id: sessionData.company_id,
