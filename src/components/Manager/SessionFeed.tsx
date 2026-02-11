@@ -6,6 +6,7 @@ import { trainingSessionsService, type TrainingSession } from '@/lib/training-se
 import { useAuth } from '@/contexts/AuthContext'
 import { useTranslations } from 'next-intl'
 import { VideoPlayerWithDuration } from '@/components/VideoPlayerWithDuration'
+import { getDeviceEmoji, type DeviceInfo } from '@/lib/device-detection'
 
 interface SessionWithEmployee extends TrainingSession {
   employee_name?: string
@@ -496,7 +497,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className={`grid gap-4 text-sm ${session.device_info ? 'grid-cols-4' : 'grid-cols-3'}`}>
               <div className="flex items-center text-gray-600">
                 <Clock className="w-4 h-4 mr-2" />
                 <span>{trainingSessionsService.formatDuration(session.session_duration_seconds)}</span>
@@ -518,6 +519,14 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
                 <Brain className="w-4 h-4 mr-2" />
                 <span>{session.language.toUpperCase()}</span>
               </div>
+              {session.device_info && (
+                <div className="flex items-center text-gray-600">
+                  <span className="mr-2">{getDeviceEmoji(session.device_info as DeviceInfo)}</span>
+                  <span className="truncate" title={`${(session.device_info as DeviceInfo).os} ${(session.device_info as DeviceInfo).os_version} • ${(session.device_info as DeviceInfo).browser}`}>
+                    {(session.device_info as DeviceInfo).device_type.charAt(0).toUpperCase() + (session.device_info as DeviceInfo).device_type.slice(1)}
+                  </span>
+                </div>
+              )}
             </div>
 
             {session.video_recording_url && (
