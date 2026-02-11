@@ -161,7 +161,7 @@ export default function SessionFeed({ companyId }: { companyId: string }) {
       // Determine which API endpoint to use based on training mode
       const apiEndpoint = session.training_mode === 'theory'
         ? '/api/assessment/assess-theory-session'
-        : '/api/assess-service-practice-session'
+        : '/api/assessment/assess-service-practice-session'
 
       const requestBody = session.training_mode === 'theory'
         ? {

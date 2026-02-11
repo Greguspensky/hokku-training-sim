@@ -376,6 +376,7 @@
     "totalQuestions": "Всего вопросов",
     "correct": "Правильно",
     "incorrect": "Неправильно",
+    "partiallyCorrect": "Частично правильно",
     "unanswered": "Без ответа",
     "readyToPractice": "Готовы практиковаться?",
     "questionsNeedPractice": "У вас есть {count} вопросов для практики",
@@ -393,7 +394,11 @@
     "updating": "Обновление...",
     "tryAgain": "Попробовать снова",
     "noQuestionsTitle": "Вопросы отсутствуют",
-    "noQuestionsDescription": "Вопросы появятся здесь после их создания или добавления вручную."
+    "noQuestionsDescription": "Вопросы появятся здесь после их создания или добавления вручную.",
+    "editAnswer": "Изменить ответ",
+    "saving": "Сохранение...",
+    "save": "Сохранить",
+    "cancel": "Отмена"
   },
   "sessionAnalysis": {
     "noDataTitle": "Данные сессий отсутствуют",
@@ -564,6 +569,7 @@
     "edit": "Изменить",
     "editEmployee": "Редактирование сотрудника",
     "deleteEmployee": "Удалить сотрудника",
+    "deleting": "Удаление...",
     "saving": "Сохранение...",
     "save": "Сохранить",
     "confirmDeleteEmployee": "Вы уверены, что хотите удалить {name}? Это действие нельзя отменить.",

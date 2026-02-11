@@ -408,10 +408,10 @@ class EmployeeService {
       const client = supabaseAdmin || supabase
       console.log('🔑 Using client for deletion:', supabaseAdmin ? 'admin (bypasses RLS)' : 'regular (subject to RLS)')
 
-      // Soft delete by marking inactive in database
+      // Permanently delete from database
       const { error } = await client
         .from('employees')
-        .update({ is_active: false })
+        .delete()
         .eq('id', id)
         .eq('manager_id', managerId)
 
@@ -420,20 +420,19 @@ class EmployeeService {
         throw error
       }
 
-      console.log('✅ Employee marked as inactive in database:', id)
+      console.log('✅ Employee permanently deleted from database:', id)
     } catch (error) {
       console.error('💥 Error in deleteEmployee:', error)
 
       // Fallback to in-memory deletion for demo mode
       const employeeIndex = demoEmployees.findIndex(emp =>
         emp.id === id &&
-        emp.manager_id === managerId &&
-        emp.is_active
+        emp.manager_id === managerId
       )
 
       if (employeeIndex !== -1) {
-        demoEmployees[employeeIndex].is_active = false
-        console.log('🚧 Fallback to demo mode: Deleted employee:', demoEmployees[employeeIndex].name)
+        demoEmployees.splice(employeeIndex, 1)
+        console.log('🚧 Fallback to demo mode: Deleted employee from memory')
       }
 
       throw error

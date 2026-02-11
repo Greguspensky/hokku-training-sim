@@ -376,6 +376,7 @@
     "totalQuestions": "Domande Totali",
     "correct": "Corrette",
     "incorrect": "Errate",
+    "partiallyCorrect": "Parzialmente Corrette",
     "unanswered": "Senza Risposta",
     "readyToPractice": "Pronto a Praticare?",
     "questionsNeedPractice": "Ha {count} domande che necessitano pratica",
@@ -393,7 +394,11 @@
     "updating": "Aggiornamento...",
     "tryAgain": "Riprova",
     "noQuestionsTitle": "Nessuna Domanda Disponibile",
-    "noQuestionsDescription": "Le domande appariranno qui una volta generate o aggiunte manualmente."
+    "noQuestionsDescription": "Le domande appariranno qui una volta generate o aggiunte manualmente.",
+    "editAnswer": "Modifica Risposta",
+    "saving": "Salvataggio...",
+    "save": "Salva",
+    "cancel": "Annulla"
   },
   "sessionAnalysis": {
     "noDataTitle": "Nessun Dato Sessione Disponibile",
@@ -564,6 +569,7 @@
     "edit": "Modifica",
     "editEmployee": "Modifica Dipendente",
     "deleteEmployee": "Elimina Dipendente",
+    "deleting": "Eliminazione...",
     "saving": "Salvataggio...",
     "save": "Salva",
     "confirmDeleteEmployee": "È sicuro di voler eliminare {name}? Questa azione non può essere annullata.",

@@ -16,6 +16,8 @@ import UnacceptablePhrases from '@/components/Analytics/UnacceptablePhrases'
 import ManagerSummary from '@/components/Analytics/ManagerSummary'
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '@/lib/languages'
 import { VideoPlayerWithDuration } from '@/components/VideoPlayerWithDuration'
+import { getDeviceDescription, getDeviceEmoji } from '@/lib/device-detection'
+import type { DeviceInfo } from '@/lib/device-detection'
 
 // Helper function to get training mode display name - now uses translations
 function getTrainingModeDisplay(trainingMode: string, t: any): string {
@@ -546,7 +548,7 @@ export default function SessionTranscriptPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${session.device_info ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <div className="flex items-center">
               <Calendar className="w-5 h-5 text-gray-400 mr-3" />
               <div>
@@ -579,6 +581,19 @@ export default function SessionTranscriptPage() {
                 <div className="text-xs text-gray-500">{t('language')}</div>
               </div>
             </div>
+            {session.device_info && (
+              <div className="flex items-center">
+                <span className="text-xl mr-3">{getDeviceEmoji(session.device_info as DeviceInfo)}</span>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {(session.device_info as DeviceInfo).device_type.charAt(0).toUpperCase() + (session.device_info as DeviceInfo).device_type.slice(1)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {(session.device_info as DeviceInfo).os} • {(session.device_info as DeviceInfo).browser}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -886,7 +901,32 @@ export default function SessionTranscriptPage() {
             {session.conversation_transcript.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-400 text-4xl mb-4">💬</div>
-                <p className="text-gray-500">{t('noConversation')}</p>
+                <p className="text-gray-500 mb-4">{t('noConversation')}</p>
+                {session.elevenlabs_conversation_id && (
+                  <div className="mt-6">
+                    <p className="text-gray-600 mb-4">
+                      {t('analysisActions.emptyTranscriptPrompt', 'The conversation exists in ElevenLabs but the transcript has not been fetched yet. Click below to fetch it.')}
+                    </p>
+                    <div className="flex flex-col sm:flex-row justify-center gap-4">
+                      <button
+                        onClick={handleGetTranscript}
+                        disabled={isFetchingTranscript}
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        {isFetchingTranscript ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            {t('analysisActions.fetchingTranscript', 'Fetching transcript...')}
+                          </>
+                        ) : (
+                          <>
+                            📝 {t('analysisActions.getTranscript', 'Get Transcript from ElevenLabs')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : session.conversation_transcript.length === 1 &&
                 session.conversation_transcript[0].content.includes('Get Transcript and Analysis') &&
@@ -1224,25 +1264,6 @@ export default function SessionTranscriptPage() {
                                     <span className="font-medium text-gray-900">
                                       {t('theoryAssessment.question')} {index + 1}
                                     </span>
-                                    {result.topicName && (
-                                      <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                                        result.topicCategory === 'prices' ? 'bg-green-100 text-green-800' :
-                                        result.topicCategory === 'drinks_info' ? 'bg-blue-100 text-blue-800' :
-                                        result.topicCategory === 'manual' ? 'bg-yellow-100 text-yellow-800' :
-                                        result.topicCategory === 'menu' ? 'bg-purple-100 text-purple-800' :
-                                        result.topicCategory === 'procedures' ? 'bg-indigo-100 text-indigo-800' :
-                                        result.topicCategory === 'policies' ? 'bg-red-100 text-red-800' :
-                                        'bg-gray-100 text-gray-800'
-                                      }`}>
-                                        {result.topicName}
-                                      </span>
-                                    )}
-                                    {result.difficultyLevel && (
-                                      <span className="ml-2 flex items-center text-sm text-gray-600">
-                                        <Target className="w-4 h-4 mr-1" />
-                                        {t('theoryAssessment.level')} {result.difficultyLevel}/3
-                                      </span>
-                                    )}
                                   </div>
 
                                   <div className="mb-2">

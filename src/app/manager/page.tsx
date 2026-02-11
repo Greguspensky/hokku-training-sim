@@ -705,39 +705,41 @@ export default function ManagerDashboard() {
           subtitle={selectedTrack ? `${t('manager.dashboard.managingScenarios')}: ${selectedTrack.name}` : t('manager.dashboard.manageTrainings')}
         />
 
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center mb-8">
-          {selectedTrack && (
-            <>
-              <button
-                onClick={handleBackToTracks}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-              >
-                {t('manager.tracks.backToTracks')}
-              </button>
-              <div></div>
-            </>
-          )}
-          {!selectedTrack && (
-            <>
-              <div></div>
-              <div className="flex space-x-3">
+        {/* Action Buttons - Only show on training tab */}
+        {activeTab === 'training' && (
+          <div className="flex justify-between items-center mb-8">
+            {selectedTrack && (
+              <>
                 <button
-                  onClick={() => setShowScenarioForm(true)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  onClick={handleBackToTracks}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 >
-                  {t('manager.dashboard.addScenario')}
+                  {t('manager.tracks.backToTracks')}
                 </button>
-                <button
-                  onClick={() => setShowTrackForm(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  {t('manager.dashboard.createTrack')}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+                <div></div>
+              </>
+            )}
+            {!selectedTrack && (
+              <>
+                <div></div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowScenarioForm(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    {t('manager.dashboard.addScenario')}
+                  </button>
+                  <button
+                    onClick={() => setShowTrackForm(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {t('manager.dashboard.createTrack')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Navigation Tabs - Always visible */}
         <div className="mb-8">

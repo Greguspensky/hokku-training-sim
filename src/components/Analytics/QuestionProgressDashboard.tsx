@@ -13,7 +13,7 @@ interface QuestionProgress {
   topic_name: string
   topic_category: string
   difficulty_level: number
-  status: 'correct' | 'incorrect' | 'unanswered'
+  status: 'correct' | 'incorrect' | 'partially_correct' | 'unanswered'
   attempts?: number
   last_answer?: string
   last_attempt_at?: string
@@ -28,6 +28,7 @@ interface TopicSummary {
   total_questions: number
   correct_questions: number
   incorrect_questions: number
+  partially_correct_questions: number
   unanswered_questions: number
   mastery_percentage: number
 }
@@ -46,8 +47,11 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<string>('all')
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'correct' | 'incorrect' | 'partially_correct'>('all')
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [updatingQuestionId, setUpdatingQuestionId] = useState<string | null>(null)
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null)
+  const [editedAnswer, setEditedAnswer] = useState<string>('')
 
   // Use props if provided, otherwise fall back to auth context
   const userId = propUserId || user?.id
@@ -100,7 +104,7 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
     }
   }
 
-  const handleStatusChange = async (questionId: string, newStatus: 'correct' | 'incorrect' | 'unanswered') => {
+  const handleStatusChange = async (questionId: string, newStatus: 'correct' | 'incorrect' | 'partially_correct' | 'unanswered') => {
     if (!userId) {
       console.error('❌ Cannot update status: userId is missing')
       return
@@ -131,7 +135,7 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
         setQuestions(prevQuestions =>
           prevQuestions.map(q =>
             q.id === questionId
-              ? { ...q, status: newStatus as 'correct' | 'incorrect' | 'unanswered' }
+              ? { ...q, status: newStatus as 'correct' | 'incorrect' | 'partially_correct' | 'unanswered' }
               : q
           )
         )
@@ -145,6 +149,70 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
     } catch (error) {
       console.error('❌ Error updating status:', error)
       alert('Failed to update question status')
+    } finally {
+      setUpdatingQuestionId(null)
+    }
+  }
+
+  const handleEditAnswer = (questionId: string, currentAnswer: string) => {
+    setEditingAnswerId(questionId)
+    setEditedAnswer(currentAnswer || '')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingAnswerId(null)
+    setEditedAnswer('')
+  }
+
+  const handleSaveAnswer = async (questionId: string) => {
+    if (!userId) {
+      console.error('❌ Cannot update answer: userId is missing')
+      return
+    }
+
+    try {
+      setUpdatingQuestionId(questionId)
+
+      console.log('🔄 Updating question answer:', { questionId, editedAnswer, userId })
+
+      const response = await fetch('/api/questions/update-question-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: userId,
+          question_id: questionId,
+          new_answer: editedAnswer,
+          manager_id: user?.id
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        console.log('✅ Answer updated successfully')
+
+        // Update local state optimistically
+        setQuestions(prevQuestions =>
+          prevQuestions.map(q =>
+            q.id === questionId
+              ? { ...q, last_answer: editedAnswer }
+              : q
+          )
+        )
+
+        // Clear editing state
+        setEditingAnswerId(null)
+        setEditedAnswer('')
+
+        // Reload fresh data
+        await loadQuestionProgress()
+      } else {
+        console.error('❌ Failed to update answer:', data.error)
+        alert(`Failed to update answer: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('❌ Error updating answer:', error)
+      alert('Failed to update answer')
     } finally {
       setUpdatingQuestionId(null)
     }
@@ -178,6 +246,7 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
     switch (status) {
       case 'correct': return <CheckCircle className="w-5 h-5 text-green-600" />
       case 'incorrect': return <XCircle className="w-5 h-5 text-red-600" />
+      case 'partially_correct': return <CheckCircle className="w-5 h-5 text-orange-500" />
       case 'unanswered': return <Clock className="w-5 h-5 text-gray-400" />
       default: return <Clock className="w-5 h-5 text-gray-400" />
     }
@@ -187,18 +256,26 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
     switch (status) {
       case 'correct': return 'bg-green-50 border-green-200'
       case 'incorrect': return 'bg-red-50 border-red-200'
+      case 'partially_correct': return 'bg-orange-50 border-orange-200'
       case 'unanswered': return 'bg-gray-50 border-gray-200'
       default: return 'bg-gray-50 border-gray-200'
     }
   }
 
-  const filteredQuestions = selectedTopic === 'all'
+  // Apply topic filter
+  let filteredQuestions = selectedTopic === 'all'
     ? questions
     : questions.filter(q => q.topic_name === selectedTopic)
+
+  // Apply status filter
+  if (selectedStatusFilter !== 'all') {
+    filteredQuestions = filteredQuestions.filter(q => q.status === selectedStatusFilter)
+  }
 
   const totalQuestions = questions.length
   const correctQuestions = questions.filter(q => q.status === 'correct').length
   const incorrectQuestions = questions.filter(q => q.status === 'incorrect').length
+  const partiallyCorrectQuestions = questions.filter(q => q.status === 'partially_correct').length
   const unansweredQuestions = questions.filter(q => q.status === 'unanswered').length
 
   if (loading) {
@@ -266,9 +343,14 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
         </button>
       </div>
 
-      {/* Summary Stats */}
+      {/* Summary Stats - Clickable Filters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-6">
+        <button
+          onClick={() => setSelectedStatusFilter('all')}
+          className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
+            selectedStatusFilter === 'all' ? 'ring-2 ring-blue-500' : ''
+          }`}
+        >
           <div className="flex items-center">
             <div className="p-2 rounded-lg bg-blue-100">
               <BookOpen className="w-6 h-6 text-blue-600" />
@@ -278,9 +360,14 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
               <p className="text-2xl font-bold text-gray-900">{totalQuestions}</p>
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <button
+          onClick={() => setSelectedStatusFilter('correct')}
+          className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
+            selectedStatusFilter === 'correct' ? 'ring-2 ring-green-500' : ''
+          }`}
+        >
           <div className="flex items-center">
             <div className="p-2 rounded-lg bg-green-100">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -290,9 +377,31 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
               <p className="text-2xl font-bold text-green-600">{correctQuestions}</p>
             </div>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <button
+          onClick={() => setSelectedStatusFilter('partially_correct')}
+          className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
+            selectedStatusFilter === 'partially_correct' ? 'ring-2 ring-orange-500' : ''
+          }`}
+        >
+          <div className="flex items-center">
+            <div className="p-2 rounded-lg bg-orange-100">
+              <CheckCircle className="w-6 h-6 text-orange-500" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">{t('questionProgress.partiallyCorrect')}</p>
+              <p className="text-2xl font-bold text-orange-600">{partiallyCorrectQuestions}</p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setSelectedStatusFilter('incorrect')}
+          className={`bg-white rounded-lg shadow p-6 text-left transition-all hover:shadow-lg ${
+            selectedStatusFilter === 'incorrect' ? 'ring-2 ring-red-500' : ''
+          }`}
+        >
           <div className="flex items-center">
             <div className="p-2 rounded-lg bg-red-100">
               <XCircle className="w-6 h-6 text-red-600" />
@@ -302,33 +411,23 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
               <p className="text-2xl font-bold text-red-600">{incorrectQuestions}</p>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 rounded-lg bg-gray-100">
-              <Clock className="w-6 h-6 text-gray-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">{t('questionProgress.unanswered')}</p>
-              <p className="text-2xl font-bold text-gray-600">{unansweredQuestions}</p>
-            </div>
-          </div>
-        </div>
+        </button>
       </div>
 
       {/* Theory Practice Integration Note */}
-      {(incorrectQuestions > 0 || unansweredQuestions > 0) && (
+      {(incorrectQuestions > 0 || partiallyCorrectQuestions > 0 || unansweredQuestions > 0) && (
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6 text-center">
           <div className="mb-4">
             <Brain className="w-12 h-12 text-blue-600 mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-blue-900 mb-2">{t('questionProgress.readyToPractice')}</h3>
             <p className="text-blue-700 mb-1">
-              {t('questionProgress.questionsNeedPractice', { count: incorrectQuestions + unansweredQuestions })}
+              {t('questionProgress.questionsNeedPractice', { count: incorrectQuestions + partiallyCorrectQuestions + unansweredQuestions })}
             </p>
             <p className="text-sm text-blue-600">
               {incorrectQuestions > 0 && t('questionProgress.incorrectCount', { count: incorrectQuestions })}
-              {incorrectQuestions > 0 && unansweredQuestions > 0 && ' • '}
+              {incorrectQuestions > 0 && (partiallyCorrectQuestions > 0 || unansweredQuestions > 0) && ' • '}
+              {partiallyCorrectQuestions > 0 && `${partiallyCorrectQuestions} ${t('questionProgress.partiallyCorrect').toLowerCase()}`}
+              {partiallyCorrectQuestions > 0 && unansweredQuestions > 0 && ' • '}
               {unansweredQuestions > 0 && t('questionProgress.unansweredCount', { count: unansweredQuestions })}
             </p>
           </div>
@@ -369,6 +468,13 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                     {t('questionProgress.correct')}
                   </span>
                   <span className="font-medium">{topic.correct_questions}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center text-orange-600">
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    {t('questionProgress.partiallyCorrect')}
+                  </span>
+                  <span className="font-medium">{topic.partially_correct_questions}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center text-red-600">
@@ -454,9 +560,48 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                   {/* Show user's latest answer if they have answered */}
                   {question.last_answer && (
                     <div className="mb-3 p-2 rounded-lg bg-gray-50 border-l-4 border-gray-300">
-                      <p className="text-sm text-gray-700">
-                        <strong className="text-gray-900">{t('questionProgress.yourAnswer')}</strong> {question.last_answer}
-                      </p>
+                      {editingAnswerId === question.id ? (
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-700 font-semibold mb-1">{t('questionProgress.editAnswer')}</p>
+                          <textarea
+                            value={editedAnswer}
+                            onChange={(e) => setEditedAnswer(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            rows={2}
+                            disabled={updatingQuestionId === question.id}
+                          />
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleSaveAnswer(question.id)}
+                              disabled={updatingQuestionId === question.id || !editedAnswer.trim()}
+                              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {updatingQuestionId === question.id ? t('questionProgress.saving') : t('questionProgress.save')}
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              disabled={updatingQuestionId === question.id}
+                              className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {t('questionProgress.cancel')}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            <strong className="text-gray-900">{t('questionProgress.yourAnswer')}</strong> {question.last_answer}
+                          </p>
+                          {managerView && (
+                            <button
+                              onClick={() => handleEditAnswer(question.id, question.last_answer || '')}
+                              className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                            >
+                              {t('questionProgress.editAnswer')}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -492,16 +637,18 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                     <div className="flex flex-col space-y-2">
                       <select
                         value={question.status}
-                        onChange={(e) => handleStatusChange(question.id, e.target.value as 'correct' | 'incorrect' | 'unanswered')}
+                        onChange={(e) => handleStatusChange(question.id, e.target.value as 'correct' | 'incorrect' | 'partially_correct' | 'unanswered')}
                         disabled={updatingQuestionId === question.id}
                         className={`px-3 py-1 rounded-md text-sm font-medium border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                           question.status === 'correct' ? 'bg-green-50 border-green-300 text-green-800' :
                           question.status === 'incorrect' ? 'bg-red-50 border-red-300 text-red-800' :
+                          question.status === 'partially_correct' ? 'bg-orange-50 border-orange-300 text-orange-800' :
                           'bg-gray-50 border-gray-300 text-gray-800'
                         } ${updatingQuestionId === question.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md'}`}
                       >
                         <option value="unanswered">{t('questionProgress.unanswered')}</option>
                         <option value="incorrect">{t('questionProgress.incorrect')}</option>
+                        <option value="partially_correct">{t('questionProgress.partiallyCorrect')}</option>
                         <option value="correct">{t('questionProgress.correct')}</option>
                       </select>
                       {updatingQuestionId === question.id && (
@@ -518,6 +665,11 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                       {question.status === 'incorrect' && (
                         <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
                           {t('questionProgress.incorrect')}
+                        </span>
+                      )}
+                      {question.status === 'partially_correct' && (
+                        <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {t('questionProgress.partiallyCorrect')}
                         </span>
                       )}
                       {question.status === 'correct' && (

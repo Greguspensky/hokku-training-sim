@@ -376,6 +376,7 @@
     "totalQuestions": "Total Questions",
     "correct": "Correct",
     "incorrect": "Incorrect",
+    "partiallyCorrect": "Partially Correct",
     "unanswered": "Unanswered",
     "readyToPractice": "Ready to Practice?",
     "questionsNeedPractice": "You have {count} questions that need practice",
@@ -393,7 +394,11 @@
     "updating": "Updating...",
     "tryAgain": "Try Again",
     "noQuestionsTitle": "No Questions Available",
-    "noQuestionsDescription": "Questions will appear here once they are generated or added manually."
+    "noQuestionsDescription": "Questions will appear here once they are generated or added manually.",
+    "editAnswer": "Edit Answer",
+    "saving": "Saving...",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "sessionAnalysis": {
     "noDataTitle": "No Session Data Available",
@@ -564,6 +569,7 @@
     "edit": "Edit",
     "editEmployee": "Edit Employee",
     "deleteEmployee": "Delete Employee",
+    "deleting": "Deleting...",
     "saving": "Saving...",
     "save": "Save",
     "confirmDeleteEmployee": "Are you sure you want to delete {name}? This action cannot be undone.",

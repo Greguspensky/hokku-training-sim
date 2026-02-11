@@ -5,9 +5,15 @@
 npm run dev  # Start development server on port 3000
 ```
 
-## Current Project State (2026-01-29)
+## Current Project State (2026-02-11)
 
 ### Latest Features ✅
+- **📱 Device Tracking System (2026-02-11)**: Automatic device/browser/OS detection for troubleshooting ✅ **PRODUCTION READY**
+  - Captures device type (mobile/tablet/desktop), OS, browser, screen resolution
+  - Displayed in session details UI with emoji indicators (💻/📱)
+  - Indexed database fields for analytics queries
+  - Helps troubleshoot Safari iOS issues and platform-specific bugs
+  - Zero user interaction required - automatically captured at session end
 - **📊 Batch Session Analysis Bar (2026-01-29)**: Google Drive-style bottom-right analysis queue ✅ **PRODUCTION READY**
   - Auto-detects unanalyzed sessions (theory + service practice) across all employees
   - Sequential processing with real-time progress bar
@@ -76,6 +82,7 @@ npm run dev  # Start development server on port 3000
 - **DATABASE_REFERENCE.md** - Full database schema
 - **API_REFERENCE.md** - All API endpoints
 - **TROUBLESHOOTING_GUIDE.md** - Common issues and solutions
+- **ELEVENLABS_TRANSCRIPT_RECOVERY_GUIDE.md** - How to recover sessions with missing transcripts/analysis ✅ **NEW (2026-02-11)**
 - **VIDEO_RECORDING_FAILURE_THEORY_SERVICEPRACTICE_2026-02-08.md** - Videos not saved for Theory/Service Practice on Safari iOS 🔴 **CRITICAL (2026-02-08)**
 - **SAFARI_IOS_MP4_DURATION_BUG_2026-02-08.md** - Critical Safari iOS video duration metadata corruption (1988:34:41 bug) 🔴 **CRITICAL (2026-02-08)**
 - **DEVICE_CHECK_IMPLEMENTATION_2026-02-08.md** - Device permission system (translations, explicit buttons, NotFoundError fix) ✅ **NEW (2026-02-08)**

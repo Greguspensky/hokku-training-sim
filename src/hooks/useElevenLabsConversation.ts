@@ -16,6 +16,7 @@ import { VideoRecordingService } from '@/services/VideoRecordingService';
 import { resolveVoiceForSession } from '@/lib/voice-resolver';
 import { supabase } from '@/lib/supabase';
 import type { UseTrainingSessionResult } from '@/hooks/useTrainingSession';
+import { getDeviceInfo } from '@/lib/device-detection';
 
 export interface UseElevenLabsConversationOptions {
   companyId: string;
@@ -881,6 +882,10 @@ Ask specific, factual questions based on the company knowledge context provided.
       console.log('💾 Saving training session with predefined ID:', session.sessionId);
       console.log('🆔 Storing ElevenLabs conversation ID:', conversationId);
 
+      // Capture device information for troubleshooting and analytics
+      const deviceInfo = getDeviceInfo();
+      console.log('📱 Device info captured:', deviceInfo.device_type, deviceInfo.os, deviceInfo.browser);
+
       const sessionRecord = {
         id: session.sessionId,
         employee_id: employeeId,
@@ -911,7 +916,8 @@ Ask specific, factual questions based on the company knowledge context provided.
         video_recording_url: null,
         audio_file_size: null,
         video_file_size: null,
-        recording_duration_seconds: recordingPreference !== 'none' ? Math.round((endTime.getTime() - startTime.getTime()) / 1000) : null
+        recording_duration_seconds: recordingPreference !== 'none' ? Math.round((endTime.getTime() - startTime.getTime()) / 1000) : null,
+        device_info: deviceInfo
       };
 
       console.log('📤 Saving session via API endpoint...');

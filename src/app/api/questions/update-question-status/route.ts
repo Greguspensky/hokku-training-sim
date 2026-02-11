@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate status value
-    if (!['correct', 'incorrect', 'unanswered'].includes(new_status)) {
+    if (!['correct', 'incorrect', 'partially_correct', 'unanswered'].includes(new_status)) {
       return NextResponse.json(
-        { error: 'Invalid status. Must be: correct, incorrect, or unanswered' },
+        { error: 'Invalid status. Must be: correct, incorrect, partially_correct, or unanswered' },
         { status: 400 }
       )
     }
@@ -97,7 +97,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // For 'correct' or 'incorrect' status, create or update an attempt
+    // For 'correct', 'incorrect', or 'partially_correct' status, create or update an attempt
+    // Treat partially_correct as incorrect for mastery calculation, but track the distinction in manager_override_status
     const is_correct = new_status === 'correct'
 
     // Check if there's an existing attempt

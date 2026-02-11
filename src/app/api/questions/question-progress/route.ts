@@ -123,7 +123,13 @@ export async function GET(request: NextRequest) {
       let managerOverrideStatus = undefined
 
       if (attempt) {
-        status = attempt.is_correct ? 'correct' : 'incorrect'
+        // Use manager_override_status if it exists (includes 'partially_correct')
+        // Otherwise fall back to is_correct boolean
+        if (attempt.manager_override && attempt.manager_override_status) {
+          status = attempt.manager_override_status as 'correct' | 'incorrect' | 'partially_correct'
+        } else {
+          status = attempt.is_correct ? 'correct' : 'incorrect'
+        }
         attemptCount = 1 // We're only tracking the latest attempt for now
         lastAnswer = attempt.employee_answer || attempt.user_answer
         lastAttemptAt = attempt.created_at
@@ -164,6 +170,7 @@ export async function GET(request: NextRequest) {
           total_questions: 0,
           correct_questions: 0,
           incorrect_questions: 0,
+          partially_correct_questions: 0,
           unanswered_questions: 0,
           mastery_percentage: 0
         })
@@ -176,6 +183,8 @@ export async function GET(request: NextRequest) {
         topicSummary.correct_questions++
       } else if (question.status === 'incorrect') {
         topicSummary.incorrect_questions++
+      } else if (question.status === 'partially_correct') {
+        topicSummary.partially_correct_questions++
       } else {
         topicSummary.unanswered_questions++
       }
@@ -194,6 +203,7 @@ export async function GET(request: NextRequest) {
     console.log(`  Questions: ${questionsWithStatus.length} total`)
     console.log(`  Correct: ${questionsWithStatus.filter(q => q.status === 'correct').length}`)
     console.log(`  Incorrect: ${questionsWithStatus.filter(q => q.status === 'incorrect').length}`)
+    console.log(`  Partially Correct: ${questionsWithStatus.filter(q => q.status === 'partially_correct').length}`)
     console.log(`  Unanswered: ${questionsWithStatus.filter(q => q.status === 'unanswered').length}`)
     console.log(`  Topics: ${topicSummaries.length}`)
 
