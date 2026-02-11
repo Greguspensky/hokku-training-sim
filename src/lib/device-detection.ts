@@ -115,3 +115,15 @@ export function getDeviceDescription(deviceInfo: DeviceInfo): string {
 export function getDeviceEmoji(deviceInfo: DeviceInfo): string {
   return deviceInfo.device_type === 'desktop' ? '💻' : '📱'
 }
+
+/**
+ * Get the optimal default video aspect ratio based on device type
+ * - Mobile devices: 9:16 (portrait)
+ * - Desktop/laptop: 16:9 (landscape)
+ */
+export function getDefaultVideoAspectRatio(): '16:9' | '9:16' | '4:3' | '1:1' {
+  if (typeof window === 'undefined') return '16:9' // SSR fallback
+
+  const deviceInfo = getDeviceInfo()
+  return deviceInfo.device_type === 'mobile' ? '9:16' : '16:9'
+}
