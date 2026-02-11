@@ -55,11 +55,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const resolvedParams = await params
     const body = await request.json()
-    
-    // Only support regenerating invite token for now
+
+    // Support regenerating invite token
     if (body.action === 'regenerate_token') {
       const employee = await employeeService.regenerateInviteToken(resolvedParams.id, demoUser.id)
-      
+
       if (!employee) {
         return NextResponse.json(
           { success: false, error: 'Employee not found' },
@@ -74,6 +74,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         employee,
         invite_link: inviteLink,
         message: 'Invite token regenerated successfully'
+      })
+    }
+
+    // Support toggling active status
+    if (body.action === 'toggle_active') {
+      const employee = await employeeService.toggleEmployeeActive(resolvedParams.id, demoUser.id)
+
+      if (!employee) {
+        return NextResponse.json(
+          { success: false, error: 'Employee not found' },
+          { status: 404 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        employee,
+        message: employee.is_active ? 'Employee activated' : 'Employee deactivated'
       })
     }
 

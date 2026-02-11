@@ -5,10 +5,15 @@ import { useTranslations } from 'next-intl'
 import { Employee } from '@/lib/employees'
 import AddEmployeeForm from './AddEmployeeForm'
 import EmployeeList from './EmployeeList'
+import CompactEmployeeList from './CompactEmployeeList'
+import TrackAssignmentModal from '@/components/TrackAssignment/TrackAssignmentModal'
+import ScenarioAssignmentModal from '@/components/TrackAssignment/ScenarioAssignmentModal'
 
 interface EmployeeManagementProps {
   companyId: string
 }
+
+type FilterType = 'active' | 'inactive' | 'all'
 
 export default function EmployeeManagement({ companyId }: EmployeeManagementProps) {
   const t = useTranslations('employees')
@@ -16,10 +21,15 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filter, setFilter] = useState<FilterType>('active')
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
+  const [scenarioAssignmentModalOpen, setScenarioAssignmentModalOpen] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [selectedEmployeeForScenario, setSelectedEmployeeForScenario] = useState<Employee | null>(null)
 
   const loadEmployees = async () => {
     try {
-      console.log('🔍 EmployeeManagement loadEmployees called with companyId:', companyId)
+      console.log('🔍 EmployeeManagement loadEmployees called with companyId:', companyId, 'filter:', filter)
 
       if (!companyId) {
         console.warn('⚠️ No companyId provided to EmployeeManagement')
@@ -27,7 +37,7 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
         return
       }
 
-      let url = `/api/employees?company_id=${companyId}`
+      let url = `/api/employees?company_id=${companyId}&filter=${filter}`
       if (searchQuery.trim()) {
         url += `&search=${encodeURIComponent(searchQuery)}`
       }
@@ -50,7 +60,7 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
 
   useEffect(() => {
     loadEmployees()
-  }, [companyId])
+  }, [companyId, filter])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -69,6 +79,10 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
     loadEmployees()
   }
 
+  const handleEmployeeToggled = () => {
+    loadEmployees()
+  }
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Search is already handled by the useEffect above
@@ -76,6 +90,24 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
 
   const clearSearch = () => {
     setSearchQuery('')
+  }
+
+  const handleAssignTrack = (employee: Employee) => {
+    setSelectedEmployee(employee)
+    setAssignmentModalOpen(true)
+  }
+
+  const handleAssignScenario = (employee: Employee) => {
+    setSelectedEmployeeForScenario(employee)
+    setScenarioAssignmentModalOpen(true)
+  }
+
+  const handleAssignmentCreated = () => {
+    loadEmployees()
+  }
+
+  const handleScenarioAssignmentCreated = () => {
+    loadEmployees()
   }
 
   if (loading) {
@@ -107,6 +139,44 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
         </button>
       </div>
 
+      {/* Filter Tabs */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+            <button
+              onClick={() => setFilter('active')}
+              className={`${
+                filter === 'active'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+            >
+              {t('activeEmployees')} ({employees.filter(e => e.is_active).length})
+            </button>
+            <button
+              onClick={() => setFilter('inactive')}
+              className={`${
+                filter === 'inactive'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+            >
+              {t('inactiveEmployees')} ({employees.filter(e => !e.is_active).length})
+            </button>
+            <button
+              onClick={() => setFilter('all')}
+              className={`${
+                filter === 'all'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+            >
+              {t('allEmployees')} ({employees.length})
+            </button>
+          </nav>
+        </div>
+      </div>
+
       {/* Search */}
       <div className="bg-white rounded-lg shadow p-4">
         <form onSubmit={handleSearch} className="flex items-center space-x-4">
@@ -131,12 +201,15 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
         </form>
       </div>
 
-      {/* Employee List */}
-      <EmployeeList
+      {/* Compact Employee List */}
+      <CompactEmployeeList
         employees={employees}
+        onEmployeeToggled={handleEmployeeToggled}
         onEmployeeDeleted={handleEmployeeDeleted}
         searchQuery={searchQuery}
         companyId={companyId}
+        onAssignTrack={handleAssignTrack}
+        onAssignScenario={handleAssignScenario}
       />
 
       {/* Add Employee Modal */}
@@ -163,6 +236,28 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
             />
           </div>
         </div>
+      )}
+
+      {/* Track Assignment Modal */}
+      {selectedEmployee && (
+        <TrackAssignmentModal
+          isOpen={assignmentModalOpen}
+          onClose={() => setAssignmentModalOpen(false)}
+          employee={selectedEmployee}
+          companyId={companyId}
+          onAssignmentCreated={handleAssignmentCreated}
+        />
+      )}
+
+      {/* Scenario Assignment Modal */}
+      {selectedEmployeeForScenario && (
+        <ScenarioAssignmentModal
+          isOpen={scenarioAssignmentModalOpen}
+          onClose={() => setScenarioAssignmentModalOpen(false)}
+          employee={selectedEmployeeForScenario}
+          companyId={companyId}
+          onAssignmentCreated={handleScenarioAssignmentCreated}
+        />
       )}
     </div>
   )

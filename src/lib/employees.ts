@@ -128,8 +128,8 @@ class EmployeeService {
   }
 
   // Get employees for a manager
-  async getEmployeesByManager(managerId: string, companyId: string): Promise<Employee[]> {
-    console.log('🔍 getEmployeesByManager called with:', { managerId, companyId })
+  async getEmployeesByManager(managerId: string, companyId: string, filter: string = 'active'): Promise<Employee[]> {
+    console.log('🔍 getEmployeesByManager called with:', { managerId, companyId, filter })
 
     try {
       // Use admin client to bypass RLS if available
@@ -138,11 +138,20 @@ class EmployeeService {
 
       // Query 1: Get all employee invites from employees table (including pending)
       console.log('📊 Querying employees table for all invites (pending + accepted)...')
-      const { data: employeeInvites, error: employeeError } = await client
+      let query = client
         .from('employees')
         .select('*')
         .eq('company_id', companyId)
-        .eq('is_active', true)
+
+      // Apply filter based on active status
+      if (filter === 'active') {
+        query = query.eq('is_active', true)
+      } else if (filter === 'inactive') {
+        query = query.eq('is_active', false)
+      }
+      // For 'all', don't add is_active filter
+
+      const { data: employeeInvites, error: employeeError } = await query
 
       if (employeeError) {
         console.error('❌ Error fetching from employees table:', employeeError)
@@ -423,6 +432,70 @@ class EmployeeService {
     }
   }
 
+  // Toggle employee active status
+  async toggleEmployeeActive(id: string, managerId: string): Promise<Employee | null> {
+    console.log('🔄 toggleEmployeeActive called with:', { id, managerId })
+
+    try {
+      // Use admin client to bypass RLS
+      const client = supabaseAdmin || supabase
+      console.log('🔑 Using client for toggle:', supabaseAdmin ? 'admin (bypasses RLS)' : 'regular (subject to RLS)')
+
+      // First get current status
+      const { data: currentEmployee, error: fetchError } = await client
+        .from('employees')
+        .select('is_active')
+        .eq('id', id)
+        .eq('manager_id', managerId)
+        .single()
+
+      if (fetchError || !currentEmployee) {
+        console.error('❌ Error fetching employee:', fetchError)
+        throw fetchError || new Error('Employee not found')
+      }
+
+      // Toggle the status
+      const newStatus = !currentEmployee.is_active
+
+      // Update in database
+      const { data: updatedEmployee, error } = await client
+        .from('employees')
+        .update({ is_active: newStatus })
+        .eq('id', id)
+        .eq('manager_id', managerId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ Error toggling active status:', error)
+        throw error
+      }
+
+      console.log('✅ Employee active status toggled:', {
+        name: updatedEmployee.name,
+        is_active: updatedEmployee.is_active
+      })
+      return updatedEmployee
+    } catch (error) {
+      console.error('💥 Error in toggleEmployeeActive:', error)
+
+      // Fallback to in-memory for demo mode
+      const employeeIndex = demoEmployees.findIndex(emp =>
+        emp.id === id &&
+        emp.manager_id === managerId
+      )
+
+      if (employeeIndex === -1) {
+        return null
+      }
+
+      demoEmployees[employeeIndex].is_active = !demoEmployees[employeeIndex].is_active
+      console.log('🚧 Fallback to demo mode: Toggled active status for:', demoEmployees[employeeIndex].name)
+
+      return demoEmployees[employeeIndex]
+    }
+  }
+
   // Regenerate invite token
   async regenerateInviteToken(id: string, managerId: string): Promise<Employee | null> {
     console.log('🔄 regenerateInviteToken called with:', { id, managerId })
@@ -479,8 +552,8 @@ class EmployeeService {
   }
 
   // Search employees
-  async searchEmployees(managerId: string, companyId: string, query: string): Promise<Employee[]> {
-    const employees = await this.getEmployeesByManager(managerId, companyId)
+  async searchEmployees(managerId: string, companyId: string, query: string, filter: string = 'active'): Promise<Employee[]> {
+    const employees = await this.getEmployeesByManager(managerId, companyId, filter)
 
     if (!query.trim()) {
       return employees

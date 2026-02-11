@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const companyId = searchParams.get('company_id')
     const search = searchParams.get('search')
+    const filter = searchParams.get('filter') || 'active' // active, inactive, all
 
     if (!companyId) {
       return createErrorResponse('company_id parameter is required', 400)
@@ -28,9 +29,9 @@ export async function GET(request: NextRequest) {
 
     let employees
     if (search) {
-      employees = await employeeService.searchEmployees(demoUser.id, companyId, search)
+      employees = await employeeService.searchEmployees(demoUser.id, companyId, search, filter)
     } else {
-      employees = await employeeService.getEmployeesByManager(demoUser.id, companyId)
+      employees = await employeeService.getEmployeesByManager(demoUser.id, companyId, filter)
     }
 
     return createSuccessResponse({ employees, count: employees.length })
