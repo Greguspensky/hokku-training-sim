@@ -7,25 +7,20 @@ import { Employee } from '@/lib/employees'
 interface CompactEmployeeListProps {
   employees: Employee[]
   onEmployeeToggled: () => void
-  onEmployeeDeleted: () => void
   searchQuery: string
-  companyId: string
-  onAssignTrack: (employee: Employee) => void
-  onAssignScenario: (employee: Employee) => void
 }
 
 export default function CompactEmployeeList({
   employees,
   onEmployeeToggled,
-  onEmployeeDeleted,
-  searchQuery,
-  companyId,
-  onAssignTrack,
-  onAssignScenario
+  searchQuery
 }: CompactEmployeeListProps) {
   const t = useTranslations('employees')
   const [togglingId, setTogglingId] = useState<string | null>(null)
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
+  const [editedName, setEditedName] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleToggleActive = async (employee: Employee) => {
     setTogglingId(employee.id)
@@ -52,19 +47,71 @@ export default function CompactEmployeeList({
     }
   }
 
-  const copyInviteLink = async (employee: Employee) => {
-    const inviteLink = `${window.location.origin}/join/${employee.invite_token}`
+  const handleOpenEdit = (employee: Employee) => {
+    setEditingEmployee(employee)
+    setEditedName(employee.name)
+  }
+
+  const handleCloseEdit = () => {
+    setEditingEmployee(null)
+    setEditedName('')
+  }
+
+  const handleSaveName = async () => {
+    if (!editingEmployee || !editedName.trim()) return
+
+    setIsSaving(true)
     try {
-      await navigator.clipboard.writeText(inviteLink)
-      // You could show a toast notification here
+      const response = await fetch(`/api/employees/${editingEmployee.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_name', name: editedName.trim() })
+      })
+
+      if (response.ok) {
+        onEmployeeToggled() // Refresh list
+        handleCloseEdit()
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to update employee name:', errorData)
+        alert(t('failedToUpdateEmployee'))
+      }
     } catch (error) {
-      console.error('Failed to copy invite link:', error)
+      console.error('Failed to update employee name:', error)
+      alert(t('failedToUpdateEmployee'))
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const toggleRowExpansion = (employeeId: string) => {
-    setExpandedRowId(expandedRowId === employeeId ? null : employeeId)
+  const handleDeleteEmployee = async () => {
+    if (!editingEmployee) return
+
+    const confirmed = window.confirm(t('confirmDeleteEmployee', { name: editingEmployee.name }))
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/employees/${editingEmployee.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        onEmployeeToggled() // Refresh list
+        handleCloseEdit()
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to delete employee:', errorData)
+        alert(t('failedToRemoveEmployee'))
+      }
+    } catch (error) {
+      console.error('Failed to delete employee:', error)
+      alert(t('failedToRemoveEmployee'))
+    } finally {
+      setIsDeleting(false)
+    }
   }
+
 
   if (employees.length === 0) {
     return (
@@ -90,144 +137,128 @@ export default function CompactEmployeeList({
     )
   }
 
+  // Sort employees: active first, then inactive
+  const sortedEmployees = [...employees].sort((a, b) => {
+    if (a.is_active === b.is_active) return 0
+    return a.is_active ? -1 : 1
+  })
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('name')}
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('email')}
               </th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('status')}
-              </th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('active')}
               </th>
-              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('actions')}
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {employees.map((employee) => (
-              <>
-                <tr key={employee.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <button
-                        onClick={() => toggleRowExpansion(employee.id)}
-                        className="mr-2 text-gray-400 hover:text-gray-600"
-                      >
-                        <svg
-                          className={`h-5 w-5 transition-transform ${expandedRowId === employee.id ? 'transform rotate-90' : ''}`}
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-600">
-                      {employee.email || <span className="text-gray-400 italic">{t('notProvidedYet')}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      employee.has_joined
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {employee.has_joined ? t('joined') : t('pending')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <button
-                      onClick={() => handleToggleActive(employee)}
-                      disabled={togglingId === employee.id}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                        employee.is_active ? 'bg-blue-600' : 'bg-gray-200'
-                      } ${togglingId === employee.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          employee.is_active ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => onAssignTrack(employee)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title={t('assignTrack')}
-                    >
-                      <svg className="h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => onAssignScenario(employee)}
-                      className="text-green-600 hover:text-green-900"
-                      title={t('assignScenario')}
-                    >
-                      <svg className="h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1l-4 4z" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-                {/* Expanded Row Details */}
-                {expandedRowId === employee.id && (
-                  <tr className="bg-gray-50">
-                    <td colSpan={5} className="px-4 py-4">
-                      <div className="space-y-3 text-sm">
-                        <div className="flex items-center space-x-2 text-gray-600">
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span>{t('invited', { date: new Date(employee.created_at).toLocaleDateString() })}</span>
-                        </div>
-                        {employee.joined_at && (
-                          <div className="flex items-center space-x-2 text-gray-600">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{t('joinedOn', { date: new Date(employee.joined_at).toLocaleDateString() })}</span>
-                          </div>
-                        )}
-                        {!employee.has_joined && (
-                          <div className="mt-3 p-3 bg-white rounded-md border border-gray-200">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-gray-700">{t('inviteLinkLabel')}</span>
-                              <button
-                                onClick={() => copyInviteLink(employee)}
-                                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                              >
-                                {t('copyLink')}
-                              </button>
-                            </div>
-                            <div className="p-2 bg-gray-50 border rounded text-xs font-mono text-gray-500 truncate">
-                              {window.location?.origin || 'localhost:3000'}/join/{employee.invite_token}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </>
+            {sortedEmployees.map((employee) => (
+              <tr key={employee.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-600">
+                    {employee.email || <span className="text-gray-400 italic">{t('notProvidedYet')}</span>}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <button
+                    onClick={() => handleToggleActive(employee)}
+                    disabled={togglingId === employee.id}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                      employee.is_active ? 'bg-blue-600' : 'bg-gray-200'
+                    } ${togglingId === employee.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        employee.is_active ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <button
+                    onClick={() => handleOpenEdit(employee)}
+                    className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                  >
+                    {t('edit')}
+                  </button>
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Edit Employee Modal */}
+      {editingEmployee && (
+        <div
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseEdit()
+            }
+          }}
+        >
+          <div className="relative top-20 mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('editEmployee')}</h3>
+            </div>
+
+            {/* Name Input */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('employeeName')}
+              </label>
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={t('enterFullName')}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between space-x-3">
+              <button
+                onClick={handleDeleteEmployee}
+                disabled={isDeleting || isSaving}
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? t('deleting') : t('deleteEmployee')}
+              </button>
+              <button
+                onClick={handleCloseEdit}
+                disabled={isDeleting || isSaving}
+                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleSaveName}
+                disabled={isDeleting || isSaving || !editedName.trim()}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? t('saving') : t('save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

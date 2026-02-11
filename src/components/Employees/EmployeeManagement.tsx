@@ -14,14 +14,17 @@ interface EmployeeManagementProps {
 }
 
 type FilterType = 'active' | 'inactive' | 'all'
+type ViewType = 'compact' | 'detailed'
 
 export default function EmployeeManagement({ companyId }: EmployeeManagementProps) {
   const t = useTranslations('employees')
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]) // Unfiltered list for counts
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<FilterType>('active')
+  const [view, setView] = useState<ViewType>('compact')
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [scenarioAssignmentModalOpen, setScenarioAssignmentModalOpen] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
@@ -29,7 +32,8 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
 
   const loadEmployees = async () => {
     try {
-      console.log('🔍 EmployeeManagement loadEmployees called with companyId:', companyId, 'filter:', filter)
+      setLoading(true) // Set loading when starting fetch
+      console.log('🔍 EmployeeManagement loadEmployees called with companyId:', companyId, 'filter:', filter, 'view:', view)
 
       if (!companyId) {
         console.warn('⚠️ No companyId provided to EmployeeManagement')
@@ -37,16 +41,35 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
         return
       }
 
-      let url = `/api/employees?company_id=${companyId}&filter=${filter}`
+      // Always fetch all employees for accurate counts
+      let allUrl = `/api/employees?company_id=${companyId}&filter=all`
+      console.log('📡 Fetching all employees for counts from:', allUrl)
+      const allResponse = await fetch(allUrl)
+      const allData = await allResponse.json()
+
+      if (allData.success) {
+        setAllEmployees(allData.data?.employees || [])
+      }
+
+      // For compact view, always show all employees
+      // For detailed view, use filter
+      const filterParam = view === 'compact' ? 'all' : filter
+      let url = `/api/employees?company_id=${companyId}&filter=${filterParam}`
       if (searchQuery.trim()) {
         url += `&search=${encodeURIComponent(searchQuery)}`
       }
 
-      console.log('📡 Fetching employees from:', url)
+      console.log('📡 Fetching filtered employees with filter:', filterParam, 'from:', url)
       const response = await fetch(url)
       const data = await response.json()
 
-      console.log('📊 Employees API response:', { success: data.success, count: data.data?.count, employees: data.data?.employees?.length })
+      console.log('📊 Employees API response:', {
+        success: data.success,
+        filter: filterParam,
+        count: data.data?.count,
+        employeesReceived: data.data?.employees?.length,
+        employees: data.data?.employees
+      })
 
       if (data.success) {
         setEmployees(data.data?.employees || [])
@@ -60,7 +83,7 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
 
   useEffect(() => {
     loadEmployees()
-  }, [companyId, filter])
+  }, [companyId, filter, view])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -131,51 +154,78 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
             {t('inviteEmployeesDescription')}
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          {t('inviteEmployee')}
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+        <div className="flex items-center space-x-3">
+          {/* View Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setFilter('active')}
-              className={`${
-                filter === 'active'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              onClick={() => setView('compact')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                view === 'compact'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
-              {t('activeEmployees')} ({employees.filter(e => e.is_active).length})
+              {t('compactView')}
             </button>
             <button
-              onClick={() => setFilter('inactive')}
-              className={`${
-                filter === 'inactive'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              onClick={() => setView('detailed')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                view === 'detailed'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
-              {t('inactiveEmployees')} ({employees.filter(e => !e.is_active).length})
+              {t('detailedView')}
             </button>
-            <button
-              onClick={() => setFilter('all')}
-              className={`${
-                filter === 'all'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-            >
-              {t('allEmployees')} ({employees.length})
-            </button>
-          </nav>
+          </div>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            {t('inviteEmployee')}
+          </button>
         </div>
       </div>
+
+      {/* Filter Tabs - Only show in detailed view */}
+      {view === 'detailed' && (
+        <div className="bg-white rounded-lg shadow">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+              <button
+                onClick={() => setFilter('active')}
+                className={`${
+                  filter === 'active'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                {t('activeEmployees')} ({allEmployees.filter(e => e.is_active).length})
+              </button>
+              <button
+                onClick={() => setFilter('inactive')}
+                className={`${
+                  filter === 'inactive'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                {t('inactiveEmployees')} ({allEmployees.filter(e => !e.is_active).length})
+              </button>
+              <button
+                onClick={() => setFilter('all')}
+                className={`${
+                  filter === 'all'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              >
+                {t('allEmployees')} ({allEmployees.length})
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="bg-white rounded-lg shadow p-4">
@@ -201,16 +251,21 @@ export default function EmployeeManagement({ companyId }: EmployeeManagementProp
         </form>
       </div>
 
-      {/* Compact Employee List */}
-      <CompactEmployeeList
-        employees={employees}
-        onEmployeeToggled={handleEmployeeToggled}
-        onEmployeeDeleted={handleEmployeeDeleted}
-        searchQuery={searchQuery}
-        companyId={companyId}
-        onAssignTrack={handleAssignTrack}
-        onAssignScenario={handleAssignScenario}
-      />
+      {/* Employee List - Compact or Detailed View */}
+      {view === 'compact' ? (
+        <CompactEmployeeList
+          employees={employees}
+          onEmployeeToggled={handleEmployeeToggled}
+          searchQuery={searchQuery}
+        />
+      ) : (
+        <EmployeeList
+          employees={employees}
+          onEmployeeDeleted={handleEmployeeDeleted}
+          searchQuery={searchQuery}
+          companyId={companyId}
+        />
+      )}
 
       {/* Add Employee Modal */}
       {showAddForm && (

@@ -29,7 +29,8 @@ export default function EmployeeProgressList({
     try {
       setLoading(true)
       console.log('🔍 EmployeeProgressList: Loading employees for company:', companyId)
-      const response = await fetch(`/api/employees?company_id=${companyId}`)
+      // Fetch ALL employees (active + inactive) for the employee list
+      const response = await fetch(`/api/employees?company_id=${companyId}&filter=all`)
       const data = await response.json()
 
       console.log('📦 EmployeeProgressList: Received data:', {
@@ -42,18 +43,15 @@ export default function EmployeeProgressList({
       const employees = data.data?.employees || data.employees
 
       if (employees) {
-        // Filter only employees who have joined
-        const joinedEmployees = employees.filter((emp: Employee) => emp.has_joined)
-        console.log('✅ EmployeeProgressList: Filtered joined employees:', {
+        // Show ALL employees (active, inactive, joined, pending)
+        // Analytics will handle filtering to active employees only
+        console.log('✅ EmployeeProgressList: Loaded all employees:', {
           totalEmployees: employees.length,
-          joinedCount: joinedEmployees.length,
-          joinedEmployees: joinedEmployees.map((e: Employee) => ({
-            name: e.name,
-            has_joined: e.has_joined,
-            email: e.email
-          }))
+          activeCount: employees.filter((e: Employee) => e.is_active).length,
+          inactiveCount: employees.filter((e: Employee) => !e.is_active).length,
+          joinedCount: employees.filter((e: Employee) => e.has_joined).length
         })
-        setEmployees(joinedEmployees)
+        setEmployees(employees)
       } else {
         console.warn('⚠️ EmployeeProgressList: No employees data in response')
       }
@@ -64,7 +62,13 @@ export default function EmployeeProgressList({
     }
   }
 
-  const filteredEmployees = employees.filter(emp =>
+  // Sort employees: active first, then inactive
+  const sortedEmployees = [...employees].sort((a, b) => {
+    if (a.is_active === b.is_active) return 0
+    return a.is_active ? -1 : 1
+  })
+
+  const filteredEmployees = sortedEmployees.filter(emp =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (emp.email && emp.email.toLowerCase().includes(searchQuery.toLowerCase()))
   )

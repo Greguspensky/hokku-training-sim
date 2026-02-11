@@ -205,15 +205,23 @@ class EmployeeService {
           if (!alreadyAdded) {
             // IMPORTANT: Look up the employee_id from employees table using user_id
             console.log(`🔍 Looking up employee record for user: ${user.email}`)
-            const { data: employeeRecord, error: employeeRecordError } = await client
+            let employeeQuery = client
               .from('employees')
-              .select('id')
+              .select('id, is_active')
               .eq('user_id', user.id)
-              .single()
+
+            // Apply the same filter when looking up employee records
+            if (filter === 'active') {
+              employeeQuery = employeeQuery.eq('is_active', true)
+            } else if (filter === 'inactive') {
+              employeeQuery = employeeQuery.eq('is_active', false)
+            }
+
+            const { data: employeeRecord, error: employeeRecordError } = await employeeQuery.single()
 
             if (employeeRecordError || !employeeRecord) {
-              console.error(`❌ No employee record found for user ${user.email}, skipping`)
-              continue // Skip users without employee records
+              console.log(`ℹ️ No matching employee record found for user ${user.email} with filter ${filter}, skipping`)
+              continue // Skip users without matching employee records
             }
 
             allEmployees.push({
@@ -223,7 +231,7 @@ class EmployeeService {
               company_id: companyId,
               manager_id: managerId,
               invite_token: '',
-              is_active: true,
+              is_active: employeeRecord.is_active, // Use actual is_active value from database
               has_joined: true,
               created_at: user.created_at,
               joined_at: user.created_at,
@@ -429,6 +437,54 @@ class EmployeeService {
       }
 
       throw error
+    }
+  }
+
+  // Update employee name
+  async updateEmployeeName(id: string, managerId: string, newName: string): Promise<Employee | null> {
+    console.log('✏️ updateEmployeeName called with:', { id, managerId, newName })
+
+    try {
+      // Use admin client to bypass RLS
+      const client = supabaseAdmin || supabase
+      console.log('🔑 Using client for name update:', supabaseAdmin ? 'admin (bypasses RLS)' : 'regular (subject to RLS)')
+
+      // Update in database
+      const { data: updatedEmployee, error } = await client
+        .from('employees')
+        .update({ name: newName })
+        .eq('id', id)
+        .eq('manager_id', managerId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ Error updating employee name:', error)
+        throw error
+      }
+
+      console.log('✅ Employee name updated:', {
+        id: updatedEmployee.id,
+        newName: updatedEmployee.name
+      })
+      return updatedEmployee
+    } catch (error) {
+      console.error('💥 Error in updateEmployeeName:', error)
+
+      // Fallback to in-memory for demo mode
+      const employeeIndex = demoEmployees.findIndex(emp =>
+        emp.id === id &&
+        emp.manager_id === managerId
+      )
+
+      if (employeeIndex === -1) {
+        return null
+      }
+
+      demoEmployees[employeeIndex].name = newName
+      console.log('🚧 Fallback to demo mode: Updated name for:', demoEmployees[employeeIndex].id)
+
+      return demoEmployees[employeeIndex]
     }
   }
 

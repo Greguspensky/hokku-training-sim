@@ -95,6 +95,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       })
     }
 
+    // Support updating employee name
+    if (body.action === 'update_name') {
+      const employee = await employeeService.updateEmployeeName(resolvedParams.id, demoUser.id, body.name)
+
+      if (!employee) {
+        return NextResponse.json(
+          { success: false, error: 'Employee not found' },
+          { status: 404 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        employee,
+        message: 'Employee name updated successfully'
+      })
+    }
+
     return NextResponse.json(
       { success: false, error: 'Invalid action' },
       { status: 400 }
