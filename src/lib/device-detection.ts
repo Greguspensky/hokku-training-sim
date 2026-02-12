@@ -80,16 +80,43 @@ function getOSVersion(): string {
 
 function getBrowser(): DeviceInfo['browser'] {
   const ua = navigator.userAgent.toLowerCase()
-  if (ua.includes('edg/')) return 'Edge'
-  if (ua.includes('chrome') && !ua.includes('edg')) return 'Chrome'
-  if (ua.includes('safari') && !ua.includes('chrome')) return 'Safari'
-  if (ua.includes('firefox')) return 'Firefox'
+
+  // iOS-specific browser detection (iOS forces all browsers to use WebKit)
+  // Chrome on iOS uses "CriOS", Firefox uses "FxiOS", Edge uses "EdgiOS"
+  if (ua.includes('crios')) return 'Chrome' // Chrome on iOS
+  if (ua.includes('fxios')) return 'Firefox' // Firefox on iOS
+  if (ua.includes('edgios')) return 'Edge' // Edge on iOS
+
+  // Standard browser detection
+  if (ua.includes('edg/')) return 'Edge' // Edge on desktop
+  if (ua.includes('chrome') && !ua.includes('edg')) return 'Chrome' // Chrome on desktop/Android
+  if (ua.includes('firefox')) return 'Firefox' // Firefox on desktop/Android
+  if (ua.includes('opera') || ua.includes('opr/')) return 'Opera'
+  if (ua.includes('samsungbrowser')) return 'Samsung Internet'
+  if (ua.includes('safari')) return 'Safari' // Safari (check last since others include it)
+
   return 'Unknown'
 }
 
 function getBrowserVersion(): string {
   const ua = navigator.userAgent
   const browser = getBrowser()
+
+  // iOS-specific version extraction
+  if (ua.toLowerCase().includes('crios')) {
+    const match = ua.match(/CriOS\/(\d+\.\d+)/)
+    if (match) return match[1]
+  }
+  if (ua.toLowerCase().includes('fxios')) {
+    const match = ua.match(/FxiOS\/(\d+\.\d+)/)
+    if (match) return match[1]
+  }
+  if (ua.toLowerCase().includes('edgios')) {
+    const match = ua.match(/EdgiOS\/(\d+\.\d+)/)
+    if (match) return match[1]
+  }
+
+  // Standard version extraction
   if (browser === 'Safari') {
     const match = ua.match(/Version\/(\d+\.\d+)/)
     if (match) return match[1]
@@ -98,6 +125,15 @@ function getBrowserVersion(): string {
     const match = ua.match(/Chrome\/(\d+\.\d+)/)
     if (match) return match[1]
   }
+  if (browser === 'Edge') {
+    const match = ua.match(/Edg\/(\d+\.\d+)/)
+    if (match) return match[1]
+  }
+  if (browser === 'Firefox') {
+    const match = ua.match(/Firefox\/(\d+\.\d+)/)
+    if (match) return match[1]
+  }
+
   return 'Unknown'
 }
 
