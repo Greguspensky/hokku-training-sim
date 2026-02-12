@@ -557,8 +557,8 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                     </h4>
                   </div>
 
-                  {/* Show user's latest answer if they have answered */}
-                  {question.last_answer && (
+                  {/* Show user's latest answer if they have answered, or Add Answer button if unanswered (manager only) */}
+                  {question.last_answer ? (
                     <div className="mb-3 p-2 rounded-lg bg-gray-50 border-l-4 border-gray-300">
                       {editingAnswerId === question.id ? (
                         <div className="space-y-2">
@@ -603,6 +603,47 @@ export default function QuestionProgressDashboard({ userId: propUserId, companyI
                         </div>
                       )}
                     </div>
+                  ) : (
+                    managerView && (
+                      <div className="mb-3">
+                        {editingAnswerId === question.id ? (
+                          <div className="p-2 rounded-lg bg-blue-50 border-l-4 border-blue-300 space-y-2">
+                            <p className="text-sm text-gray-700 font-semibold mb-1">{t('questionProgress.addAnswer')}</p>
+                            <textarea
+                              value={editedAnswer}
+                              onChange={(e) => setEditedAnswer(e.target.value)}
+                              placeholder={t('questionProgress.addAnswerPlaceholder')}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              rows={2}
+                              disabled={updatingQuestionId === question.id}
+                            />
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleSaveAnswer(question.id)}
+                                disabled={updatingQuestionId === question.id || !editedAnswer.trim()}
+                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {updatingQuestionId === question.id ? t('questionProgress.saving') : t('questionProgress.save')}
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                disabled={updatingQuestionId === question.id}
+                                className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {t('questionProgress.cancel')}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleEditAnswer(question.id, '')}
+                            className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center"
+                          >
+                            + {t('questionProgress.addAnswer')}
+                          </button>
+                        )}
+                      </div>
+                    )
                   )}
 
                   <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">

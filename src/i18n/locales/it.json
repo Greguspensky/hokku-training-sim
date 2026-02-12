@@ -396,6 +396,8 @@
     "noQuestionsTitle": "Nessuna Domanda Disponibile",
     "noQuestionsDescription": "Le domande appariranno qui una volta generate o aggiunte manualmente.",
     "editAnswer": "Modifica Risposta",
+    "addAnswer": "Aggiungi Risposta",
+    "addAnswerPlaceholder": "Inserisca la risposta del dipendente a questa domanda...",
     "saving": "Salvataggio...",
     "save": "Salva",
     "cancel": "Annulla"

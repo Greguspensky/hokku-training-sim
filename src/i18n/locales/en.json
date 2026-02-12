@@ -396,6 +396,8 @@
     "noQuestionsTitle": "No Questions Available",
     "noQuestionsDescription": "Questions will appear here once they are generated or added manually.",
     "editAnswer": "Edit Answer",
+    "addAnswer": "Add Answer",
+    "addAnswerPlaceholder": "Enter the employee's answer to this question...",
     "saving": "Saving...",
     "save": "Save",
     "cancel": "Cancel"
