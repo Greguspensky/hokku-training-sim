@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, Users, Calendar, CheckCircle } from 'lucide-react'
 import { Employee } from '@/lib/employees'
 import { useTranslations } from 'next-intl'
@@ -11,6 +11,10 @@ interface EmployeeProgressListProps {
   onSelectEmployee: (employee: Employee | null) => void
 }
 
+// Cache for employee data with 5-minute TTL
+const employeeCache = new Map<string, { data: Employee[], timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 export default function EmployeeProgressList({
   companyId,
   selectedEmployeeId,
@@ -20,13 +24,29 @@ export default function EmployeeProgressList({
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const loadingRef = useRef(false)
 
   useEffect(() => {
     loadEmployees()
   }, [companyId])
 
   const loadEmployees = async () => {
+    // Prevent concurrent loads
+    if (loadingRef.current) return
+
+    // Check cache first
+    const cached = employeeCache.get(companyId)
+    const now = Date.now()
+
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      console.log('✨ EmployeeProgressList: Using cached data (age:', Math.round((now - cached.timestamp) / 1000), 'seconds)')
+      setEmployees(cached.data)
+      setLoading(false)
+      return
+    }
+
     try {
+      loadingRef.current = true
       setLoading(true)
       console.log('🔍 EmployeeProgressList: Loading employees for company:', companyId)
       // Fetch ALL employees (active + inactive) for the employee list
@@ -52,6 +72,12 @@ export default function EmployeeProgressList({
           joinedCount: employees.filter((e: Employee) => e.has_joined).length
         })
         setEmployees(employees)
+
+        // Update cache
+        employeeCache.set(companyId, {
+          data: employees,
+          timestamp: Date.now()
+        })
       } else {
         console.warn('⚠️ EmployeeProgressList: No employees data in response')
       }
@@ -59,6 +85,7 @@ export default function EmployeeProgressList({
       console.error('Failed to load employees:', error)
     } finally {
       setLoading(false)
+      loadingRef.current = false
     }
   }
 
