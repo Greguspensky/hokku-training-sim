@@ -45,7 +45,9 @@
       "sessionComplete": "Sessione Completata",
       "analyzing": "Analisi in corso...",
       "savingSession": "Salvataggio Sessione...",
-      "theoryDescription": "Valutazione strutturata delle conoscenze - Risponda alle domande in modo accurato e conciso"
+      "theoryDescription": "Valutazione strutturata delle conoscenze - Risponda alle domande in modo accurato e conciso",
+      "duration": "Durata",
+      "seconds": "secondi"
     }
   },
   "manager": {
@@ -590,6 +592,7 @@
     "inviteLink": "Link di Invito",
     "inviteLinkLabel": "Link di Invito:",
     "copyLink": "Copia Link",
+    "inviteLinkCopied": "Link di invito copiato negli appunti!",
     "newLink": "Nuovo Link",
     "regenerating": "Rigenerazione...",
     "assignTrack": "Assegna Percorso",

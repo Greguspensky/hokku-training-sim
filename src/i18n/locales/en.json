@@ -45,7 +45,9 @@
       "sessionComplete": "Session Complete",
       "analyzing": "Analyzing...",
       "savingSession": "Saving Session...",
-      "theoryDescription": "Structured knowledge assessment - Answer questions accurately and concisely"
+      "theoryDescription": "Structured knowledge assessment - Answer questions accurately and concisely",
+      "duration": "Duration",
+      "seconds": "seconds"
     }
   },
   "manager": {
@@ -590,6 +592,7 @@
     "inviteLink": "Invite Link",
     "inviteLinkLabel": "Invite Link:",
     "copyLink": "Copy Link",
+    "inviteLinkCopied": "Invite link copied to clipboard!",
     "newLink": "New Link",
     "regenerating": "Regenerating...",
     "assignTrack": "Assign Track",

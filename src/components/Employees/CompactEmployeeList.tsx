@@ -164,41 +164,80 @@ export default function CompactEmployeeList({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {sortedEmployees.map((employee) => (
-              <tr key={employee.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600">
-                    {employee.email || <span className="text-gray-400 italic">{t('notProvidedYet')}</span>}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <button
-                    onClick={() => handleToggleActive(employee)}
-                    disabled={togglingId === employee.id}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                      employee.is_active ? 'bg-blue-600' : 'bg-gray-200'
-                    } ${togglingId === employee.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        employee.is_active ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
-                  <button
-                    onClick={() => handleOpenEdit(employee)}
-                    className="text-blue-600 hover:text-blue-900 text-sm font-medium"
-                  >
-                    {t('edit')}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {sortedEmployees.map((employee) => {
+              const inviteLink = `${window.location.origin}/join/invite-${employee.invite_token}`
+              const showInviteLink = !employee.email
+
+              return (
+                <>
+                  <tr key={employee.id} className={showInviteLink ? '' : 'hover:bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-600">
+                        {employee.email || <span className="text-gray-400 italic">{t('notProvidedYet')}</span>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <button
+                        onClick={() => handleToggleActive(employee)}
+                        disabled={togglingId === employee.id}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                          employee.is_active ? 'bg-blue-600' : 'bg-gray-200'
+                        } ${togglingId === employee.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            employee.is_active ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <button
+                        onClick={() => handleOpenEdit(employee)}
+                        className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                      >
+                        {t('edit')}
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Invite Link Row - Only show for employees without email */}
+                  {showInviteLink && (
+                    <tr key={`${employee.id}-invite`} className="bg-gray-50 hover:bg-gray-100">
+                      <td colSpan={4} className="px-6 py-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2 flex-1 mr-4">
+                            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            <span className="text-xs text-gray-500 font-medium">{t('inviteLink')}:</span>
+                            <input
+                              type="text"
+                              readOnly
+                              value={inviteLink}
+                              className="flex-1 text-xs text-gray-600 bg-white border border-gray-300 rounded px-2 py-1 font-mono"
+                              onClick={(e) => e.currentTarget.select()}
+                            />
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(inviteLink)
+                              alert(t('inviteLinkCopied'))
+                            }}
+                            className="text-xs text-blue-600 hover:text-blue-900 font-medium whitespace-nowrap"
+                          >
+                            {t('copyLink')}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              )
+            })}
           </tbody>
         </table>
       </div>

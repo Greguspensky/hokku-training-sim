@@ -995,19 +995,6 @@ export default function BaseScenarioForm({ mode, companyId, tracks, scenario, on
                         <div className="ml-4 flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-lg font-medium text-gray-900">{topic.name}</span>
-                            <div className="flex items-center space-x-2">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                topic.category === 'menu' ? 'bg-green-100 text-green-800' :
-                                topic.category === 'procedures' ? 'bg-blue-100 text-blue-800' :
-                                topic.category === 'policies' ? 'bg-purple-100 text-purple-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {topic.category}
-                              </span>
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Level {topic.difficulty_level}
-                              </span>
-                            </div>
                           </div>
                           <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
                           <div className="flex items-center text-sm text-gray-500">
